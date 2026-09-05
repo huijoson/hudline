@@ -209,7 +209,7 @@ test("the installed command names a Theme only when it is not the default", () =
 test("the plain Theme leaves the line exactly as it was before Themes existed", () => {
   assert.equal(
     run(["--no-color", "--theme=plain"]),
-    "Opus 5:high | ctx 8% | 5h 61% left | 7d 83% left | doitservers"
+    "Opus 5:high | ctx 8% | 5h 61% left | 7d 83% left"
   );
   const sample = createSampleResolver(claudeCode, { colour: false });
   assert.match(renderFormat(DEFAULT_FORMAT, sample), /^Opus 5:high \| ctx 8% \|/);

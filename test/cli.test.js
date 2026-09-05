@@ -36,22 +36,22 @@ test("--format wins over --show, which wins over the environment", () => {
 
 test("--show/--hide are sugar that compiles to a Format", () => {
   assert.equal(formatFromShowHide(["--show=ctx,wk"]), "ctx {ctx}|7d {7d}");
-  assert.equal(formatFromShowHide(["--hide=cr,cw,th"]), "ctx {ctx}|7d {7d}|{cwd}|[in {in}] [out {out}] [tot {tot}]");
+  assert.equal(formatFromShowHide(["--hide=cr,cw,th"]), "ctx {ctx}|7d {7d}|{cwd}|sent {sent}|out {out}|tot {tot}");
   assert.equal(formatFromShowHide(["--show=nonsense"]), "");
   assert.equal(formatFromShowHide([]), undefined);
 });
 
 test("the default line renders end to end", () => {
-  // This payload names no transcript, so the token segment has nothing to
-  // report and disappears rather than claiming zero.
+  // This payload names no transcript and reports no cost, so those Segments
+  // have nothing to say and disappear rather than claiming zero.
   assert.equal(
     run(["--no-color"]),
-    "Opus 5:high ★ CTX ▱▱▱▱▱ 8% ★ 5H ▰▰▰▱▱ 61% ★ 7D ▰▰▰▰▱ 83% ★ doitservers"
+    "Opus 5:high ★ CTX ▱▱▱▱▱ 8% ★ 5H ▰▰▰▱▱ 61% (10:30) ★ 7D ▰▰▰▰▱ 83% (08/27)"
   );
   // The same payload without the designed look, which is one flag away.
   assert.equal(
     run(["--no-color", "--theme=plain"]),
-    "Opus 5:high | ctx 8% | 5h 61% left (resets 10:30) | 7d 83% left (resets 08/27) | doitservers"
+    "Opus 5:high | ctx 8% | 5h 61% left (10:30) | 7d 83% left (08/27)"
   );
 });
 

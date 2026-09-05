@@ -18,7 +18,10 @@ const { displayWidth, truncateToWidth } = require("../src/width.js");
 const resolver = () => createSampleResolver(claudeCode, { colour: false });
 
 test("consecutive Fields of one group share a Segment", () => {
-  assert.equal(buildFormat(["ctx", "in", "out", "tot"]), "ctx {ctx}|[in {in}] [out {out}] [tot {tot}]");
+  assert.equal(buildFormat(["ctx", "sent", "cr", "cw"]), "ctx {ctx}|[sent {sent}] [cr {cr}] [cw {cw}]");
+  // Input and Output are separate groups, so a share never lands beside a
+  // percentage of something else.
+  assert.equal(buildFormat(["sent", "cr", "out", "th"]), "[sent {sent}] [cr {cr}]|[out {out}] [th {th}]");
 });
 
 test("an attaching Field folds into the part it modifies, not the Segment end", () => {

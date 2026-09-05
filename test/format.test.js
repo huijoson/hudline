@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 
 const { parseFormat, renderFormat, fieldsUsed, splitSegments } = require("../src/format.js");
 
-const KNOWN = ["ctx", "wk", "7d", "7d_reset", "in", "out", "tot"];
+const KNOWN = ["ctx", "wk", "7d", "7d_reset", "sent", "out", "tot"];
 const resolver = (values) => ({
   has: (key) => KNOWN.includes(key),
   get: (key) => values[key],
@@ -22,8 +22,8 @@ test("a Missing Field with no enclosing Group removes the whole Segment", () => 
 });
 
 test("Groups drop independently and the gap they leave is collapsed", () => {
-  const r = resolver({ in: "36", out: undefined });
-  assert.equal(renderFormat("[in {in}] [out {out}] [tot {tot}]", r), "in 36");
+  const r = resolver({ sent: "1.2M", out: undefined });
+  assert.equal(renderFormat("[sent {sent}] [out {out}] [tot {tot}]", r), "sent 1.2M");
 });
 
 test("an unknown Field is printed literally so a typo is visible", () => {
@@ -53,7 +53,7 @@ test("the Separator is configurable and is not part of the Format", () => {
 });
 
 test("fieldsUsed reports every Placeholder, including nested ones", () => {
-  assert.deepEqual([...fieldsUsed("a {ctx}|[x [y {in}]]")].sort(), ["ctx", "in"]);
+  assert.deepEqual([...fieldsUsed("a {ctx}|[x [y {sent}]]")].sort(), ["ctx", "sent"]);
 });
 
 test("splitSegments ignores | inside Groups and after an escape", () => {

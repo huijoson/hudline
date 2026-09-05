@@ -26,6 +26,17 @@ function clampPercentage(value) {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
+// A ratio is Missing when it has no denominator, and that is not the same as
+// zero. Before the first response there is no Input for a cache read to be a
+// share *of*; printing `0%` would assert that the cache never hit, when what is
+// true is that nothing has been asked yet.
+function share(part, whole) {
+  const p = Number(part);
+  const w = Number(whole);
+  if (!Number.isFinite(p) || !Number.isFinite(w) || w <= 0) return undefined;
+  return (p / w) * 100;
+}
+
 function percent(value) {
   const n = clampPercentage(value);
   return n === undefined ? undefined : `${n}%`;
@@ -169,12 +180,32 @@ const FIELDS = {
                desc: "one line about the most alarming thing right now",
                when: "when something is worth saying" },
 
-  in:        { group: "tokens", label: "in",     source: "transcript", format: formatTokens, sample: "36", desc: "input tokens, whole conversation" },
-  out:       { group: "tokens", label: "out",    source: "transcript", format: formatTokens, sample: "21.1k", desc: "output tokens, whole conversation" },
-  th:        { group: "tokens", label: "th",     source: "transcript", format: formatTokens, sample: "5.0k", desc: "thinking tokens — part of out, not added to tot" },
-  cr:        { group: "tokens", label: "cr",     source: "transcript", format: formatTokens, sample: "1.2M", desc: "tokens read from cache, whole conversation" },
-  cw:        { group: "tokens", label: "cw",     source: "transcript", format: formatTokens, sample: "15.3k", desc: "tokens written to cache, whole conversation" },
-  tot:       { group: "tokens", label: "tot",    source: "transcript", format: formatTokens, sample: "1.3M", desc: "in + out + cr + cw" },
+  // Token flow is two layers, and the groups are how that survives into a
+  // Format: a breakdown lands in the same Segment as the total it divides, so
+  // `cr 98%` is never stranded next to a percentage of something else.
+  //
+  // A breakdown is a *share*, not a count. `cr 19.6M` beside `sent 20.0M` is
+  // the same number printed twice; the reader wanted the ratio, and the ratio
+  // is a third of the width.
+  //
+  // Neither a Threshold colour nor a Meter here, and that is not an omission:
+  // no honest ramp exists for a cache hit rate — 98% is good news and 20% only
+  // means the Conversation is young. A fabricated ramp would also reach the
+  // Narration, which asks the Threshold colour what is worth saying.
+  sent:      { group: "input",  label: "sent",   source: "transcript", format: formatTokens, sample: "1.2M",
+               desc: "everything sent to the model, whole conversation" },
+  cr:        { group: "input",  label: "cr",     source: "transcript", format: percent, sample: "99%",
+               desc: "share of sent that was read from cache", when: "once something has been sent" },
+  cw:        { group: "input",  label: "cw",     source: "transcript", format: percent, sample: "1%",
+               desc: "share of sent that was written to cache", when: "once something has been sent" },
+
+  out:       { group: "output", label: "out",    source: "transcript", format: formatTokens, sample: "21.1k",
+               desc: "output tokens, whole conversation" },
+  th:        { group: "output", label: "th",     source: "transcript", format: percent, sample: "24%",
+               desc: "share of out that was thinking", when: "once there is output" },
+
+  tot:       { group: "total",  label: "tot",    source: "transcript", format: formatTokens, sample: "1.2M",
+               desc: "sent + out" },
 };
 
 // `wk` shipped in 0.2.x before `5h` existed, which made the pair asymmetric.
@@ -192,9 +223,9 @@ function getField(key) {
 
 const FIELD_KEYS = Object.keys(FIELDS);
 
-const GROUP_ORDER = ["model", "ctx", "limits", "place", "cost", "state", "tokens"];
+const GROUP_ORDER = ["model", "ctx", "limits", "place", "cost", "state", "input", "output", "total"];
 
 module.exports = {
   FIELDS, FIELD_KEYS, ALIASES, GROUP_ORDER,
-  getField, resolveKey, formatTokens, clampPercentage, RESET,
+  getField, resolveKey, formatTokens, clampPercentage, share, RESET,
 };

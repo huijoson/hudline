@@ -10,14 +10,33 @@ const { getField, GROUP_ORDER, FIELD_KEYS } = require("./fields.js");
 const TEMPLATES = [
   {
     name: "default",
-    description: "model, context, 5-hour and weekly quotas, directory, full token breakdown",
-    // `quota` and `branch` are here for the CLIs that report them. On one that
-    // does not, they disappear and the line is byte-identical to what it would
-    // be without them — which is the whole point of Missing disappearing.
+    description: "model, context, both quota windows, cost, token flow",
+    // The line answers one question: what have I spent, and how fast am I
+    // spending it. `cost` is the money, `5h`/`7d` are the ceilings that stop
+    // you, `ctx` is the one that stops this conversation, and `sent`/`out` are
+    // the volume driving all three. `cr` is the efficiency: input that missed
+    // the cache is input paid for at full price.
+    //
+    // `cwd` is not here. Every Host supplies it, so it costs width on every
+    // Host, and it answers a question this line is not asking. `quota` and
+    // `branch` stay because they cost *nothing* where they are unsupported —
+    // they disappear and the line is byte-identical without them, which is the
+    // whole point of Missing disappearing, and it is what keeps one Format
+    // portable across Hosts that report different things.
+    //
+    // Neither `tot` nor `cw` is here, under one rule: the default line does not
+    // carry a number derivable from the numbers already on it. `tot` sits
+    // within 1% of `sent` on any Conversation long enough to matter, and `cw`
+    // is `100 - cr` once a rounding-error remainder is ignored. Both remain
+    // Fields, and both are in the `tokens` template, which is for accounting.
+    //
+    // The two Segments are not decoration either: each share is kept beside the
+    // total it divides, so `cr 98%` and `th 48%` cannot be read as percentages
+    // of the same thing.
     format:
-      "{model}[:{effort}]|ctx {ctx}|5h {5h} left[ (resets {5h_reset})]|7d {7d} left[ (resets {7d_reset})]|" +
-      "quota {quota}[ ({quota_reset})]|{branch}|{cwd}|{say}|" +
-      "[in {in}] [out {out}] [th {th}] [cr {cr}] [cw {cw}] [tot {tot}]",
+      "{model}[:{effort}]|ctx {ctx}|5h {5h} left[ ({5h_reset})]|7d {7d} left[ ({7d_reset})]|" +
+      "quota {quota}[ ({quota_reset})]|{cost}|{branch}|{say}|" +
+      "[sent {sent}] [cr {cr}]|[out {out}] [th {th}]",
   },
   {
     name: "minimal",
@@ -34,7 +53,7 @@ const TEMPLATES = [
   {
     name: "tokens",
     description: "conversation token accounting",
-    format: "ctx {ctx}|[in {in}] [out {out}] [cr {cr}] [cw {cw}] [tot {tot}]|{cwd}",
+    format: "ctx {ctx}|[sent {sent}] [cr {cr}] [cw {cw}]|[out {out}] [th {th}]|[tot {tot}]|{cwd}",
   },
 ];
 

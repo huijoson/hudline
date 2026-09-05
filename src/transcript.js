@@ -57,6 +57,14 @@ function sumUsageLines(raw) {
   return totals;
 }
 
+// Input, in the two-layer sense: everything sent to the model. `input_tokens`
+// alone is only the residue that missed the cache both ways — on a cached
+// Conversation it is a handful of tokens, and reporting it as "input" is the
+// mistake this function exists to stop anyone making again.
+function sentTokens(totals) {
+  return totals.input_tokens + totals.cache_read_input_tokens + totals.cache_creation_input_tokens;
+}
+
 function emptyTotals() {
   const totals = Object.fromEntries(USAGE_FIELDS.map((field) => [field, 0]));
   totals.thinking_tokens = 0;
@@ -79,4 +87,4 @@ function readClaudeTranscript(transcriptPath) {
   return sumUsageLines(raw);
 }
 
-module.exports = { readClaudeTranscript, sumUsageLines, emptyTotals, USAGE_FIELDS };
+module.exports = { readClaudeTranscript, sumUsageLines, sentTokens, emptyTotals, USAGE_FIELDS };

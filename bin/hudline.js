@@ -30,7 +30,7 @@ function formatFromShowHide(argv) {
   const hide = flag(argv, "hide");
   if (show === undefined && hide === undefined) return undefined;
 
-  const legacyOrder = ["ctx", "7d", "cwd", "in", "out", "th", "cr", "cw", "tot"];
+  const legacyOrder = ["ctx", "7d", "cwd", "sent", "cr", "cw", "out", "th", "tot"];
   let keys = show === undefined
     ? legacyOrder
     : list(show).map(resolveKey).filter((key) => getField(key));
