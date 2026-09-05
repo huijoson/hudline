@@ -1,5 +1,7 @@
 "use strict";
 
+const { share } = require("../fields.js");
+
 // Adapter for GitHub Copilot CLI.
 //
 // Two things are unusual here. Its Payload carries conversation totals
@@ -41,13 +43,22 @@ module.exports = {
     session: (p) => p?.session_name,
     ver: (p) => p?.version,
 
-    // Conversation totals, straight from the Payload.
-    in: (p) => p?.context_window?.total_input_tokens,
+    // Conversation totals, straight from the Payload. `total_input_tokens`
+    // already includes cache reads and writes here — Copilot's own samples put
+    // input an order of magnitude *above* cache reads, which cannot happen
+    // under Anthropic's disjoint accounting. So it is Input in the two-layer
+    // sense and needs no assembling. See ADR 0007; it is inferred from samples,
+    // not from documentation, and is worth re-checking against a live CLI.
+    sent: (p) => p?.context_window?.total_input_tokens,
+    cr: (p) => share(p?.context_window?.total_cache_read_tokens, p?.context_window?.total_input_tokens),
+    cw: (p) => share(p?.context_window?.total_cache_write_tokens, p?.context_window?.total_input_tokens),
     out: (p) => p?.context_window?.total_output_tokens,
-    th: (p) => p?.context_window?.total_reasoning_tokens,
-    cr: (p) => p?.context_window?.total_cache_read_tokens,
-    cw: (p) => p?.context_window?.total_cache_write_tokens,
-    tot: (p) => p?.context_window?.total_tokens,
+    th: (p) => share(p?.context_window?.total_reasoning_tokens, p?.context_window?.total_output_tokens),
+    // The Payload carries `total_tokens` and it is deliberately unread: what it
+    // sums is undocumented, and `tot` has a definition of its own to keep. An
+    // Adapter translates a Host's shape into our meaning; it does not hand our
+    // meaning back to the Host to decide.
+    tot: (p) => sum(p?.context_window?.total_input_tokens, p?.context_window?.total_output_tokens),
   },
 
   transcript: null,
@@ -61,8 +72,17 @@ module.exports = {
     cost: { total_lines_added: 412, total_lines_removed: 97, total_premium_requests: 12 },
     context_window: {
       used_percentage: 22, remaining_percentage: 78, context_window_size: 128000,
-      total_input_tokens: 36, total_output_tokens: 21100, total_reasoning_tokens: 5000,
-      total_cache_read_tokens: 1200000, total_cache_write_tokens: 15300, total_tokens: 1236436,
+      total_input_tokens: 1215336, total_output_tokens: 21100, total_reasoning_tokens: 5000,
+      total_cache_read_tokens: 1200000, total_cache_write_tokens: 15300,
     },
   },
 };
+
+// Both halves or nothing: a `tot` assembled from one known number and one
+// absent one would be a smaller total presented as a whole one.
+function sum(a, b) {
+  const x = Number(a);
+  const y = Number(b);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined;
+  return x + y;
+}

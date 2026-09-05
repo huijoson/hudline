@@ -1,6 +1,7 @@
 "use strict";
 
-const { readClaudeTranscript } = require("../transcript.js");
+const { readClaudeTranscript, sentTokens } = require("../transcript.js");
+const { share } = require("../fields.js");
 
 // Adapter for Claude Code. `extract` returns *raw* values; formatting, colour
 // and labels live in src/fields.js so they cannot drift between Hosts.
@@ -49,12 +50,15 @@ module.exports = {
   transcript: {
     read: (p) => readClaudeTranscript(p?.transcript_path),
     map: {
-      in: (t) => t.input_tokens,
+      sent: (t) => sentTokens(t),
+      cr: (t) => share(t.cache_read_input_tokens, sentTokens(t)),
+      cw: (t) => share(t.cache_creation_input_tokens, sentTokens(t)),
       out: (t) => t.output_tokens,
-      th: (t) => t.thinking_tokens,
-      cr: (t) => t.cache_read_input_tokens,
-      cw: (t) => t.cache_creation_input_tokens,
-      tot: (t) => t.input_tokens + t.output_tokens + t.cache_read_input_tokens + t.cache_creation_input_tokens,
+      th: (t) => share(t.thinking_tokens, t.output_tokens),
+      // Computed, never taken from a Payload. `tot` has a definition of its
+      // own now — Input plus Output, breakdowns not counted twice — and a Host
+      // does not get to decide what it means.
+      tot: (t) => sentTokens(t) + t.output_tokens,
     },
   },
 

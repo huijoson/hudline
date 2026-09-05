@@ -133,8 +133,9 @@ const THEMES = [
     // same Fields the plain default does where a Host supplies them. Which
     // Fields appear is not a Theme's to decide; only how they look is.
     format:
-      "{model}[:{effort}]|CTX {ctx}|5H {5h}|7D {7d}|{branch}|{cwd}|{say}|" +
-      "[IN {in}] [OUT {out}] [TH {th}] [CR {cr}] [CW {cw}] [TOT {tot}]",
+      "{model}[:{effort}]|CTX {ctx}|5H {5h}[ ({5h_reset})]|7D {7d}[ ({7d_reset})]|" +
+      "QUOTA {quota}[ ({quota_reset})]|{cost}|{branch}|{say}|" +
+      "[SENT {sent}] [CR {cr}]|[OUT {out}] [TH {th}]",
     phrases: NEON_PHRASES,
   },
   {

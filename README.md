@@ -4,7 +4,7 @@ A designable status line for agent CLIs. One Format string, several CLIs, zero
 npm dependencies.
 
 ```
- Opus 5 :high ★ CTX ▱▱▱▱▱ 8% ★ 5H ▰▰▰▱▱ 61% ★ 7D ▰▰▰▰▱ 83% ★ doitservers ★ IN 36 OUT 21.1k TH 5.0k CR 1.2M CW 15.3k TOT 1.2M
+ Opus 5 :high ★ CTX ▱▱▱▱▱ 8% ★ 5H ▰▰▰▱▱ 61% (14:30) ★ 7D ▰▰▰▰▱ 83% (08/27) ★ $1.23 ★ SENT 1.2M CR 99% ★ OUT 21.1k TH 24%
 ```
 
 Reads the JSON your CLI pipes to stdin, writes one line to stdout, exits. No
@@ -38,37 +38,59 @@ Or install by hand:
 
 That is one line; here it is in pieces.
 
-| piece | is |
+The line answers one question: **what have I spent, and how fast am I spending
+it.** Every field on it is either a ceiling, a rate, or the efficiency of the
+spending.
+
+| piece | exact meaning |
 |---|---|
-| ` Opus 5 ` | the model, drawn as a filled **chip** |
-| `:high` | reasoning effort, when the model has one |
-| `CTX ▱▱▱▱▱ 8%` | how full the context window is — **full is bad** |
-| `5H ▰▰▰▱▱ 61%` | 5-hour quota **remaining** — full is good |
-| `7D ▰▰▰▰▱ 83%` | weekly quota remaining |
-| `doitservers` | the directory you are in |
-| `IN … TOT …` | tokens for the whole conversation |
+| ` Opus 5 ` | the model, drawn as a filled **chip**. The single largest cost lever on the line. |
+| `:high` | reasoning effort, when the model has one. Higher effort buys more thinking tokens, which are billed as output. |
+| `CTX ▱▱▱▱▱ 8%` | how full the context window is **right now** — the ceiling that stops *this conversation*. **Full is bad.** Resets when the conversation compacts. |
+| `5H ▰▰▰▱▱ 61% (14:30)` | 5-hour quota **remaining** (not used), and the clock time it refills. Full is good. This is the ceiling that stops you within the hour. |
+| `7D ▰▰▰▰▱ 83% (08/27)` | weekly quota remaining, and the **date** it refills (`MM/DD` — a day, not a clock time, because a weekly window rarely resets within a session). The ceiling you cannot do anything about today. |
+| `$1.23` | what this session has cost so far, as the CLI reckons it. The one number in actual money. |
+| `SENT 1.2M` | every token sent to the model, summed over the whole conversation. Each turn resends the conversation, so this climbs far past the context window — see below. |
+| `CR 99%` | of that `SENT`, the share served from **cache read**, the cheapest tokens there are. The remainder is cache *writes*, which you pay full rate for. **High is good**: low `CR` means you are re-buying context you already bought. |
+| `OUT 21.1k` | tokens the model produced. Per token these are the most expensive on the line. |
+| `TH 24%` | of that `OUT`, the share that was **thinking**. Thinking is billed as output, so a high share on an expensive model is where money goes quietly. Lower `--effort` to cut it. |
+
+Two things that look like contradictions and are not:
+
+- **`SENT` is far larger than `CTX`.** `CTX` is occupancy *now*; `SENT` is a
+  running total since the conversation began. Every turn resends the whole
+  conversation, so a 30-turn session on a 200k window will have sent millions.
+- **Compaction empties `CTX` but not `SENT`.** A token total covers one
+  conversation, and a conversation is one transcript. `/clear` starts a fresh
+  count; compacting does not.
 
 The meters read in opposite directions on purpose: a meter answers *how much of
 this is there*, and whether that is good news is the colour's job, not the
 bar's. Green is fine, amber is close, red is not.
 
+`{cwd}` is deliberately **not** on the default line — every CLI supplies it, so
+it costs width everywhere, and it does not answer the question the line is for.
+Add it back with `--format` if you want it.
+
 Two things appear only when they apply:
 
 ```
- Opus 5 :high ★ CTX ▰▰▰▰▱ 88% ★ 5H ▱▱▱▱▱ 6% ★ 7D ▰▱▱▱▱ 12% ★ doitservers ★ Thy context runneth over!
- Opus 5 ★ CTX ▰▰▱▱▱ 30% ★ 5H ▰▰▰▰▰ 90% ★ 7D ▰▰▰▰▰ 95% ★ doitservers ★ Explore draws near!
+ Opus 5 :high ★ CTX ▰▰▰▰▱ 88% ★ 5H ▱▱▱▱▱ 6% (14:30) ★ 7D ▰▱▱▱▱ 12% (08/27) ★ $1.23 ★ Thy context runneth over!
+ Opus 5 :high ★ CTX ▰▰▱▱▱ 30% ★ 5H ▰▰▰▰▰ 90% (14:30) ★ 7D ▰▰▰▰▰ 95% (08/27) ★ $1.23 ★ Explore draws near!
 ```
 
 That last segment is `{say}`. See [Narration](#narration).
 
-**The default line is wide** — around 130 columns once there is a transcript to
+**The default line is wide** — around 118 columns once there is a transcript to
 count. It wraps on an 80-column terminal. That is a starting point, not a
-recommendation: trimming it is what `--format` is for, and two of the fields
-are the usual first to go.
+recommendation: trimming it is what `--format` is for.
 
 ```sh
-# no thinking tokens (they are already inside OUT) and no raw input count
-hudline --format="{model}[:{effort}]|CTX {ctx}|5H {5h}|7D {7d}|{cwd}|{say}|[OUT {out}] [TOT {tot}]"
+# ceilings and money only, no volume
+hudline --format="{model}[:{effort}]|CTX {ctx}|5H {5h}[ ({5h_reset})]|7D {7d}|{cost}|{say}"
+
+# add the directory back
+hudline --format="{model}[:{effort}]|CTX {ctx}|5H {5h}|7D {7d}|{cost}|{cwd}|[SENT {sent}] [CR {cr}]|[OUT {out}] [TH {th}]|{say}"
 ```
 
 ## The Format
@@ -138,10 +160,11 @@ your CLI cannot supply. Add `--host=qwen-code` to see it for another CLI.
 | `{pr}` | pull request number, inside a PR worktree |
 | `{fast}` `{think}` | the words `fast` / `think`, when those modes are on |
 | `{say}` | one line about the most alarming thing right now |
-| `{in}` `{out}` | input / output tokens, whole conversation |
-| `{th}` | thinking tokens — **part of `out`**, not added to `tot` |
-| `{cr}` `{cw}` | tokens read from / written to cache, whole conversation |
-| `{tot}` | `in + out + cr + cw` |
+| `{sent}` | everything sent to the model, whole conversation |
+| `{cr}` `{cw}` | **share of `{sent}`** read from / written to cache |
+| `{out}` | output tokens, whole conversation |
+| `{th}` | **share of `{out}`** that was thinking |
+| `{tot}` | `sent + out` |
 
 Three things a field can be, and they are not the same:
 
@@ -153,17 +176,30 @@ Three things a field can be, and they are not the same:
 Other notes worth knowing:
 
 - Quota fields are what is **left**, not what is used.
-- `{tot}` is usually 90%+ cache reads, which are the cheapest tokens there are.
-  It is a volume number, not a cost number. For cost, use `{cost}`.
+- **Token fields count two layers, not five.** `{tot}` is `sent + out`. `{cr}`
+  and `{cw}` are a breakdown *of* `{sent}`; `{th}` is a breakdown *of* `{out}`.
+  A breakdown never joins the sum, which is why they are shown as shares — a
+  cache read is not a number to add to anything, it is a fraction of what you
+  already sent.
+- **They measure volume, not money.** `{sent}` is 98% cache reads on any
+  conversation that has been running a while, and cache reads are the cheapest
+  tokens there are. For cost, use `{cost}`; for headroom, `{5h}` and `{7d}`.
+- **Compaction does not reset them.** A token total covers one conversation,
+  and a conversation is one transcript: `/clear` starts a fresh count,
+  `--resume` continues one, and a subagent's turns belong to the conversation
+  that spawned it. Compacting empties the context window without ending the
+  conversation, so `{ctx}` drops to near zero while `{tot}` keeps climbing.
+  Both are right; they answer different questions.
 - Token totals mean the same thing everywhere but arrive differently: Claude
   Code needs the transcript read (its payload's `context_window` is current
   occupancy, not a running total), while Copilot CLI puts conversation totals in
   the payload. The transcript is only read when your Format mentions a token
   field, and never on a CLI that does not need it. On a 1.5MB transcript that
   read costs about 7ms.
-- `0` is a value, not absence: a conversation that has really used 0 tokens
-  shows `in 0`. A payload with no transcript to read shows nothing at all —
-  those are different facts. If you do not want `th 0`, leave `{th}` out.
+- `0` is a value, but a share of nothing is not: a conversation that has really
+  sent 0 tokens shows `sent 0`, while `{cr}` has no denominator yet and
+  disappears until the first response. A payload with no transcript to read
+  shows nothing at all — those are three different facts.
 - `wk` still works as an alias for `7d`.
 
 ## Themes
@@ -332,13 +368,20 @@ typo is passed through literally so it is visible rather than silently dropped.
 **Everything is one colour.** The terminal is reporting 8-colour support.
 `COLORTERM=truecolor` if you know better, or `--theme=plain` if you do not.
 
-**It got slow.** Only token fields read the transcript. Drop `{in}` `{out}`
-`{th}` `{cr}` `{cw}` `{tot}` from your Format and nothing is read at all.
+**It got slow.** Only token fields read the transcript. Drop `{sent}` `{cr}`
+`{cw}` `{out}` `{th}` `{tot}` from your Format and nothing is read at all.
 
-**It looks different after upgrading from 0.3.x.** `neon` became the default
-theme in 0.4.0. Your Format is untouched — a Format says what to show and a
-theme says how — but it is now painted. `--theme=plain` restores the old look
-exactly.
+**My line says `{in}` after upgrading from 0.4.x.** `{in}` is gone. It counted
+only the input that missed the cache both ways — a couple of tokens per request
+once caching warms up, which is not what anyone reads "input" to mean. `{sent}`
+replaces it and counts everything sent to the model. The old key was removed
+rather than quietly redefined so that a stale Format says so on the line
+instead of reporting a number three orders of magnitude off. `{cr}` `{cw}`
+`{th}` are now shares rather than counts.
+
+**It is painted and I want it plain.** `neon` is the default theme. A Format
+says what to show and a theme says how, so `--theme=plain` changes only the
+appearance — same fields, no colour, no meters.
 
 ## Full manual
 

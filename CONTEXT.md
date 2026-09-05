@@ -1,6 +1,6 @@
 # Context
 
-Glossary for `cc-token-statusline`. Terms only — no implementation detail, no spec.
+Glossary for `hudline`. Terms only — no implementation detail, no spec.
 
 ## Status line
 
@@ -35,7 +35,7 @@ there.
 
 ## Field
 
-One addressable piece of data — `ctx`, `wk`, `in`, `model`, `effort`. A Field
+One addressable piece of data — `ctx`, `wk`, `sent`, `model`, `effort`. A Field
 is a **value**, not a value plus a label: the label is authored by whoever
 writes the Format (see below), never by the Field itself. A Field may know more
 than one Representation of its value; which one is used is not its decision.
@@ -52,11 +52,56 @@ the **weekly quota window** each report the percentage of allowance remaining
 and, when available, their own reset time. They are separate allowances: one
 does not reduce or reset the other.
 
+## Conversation
+
+The span every token total is counted over. Its boundary is one transcript:
+`/clear` starts a new Conversation and the totals begin again at zero,
+`--resume` continues an existing one, and a subagent's turns belong to the
+Conversation that spawned it.
+
+Compaction does **not** end a Conversation. This is the one consequence a
+reader will guess wrong: after a compaction the context window empties while
+the token totals keep climbing, and both numbers are right. They are answering
+different questions.
+
+## Token flow
+
+What the token Fields measure — how much has moved over a Conversation. A flow
+meter, not a bill. Cost and remaining allowance are already answered elsewhere
+on the line, and a second, quieter answer to a question already answered is
+worth less than a straight answer to one nothing else asks.
+
+Flow is counted in two layers, never as one flat list:
+
+- **Input** — everything sent to the model. Cache reads and cache writes are a
+  **breakdown** of Input, not peers of it.
+- **Output** — everything the model produced. Thinking is a breakdown of
+  Output.
+- **Total** — Input plus Output. Nothing else is added, because everything else
+  is already inside one of those two.
+
+A breakdown never joins the sum. That rule is why the layering exists at all: a
+flat list of five numbers gives the reader no way to tell which of them already
+contains which, and they will assume wrong in whichever direction makes the
+line look sensible.
+
+In steady state a Conversation is overwhelmingly cache reads — 98% is ordinary.
+That is not a caveat about the number, it *is* the number: caching is what
+makes a long Conversation affordable, and a flow meter that buried it would be
+measuring the wrong thing.
+
 ## Available / Missing
 
 A Field is **Missing** when the Payload does not carry it — `wk` under API-key
 auth, `effort` on a model that has no effort setting, `cwd` when absent.
 Missing is not the same as zero: a token count of 0 is Available.
+
+A **ratio** is where that rule has to be read carefully. `0` is a legitimate
+count — nothing moved, and nothing is the answer. A ratio with no denominator
+has no answer: before the first response there is no Input for cache reads to
+be a share *of*. Printing `0%` there would assert that the cache never hit,
+when what is true is that nothing has been asked yet. Such a Field is Missing,
+and reappears on its own once there is something to divide by.
 
 **Policy: a Missing Field never renders a placeholder.** It causes the text
 around it to disappear instead. `n/a` is not written, because status line width
@@ -71,7 +116,7 @@ Format is the configuration surface of this package — designing a status line
 ## Default format
 
 The Format used when the user supplies none. It is a product decision, not a
-fallback: `npx -y cc-token-statusline` with no arguments must produce a status
+fallback: `npx -y hudline` with no arguments must produce a status
 line worth using as-is. Configuration is an escape hatch, never a prerequisite.
 
 ## Segment
