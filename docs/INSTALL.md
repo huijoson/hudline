@@ -217,16 +217,16 @@ echo '{"model":{"display_name":"Opus 5"},"context_window":{"used_percentage":8},
   | npx -y hudline --no-color
 ```
 
-Expected — the quota and token segments disappear because this hand-made
-payload carries neither:
+Expected — the quota, cost and token segments disappear because this hand-made
+payload carries none of them:
 
 ```
-Opus 5 ★ CTX ▱▱▱▱▱ 8% ★ demo
+Opus 5 ★ CTX ▱▱▱▱▱ 8%
 ```
 
 That is the `neon` theme, which is what you get by default. If the meters come
 out as boxes your font lacks `▰`/`▱`; `--theme=plain` gives you
-`Opus 5 | ctx 8% | demo` instead and works in any terminal.
+`Opus 5 | ctx 8%` instead and works in any terminal.
 
 And to see what your CLI is actually running:
 
@@ -279,10 +279,15 @@ With `npx -y hudline`, you get the latest version automatically. Your Format
 is stored expanded in your settings file, so **which fields you see never
 changes under you** when the package updates.
 
-How they *look* can. In 0.4.0 the default theme became `neon`, so a line
-installed on 0.3.x keeps its fields and gains colour, meters and a narrator.
-`--theme=plain` restores the earlier appearance exactly. Pinning a version —
-`npx -y hudline@0.3.0` — freezes both.
+How they *look* can: the default theme decides colour, meters and the wording
+of the narration, and `--theme=plain` opts out of all three without touching
+which fields you see.
+
+What a field *means* can change too, but only in a major release and never
+silently — a field whose meaning changes is removed and replaced under a new
+name, so an out-of-date Format prints the dead key literally on the line rather
+than reporting a different number under the old one. Pinning a version
+(`npx -y hudline@0.5.0`) freezes everything.
 
 Installed globally: `npm update -g hudline`.
 
@@ -301,7 +306,11 @@ you point it at, and only after showing you the diff.
 flags still work unchanged — they now compile down to a Format internally.
 
 Replace `npx -y cc-token-statusline` with `npx -y hudline` in your settings and
-restart. Two behaviour changes to expect:
+restart. Three things to expect:
 
-- the default line now starts with the model name and effort level
 - `wk` is now `7d` (`wk` still works as an alias), and there is a matching `5h`
+- `{in}` no longer exists. It counted only the input that missed the cache both
+  ways — a couple of tokens per request — and `{sent}` replaces it, counting
+  everything sent to the model. `{cr}` `{cw}` `{th}` are now shares of their own
+  layer rather than raw counts. A Format still naming `{in}` prints it literally.
+- the line is painted by default; `--theme=plain` turns that off
