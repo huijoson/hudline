@@ -1,23 +1,32 @@
 # hudline
 
-A designable status line for agent CLIs. One Format string, several CLIs, zero
-npm dependencies.
+See context usage and remaining quota beneath your Claude Code prompt.
+Track cumulative input and output tokens, with cache-read and thinking shares.
 
-```
- Opus 5 :high ★ CTX ▱▱▱▱▱ 8% ★ 5H ▰▰▰▱▱ 61% (14:30) ★ 7D ▰▰▰▰▱ 83% (08/27) ★ $1.23 ★ SENT 1.2M CR 99% ★ OUT 21.1k TH 24%
-```
+![hudline default neon status line: context 42% used, 5-hour quota 61% remaining, weekly quota 83% remaining, 1.2M input tokens with 98% cache reads, and 21.1k output tokens with 24% thinking.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/hudline.png)
 
-Reads the JSON your CLI pipes to stdin, writes one line to stdout, exits. No
-network calls, no hooks, no state files, nothing left on disk.
+*Sample values, rendered by hudline with its default format and neon theme;
+wrapped at 84 columns. Reset times in this image use UTC.*
+5-hour and weekly quotas require Claude Pro/Max quota data from the host.
+Fields without data disappear automatically. [Reproduce this image](docs/showcase/README.md).
 
-> Renamed from `cc-token-statusline`. Existing `--show` / `--hide` commands keep
-> working unchanged.
+| What to watch | How to read it |
+|---|---|
+| **Context & quota** — `CTX`, `5H`, `7D` | `CTX 42%` is context **used now**. `5H 61%` and `7D 83%` are quota **remaining**, followed by their reset time or date. The meters measure different things: full context is bad; full remaining quota is good. |
+| **Token usage** — `SENT`, `CR`, `OUT`, `TH` | `SENT 1.2M` is cumulative input, including cache reads and writes; `CR 98%` is the cache-read share of that input. `OUT 21.1k` is cumulative output; `TH 24%` is the thinking share of that output. These shares are breakdowns, not additional tokens. |
+
+**Context occupancy is not cumulative token usage.** Compaction can lower `CTX`
+while `SENT` and `OUT` continue counting over the conversation. Model, effort
+and the host-reported session cost (`$1.23` in the example) also appear when available.
 
 ## Quick start
 
 ```sh
 npx -y hudline init     # pick a starting line, edit it, install it
 ```
+
+Choose **Claude Code** and the **default** starting line for the full view above.
+The menu lets you remove fields if you prefer a shorter line. Requires Node.js 18+.
 
 Run it in a **plain shell**, not inside the CLI you are configuring — a
 full-screen editor inside another full-screen editor does not work. If you do,
@@ -34,24 +43,35 @@ Or install by hand:
 }
 ```
 
+Want to change the layout? One [Format string](#the-format) controls what appears;
+[themes](#themes) control its look. Also supports
+[GitHub Copilot CLI, Antigravity CLI and Qwen Code](#supported-clis), with fields
+depending on what each host supplies. Zero npm dependencies.
+
+During rendering, hudline reads the host payload and, for conversation token
+totals, its transcript. No network calls, hooks or persistent state files.
+
+> Renamed from `cc-token-statusline`. Existing `--show` / `--hide` commands keep
+> working unchanged.
+
 ## Reading the default line
 
 That is one line; here it is in pieces.
 
-The line answers one question: **what have I spent, and how fast am I spending
-it.** Every field on it is either a ceiling, a rate, or the efficiency of the
-spending.
+The line shows **how much context is occupied, how much quota remains, and how
+many tokens have moved over the conversation**. Token totals are cumulative;
+they do not measure a spending rate or predict when quota will run out.
 
 | piece | exact meaning |
 |---|---|
-| ` Opus 5 ` | the model, drawn as a filled **chip**. The single largest cost lever on the line. |
+| ` Opus ` | the model, drawn as a filled **chip**. |
 | `:high` | reasoning effort, when the model has one. Higher effort buys more thinking tokens, which are billed as output. |
-| `CTX ▱▱▱▱▱ 8%` | how full the context window is **right now** — the ceiling that stops *this conversation*. **Full is bad.** Resets when the conversation compacts. |
-| `5H ▰▰▰▱▱ 61% (14:30)` | 5-hour quota **remaining** (not used), and the clock time it refills. Full is good. This is the ceiling that stops you within the hour. |
-| `7D ▰▰▰▰▱ 83% (08/27)` | weekly quota remaining, and the **date** it refills (`MM/DD` — a day, not a clock time, because a weekly window rarely resets within a session). The ceiling you cannot do anything about today. |
+| `CTX ▰▰▱▱▱ 42%` | how full the context window is **right now**. **Full is bad.** Occupancy can drop when the conversation compacts. |
+| `5H ▰▰▰▱▱ 61% (18:30)` | 5-hour quota **remaining** (not used), and its reset time. Full is good. |
+| `7D ▰▰▰▰▱ 83% (09/13)` | weekly quota remaining, and its reset **date** (`MM/DD`). Full is good. |
 | `$1.23` | what this session has cost so far, as the CLI reckons it. The one number in actual money. |
 | `SENT 1.2M` | every token sent to the model, summed over the whole conversation. Each turn resends the conversation, so this climbs far past the context window — see below. |
-| `CR 99%` | of that `SENT`, the share served from **cache read**, the cheapest tokens there are. The remainder is cache *writes*, which you pay full rate for. **High is good**: low `CR` means you are re-buying context you already bought. |
+| `CR 98%` | of that `SENT`, the share served from **cache read**. The remainder consists of cache writes and uncached input. A higher share means more of the input came from cache. |
 | `OUT 21.1k` | tokens the model produced. Per token these are the most expensive on the line. |
 | `TH 24%` | of that `OUT`, the share that was **thinking**. Thinking is billed as output, so a high share on an expensive model is where money goes quietly. Lower `--effort` to cut it. |
 

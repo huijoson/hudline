@@ -1,7 +1,7 @@
 {
   "name": "hudline",
-  "version": "0.5.0",
-  "description": "Design your own agent CLI status line. One Format string, many CLIs. Zero dependencies.",
+  "version": "0.5.1",
+  "description": "Claude Code status line for context usage, remaining quota, and cumulative input/output tokens with cache-read and thinking shares. Customizable, zero dependencies.",
   "license": "MIT",
   "author": "Lawrence (huijoson)",
   "repository": {

@@ -1,0 +1,10 @@
+{
+  "model": { "display_name": "Opus", "id": "demo-model" },
+  "effort": { "level": "high" },
+  "context_window": { "used_percentage": 42, "remaining_percentage": 58, "context_window_size": 200000 },
+  "rate_limits": {
+    "five_hour": { "used_percentage": 39, "resets_at": 1788892200 },
+    "seven_day": { "used_percentage": 17, "resets_at": 1789257600 }
+  },
+  "cost": { "total_cost_usd": 1.23 }
+}
