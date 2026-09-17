@@ -90,6 +90,22 @@ That is not a caveat about the number, it *is* the number: caching is what
 makes a long Conversation affordable, and a flow meter that buried it would be
 measuring the wrong thing.
 
+## Conversation cost
+
+The published-rate total of one Conversation: what its Token flow would have
+cost at list price, had it been paid for. It is the flow priced, not a bill. A
+subscriber's marginal cost for the same Conversation is zero, and this number
+does not become that — it answers how much was consumed, never how much is owed.
+
+It starts over exactly where a Conversation does, because the Host computes it
+from the same ledger as the token totals. A Host that reports no cost reports
+none: the Field is Missing, and nothing is invented to fill it.
+
+How many decimals it is written with is not part of the value. `$0.23` and
+`$0.2304` are one Conversation cost.
+
+_Avoid_: Session cost, spend
+
 ## Available / Missing
 
 A Field is **Missing** when the Payload does not carry it — `wk` under API-key

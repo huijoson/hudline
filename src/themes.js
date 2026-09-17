@@ -127,6 +127,11 @@ const THEMES = [
     sep: " ★ ",
     meters: true,
     chips: ["model"],
+    // Precision is appearance, and appearance is the Theme's. The exact form is
+    // what the CLI itself prints, so a line carrying it agrees with `/cost` and
+    // needs no explaining. `plain` names none, which keeps it byte-identical to
+    // what shipped before Themes existed.
+    representations: { cost: "exact" },
     // Only used when no Format was given: a Theme never overrides a Format
     // somebody wrote. Labels are uppercase and the line is shorter than the
     // plain default, because Meters cost seven cells each — but it carries the
@@ -175,6 +180,7 @@ function getTheme(id) {
 function createPainter(theme, { colour = true, depth } = {}) {
   const resolved = depth ?? colourDepth();
   const cache = new Map();
+  const chosenBy = theme.representations ?? {};
 
   const of = (role) => {
     if (!colour) return "";
@@ -202,6 +208,14 @@ function createPainter(theme, { colour = true, depth } = {}) {
     },
     isChip(key) {
       return theme.chips.includes(key);
+    },
+    // A Field may offer more than one Representation of its value. Which one is
+    // drawn is the Theme's, and a Theme that names none gets the Field's own —
+    // which is what keeps `plain` byte-identical to what shipped before Themes.
+    representation(key, field, raw) {
+      const named = chosenBy[key];
+      const chosen = named ? field.representations?.[named] : undefined;
+      return chosen ? chosen(raw) : field.format(raw);
     },
     meters: theme.meters,
     separator: theme.sep,

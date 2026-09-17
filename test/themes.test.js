@@ -115,6 +115,26 @@ test("the Theme chooses the Representation; the Format is untouched by the choic
   assert.equal(renderFormat(format, themed), "ctx ▰▰▰▱▱ 61%");
 });
 
+test("cost is written the way the CLI writes it, and the width is the Theme's to trade", () => {
+  // The complaint that produced this: /cost said $0.2304 and the line said
+  // $0.23, on the one number a reader is most likely to hold up against
+  // something else. Same number, different precision, indistinguishable from a
+  // bug. Above fifty cents the two surfaces already agreed.
+  const small = { cost: { total_cost_usd: 0.2303675 } };
+  assert.equal(renderFormat("cost {cost}", createResolver(claudeCode, small, { colour: false })),
+    "cost $0.23");
+  assert.equal(renderFormat("cost {cost}", neon(small, { colour: false })), "cost $0.2304");
+
+  const large = { cost: { total_cost_usd: 8.704307999999997 } };
+  assert.equal(neon(large, { colour: false }).get("cost"), "$8.70");
+  assert.equal(createResolver(claudeCode, large, { colour: false }).get("cost"), "$8.70");
+
+  // The CLI's comparison is strict, so a session at exactly half a dollar is
+  // still written to four places. Mirroring it means mirroring that too.
+  const half = { cost: { total_cost_usd: 0.5 } };
+  assert.equal(neon(half, { colour: false }).get("cost"), "$0.5000");
+});
+
 // ── Narration ───────────────────────────────────────────────────────────────
 
 test("the narration is Missing when nothing is worth saying, and takes its Segment", () => {

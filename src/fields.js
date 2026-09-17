@@ -96,6 +96,22 @@ const remainingColour = (raw) => {
 const text = (value) => (typeof value === "string" && value ? value : undefined);
 const count = (value) => (Number.isFinite(Number(value)) ? String(Math.trunc(Number(value))) : undefined);
 
+// Money is written the way the Host writes it, because a status line that
+// disagrees with the official surface over its last two places reads as a bug
+// rather than as rounding. The Host prints four decimals at or below half a
+// dollar and two above, rounding through cents first; `exact` reproduces that
+// rule, and `compact` keeps the same number in the width a status line can more
+// often afford. Which one is drawn is the Theme's (see ADR-0009).
+const compactCost = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? `$${n.toFixed(2)}` : undefined;
+};
+const exactCost = (value) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return undefined;
+  return n > 0.5 ? `$${(Math.round(n * 100) / 100).toFixed(2)}` : `$${n.toFixed(4)}`;
+};
+
 // `desc` is what the Field means, and it is not optional: a key and a sample
 // value together still do not tell anyone the difference between `ctx`,
 // `ctx_left` and `ctx_size`, or what `cr` is counting.
@@ -133,7 +149,8 @@ const FIELDS = {
   added:     { group: "place",  label: "+dirs",  source: "payload", format: count, sample: "2", desc: "how many extra directories are in scope", when: "after /add-dir" },
 
   cost:      { group: "cost",   label: "",       source: "payload", sample: "$1.23",
-               format: (v) => (Number.isFinite(Number(v)) ? `$${Number(v).toFixed(2)}` : undefined), desc: "what this session has cost so far" },
+               format: compactCost, representations: { exact: exactCost },
+               desc: "what this Conversation has cost so far" },
   lines_add: { group: "cost",   label: "+",      source: "payload", format: count, sample: "412", desc: "lines added this session", when: "once code has changed" },
   lines_del: { group: "cost",   label: "-",      source: "payload", format: count, sample: "97", desc: "lines removed this session", when: "once code has changed" },
 

@@ -57,7 +57,7 @@ function createResolver(host, payload, options = {}) {
   // The Representation, chosen by the Theme out of what the Field offers.
   const represent = (key, field, raw) => {
     if (field.source === "derived") return painter.phrase(field.format(raw), rawValue);
-    const formatted = field.format(raw);
+    const formatted = painter.representation(key, field, raw);
     if (formatted === undefined || formatted === "") return formatted;
     return painter.meters && field.meter ? `${meter(raw)} ${formatted}` : formatted;
   };

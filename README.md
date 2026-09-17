@@ -17,7 +17,7 @@ Fields without data disappear automatically. [Reproduce this image](docs/showcas
 
 **Context occupancy is not cumulative token usage.** Compaction can lower `CTX`
 while `SENT` and `OUT` continue counting over the conversation. Model, effort
-and the host-reported session cost (`$1.23` in the example) also appear when available.
+and the host-reported conversation cost (`$1.23` in the example) also appear when available.
 
 ## Quick start
 
@@ -69,7 +69,7 @@ they do not measure a spending rate or predict when quota will run out.
 | `CTX ▰▰▱▱▱ 42%` | how full the context window is **right now**. **Full is bad.** Occupancy can drop when the conversation compacts. |
 | `5H ▰▰▰▱▱ 61% (18:30)` | 5-hour quota **remaining** (not used), and its reset time. Full is good. |
 | `7D ▰▰▰▰▱ 83% (09/13)` | weekly quota remaining, and its reset **date** (`MM/DD`). Full is good. |
-| `$1.23` | what this session has cost so far, as the CLI reckons it. The one number in actual money. |
+| `$1.23` | what this conversation has cost so far, as the CLI reckons it: the tokens it moved, priced at list rates. A price, not a bill — on a subscription this number is not money you paid. The default theme writes it exactly as the CLI does, so it matches `/cost`; under fifty cents that means four decimals. |
 | `SENT 1.2M` | every token sent to the model, summed over the whole conversation. Each turn resends the conversation, so this climbs far past the context window — see below. |
 | `CR 98%` | of that `SENT`, the share served from **cache read**. The remainder consists of cache writes and uncached input. A higher share means more of the input came from cache. |
 | `OUT 21.1k` | tokens the model produced. Per token these are the most expensive on the line. |
@@ -170,7 +170,7 @@ your CLI cannot supply. Add `--host=qwen-code` to see it for another CLI.
 | `{cwd}` | shell directory you are in, follows `/add-dir` |
 | `{dir}` | project root the session started in |
 | `{added}` | how many extra directories are in scope |
-| `{cost}` | what this session has cost so far |
+| `{cost}` | what this conversation has cost so far |
 | `{lines_add}` `{lines_del}` | lines added / removed this session |
 | `{agent}` | name of the subagent running now |
 | `{style}` | active output style |
@@ -242,6 +242,11 @@ hudline --list-themes
 `neon` takes its palette from [sherly.dev](https://sherly.dev): hot pink labels,
 graphite punctuation, and the model name as a filled chip. Percentages are drawn
 as meters and the line grows a narrator when something is wrong.
+
+It also writes `{cost}` the way the CLI writes it — four decimals at or below
+fifty cents, two above — so the money on the line matches `/cost` to the
+character. `plain` keeps two decimals, because width is expensive and because
+that is what it printed before.
 
 `plain` is the escape hatch, byte-identical to what shipped before themes
 existed. Point a terminal without 256 colours or Unicode at it:
