@@ -94,6 +94,36 @@ test("Copilot's settings file is looked for under both documented names", () => 
   assert.match(paths[1], /\.copilot[/\\]settings\.json$/);
 });
 
+test("money is Missing when the Host could not price the model it served", () => {
+  // A routed session. The Payload still carries a cost, computed at a
+  // substituted default rate rather than at any price of the model that
+  // actually ran — and the status line Payload does not say so, so the
+  // transcript has to. Note the Payload's own `model.id` is the model the
+  // session *asked* for; pricing follows the one the API served.
+  const payload = { model: { id: "claude-opus-5" }, cost: { total_cost_usd: 60.35 } };
+  const at = (served_models) => createResolver(claudeCode, payload, {
+    colour: false, format: "{cost}", totals: { served_models },
+  }).get("cost");
+
+  assert.equal(at(["claude-opus-5"]), "$60.35");
+  assert.equal(at(["deepseek-v4.1-flash"]), undefined);
+  // A Conversation that changed models mid-flight: the guess is in the total.
+  assert.equal(at(["claude-opus-5", "deepseek-v4.1-flash"]), undefined);
+});
+
+test("money is not withdrawn on no evidence", () => {
+  // A transcript that cannot be read is not a transcript that says the model
+  // was unpriceable. Hiding the number there would be inventing Missing.
+  const r = createResolver(claudeCode, { cost: { total_cost_usd: 1.23 } }, {
+    colour: false, format: "{cost}",
+  });
+  assert.equal(r.get("cost"), "$1.23");
+});
+
+test("Copilot has no such doubt: it prices nothing and reports its own total", () => {
+  assert.equal(copilot.transcriptExtract, undefined);
+});
+
 test("the default Format displays both Claude Code quota windows", () => {
   const line = renderFormat(DEFAULT_FORMAT, createSampleResolver(claudeCode, { colour: false }));
   assert.match(line, /^Opus 5:high \| ctx 8% \| 5h 61% left \(\d\d:\d\d\) \| 7d 83% left \(\d\d\/\d\d\) \| \$1\.23 \| sent 1\.2M cr 99% \| out 21\.1k th 24%$/);

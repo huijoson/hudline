@@ -9,6 +9,11 @@ const USAGE_FIELDS = [
   "cache_creation_input_tokens",
 ];
 
+// Claude Code writes `"model":"<synthetic>"` on assistant rows it manufactured
+// itself rather than received from the API. It is a sentinel, not a model id,
+// and reading it as one would be reading a bug report as a fact.
+const SYNTHETIC_MODEL = "<synthetic>";
+
 // Cumulative usage across a whole conversation. This cannot be read from the
 // Payload: `context_window.total_input_tokens` is current occupancy, not a
 // running total, so the transcript is the only source for it.
@@ -19,8 +24,10 @@ const USAGE_FIELDS = [
 function sumUsageLines(raw) {
   const totals = Object.fromEntries(USAGE_FIELDS.map((field) => [field, 0]));
   totals.thinking_tokens = 0;
+  totals.served_models = [];
 
   const seenIds = new Set();
+  const seenModels = new Set();
   for (const line of raw.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed) continue;
@@ -41,6 +48,15 @@ function sumUsageLines(raw) {
     if (!messageId || !usage || typeof usage !== "object") continue;
     if (seenIds.has(messageId)) continue;
     seenIds.add(messageId);
+
+    // The model that actually served the turn — which is not necessarily the
+    // one the session asked for, and is the one a Host prices. Collected here
+    // because this loop is already walking every row that carries it.
+    const served = message.model;
+    if (typeof served === "string" && served && served !== SYNTHETIC_MODEL && !seenModels.has(served)) {
+      seenModels.add(served);
+      totals.served_models.push(served);
+    }
 
     for (const field of USAGE_FIELDS) {
       const value = usage[field];
@@ -68,6 +84,7 @@ function sentTokens(totals) {
 function emptyTotals() {
   const totals = Object.fromEntries(USAGE_FIELDS.map((field) => [field, 0]));
   totals.thinking_tokens = 0;
+  totals.served_models = [];
   return totals;
 }
 

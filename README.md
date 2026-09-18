@@ -69,7 +69,7 @@ they do not measure a spending rate or predict when quota will run out.
 | `CTX ▰▰▱▱▱ 42%` | how full the context window is **right now**. **Full is bad.** Occupancy can drop when the conversation compacts. |
 | `5H ▰▰▰▱▱ 61% (18:30)` | 5-hour quota **remaining** (not used), and its reset time. Full is good. |
 | `7D ▰▰▰▰▱ 83% (09/13)` | weekly quota remaining, and its reset **date** (`MM/DD`). Full is good. |
-| `$1.23` | what this conversation has cost so far, as the CLI reckons it: the tokens it moved, priced at list rates. A price, not a bill — on a subscription this number is not money you paid. The default theme writes it exactly as the CLI does, so it matches `/cost`; under fifty cents that means four decimals. |
+| `$1.23` | what this conversation has cost so far, as the CLI reckons it: the tokens it moved, priced at list rates. A price, not a bill — on a subscription this number is not money you paid. The default theme writes it exactly as the CLI does, so it matches `/cost`; under fifty cents that means four decimals. A model the CLI has no price for is billed at a rate belonging to some other model, and then the number is not shown at all. |
 | `SENT 1.2M` | every token sent to the model, summed over the whole conversation. Each turn resends the conversation, so this climbs far past the context window — see below. |
 | `CR 98%` | of that `SENT`, the share served from **cache read**. The remainder consists of cache writes and uncached input. A higher share means more of the input came from cache. |
 | `OUT 21.1k` | tokens the model produced. Per token these are the most expensive on the line. |

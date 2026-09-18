@@ -21,10 +21,12 @@ function createResolver(host, payload, options = {}) {
   let transcriptTotals;
 
   // The transcript is a file read, sometimes of many megabytes, on every
-  // refresh. Only pay for it when the Format actually asks for it.
+  // refresh. Only pay for it when the Format actually asks for it — either for
+  // a transcript-sourced Field, or for one the Adapter lists as also needing it.
   const wanted = options.format ? fieldsUsed(options.format) : null;
   const needsTranscript = !wanted
-    || [...wanted].some((key) => getField(key)?.source === "transcript");
+    || [...wanted].some((key) => getField(key)?.source === "transcript"
+      || host.transcriptExtract?.includes(resolveKey(key)));
 
   const readTranscript = () => {
     if (transcriptTotals === undefined) {
@@ -46,7 +48,9 @@ function createResolver(host, payload, options = {}) {
     // place a Field is allowed to know that other Fields exist, and it still
     // never learns which Host it is running on.
     if (field.source === "derived") return field.derive(rawValue);
-    if (typeof host.extract?.[key] === "function") return host.extract[key](payload);
+    // The reader is handed over lazily, so an extract that wants the transcript
+    // pays for it and one that does not never touches the file.
+    if (typeof host.extract?.[key] === "function") return host.extract[key](payload, readTranscript);
     if (field.source !== "transcript") return undefined;
     if (!host.transcript || !needsTranscript) return undefined;
     const totals = readTranscript();

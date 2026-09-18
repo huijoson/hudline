@@ -106,6 +106,18 @@ How many decimals it is written with is not part of the value. `$0.23` and
 
 _Avoid_: Session cost, spend
 
+## Substituted rate
+
+The rate a Host falls back to when it holds no price for the model that served
+the Conversation. The Host does this silently. A number still appears, in the
+same typeface as a real one, and nothing on the Status line says it was computed
+at a rate belonging to some other model.
+
+A Conversation cost computed from a substituted rate is a price of something
+that did not run. It is not a Conversation cost, and the Field is Missing for it.
+
+_Avoid_: estimated cost, approximate cost
+
 ## Available / Missing
 
 A Field is **Missing** when the Payload does not carry it — `wk` under API-key

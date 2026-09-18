@@ -109,6 +109,9 @@ test("usage is summed once per message.id, and thinking is not folded into tot",
   assert.deepEqual(totals, {
     input_tokens: 2, output_tokens: 111, thinking_tokens: 80,
     cache_read_input_tokens: 100, cache_creation_input_tokens: 10,
+    // None of these rows names a model, which is not the same as naming one
+    // the Host could not price.
+    served_models: [],
   });
   const tot = claudeCode.transcript.map.tot(totals);
   // sent (2 + 100 + 10) + out (111). Two layers, and thinking is inside out.

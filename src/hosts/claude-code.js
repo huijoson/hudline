@@ -3,6 +3,22 @@
 const { readClaudeTranscript, sentTokens } = require("../transcript.js");
 const { share } = require("../fields.js");
 
+// Claude Code prices a Conversation from the model catalogue baked into the
+// binary, and that catalogue is Claude models only: the price table's keys are
+// built from CATALOG_MODEL_IDS, every entry of which is `claude-*`, and the
+// loader refuses to start if one ever is not. A served model outside it is
+// billed at a substituted default rate instead — the same number whatever ran —
+// so the Payload's cost is not the price of anything and is not shown.
+//
+// The test is the shape of the id, not a list of models. A list would be a
+// price table under another name (ADR-0008); this only has to answer whether
+// the Host could hold a price at all, never what the price is.
+const CATALOGUE_SHAPED = /claude-/i;
+
+function servedOutsideCatalogue(served) {
+  return Array.isArray(served) && served.some((id) => !CATALOGUE_SHAPED.test(id));
+}
+
 // Adapter for Claude Code. `extract` returns *raw* values; formatting, colour
 // and labels live in src/fields.js so they cannot drift between Hosts.
 // A key absent from `extract` means this Host cannot supply that Field at all.
@@ -33,7 +49,9 @@ module.exports = {
     added: (p) => (Array.isArray(p?.workspace?.added_dirs) && p.workspace.added_dirs.length
       ? p.workspace.added_dirs.length : undefined),
 
-    cost: (p) => p?.cost?.total_cost_usd,
+    cost: (p, transcript) => (servedOutsideCatalogue(transcript?.()?.served_models)
+      ? undefined
+      : p?.cost?.total_cost_usd),
     lines_add: (p) => p?.cost?.total_lines_added || undefined,
     lines_del: (p) => p?.cost?.total_lines_removed || undefined,
 
@@ -46,6 +64,12 @@ module.exports = {
     fast: (p) => p?.fast_mode === true || undefined,
     think: (p) => p?.thinking?.enabled === true || undefined,
   },
+
+  // `cost` is the one Field whose value and whose trustworthiness come from
+  // different places: the number is the Payload's, but whether the Host was in
+  // a position to compute it is only in the transcript, which records the model
+  // the API actually served rather than the one the session asked for.
+  transcriptExtract: ["cost"],
 
   transcript: {
     read: (p) => readClaudeTranscript(p?.transcript_path),
