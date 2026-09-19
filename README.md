@@ -213,13 +213,16 @@ Other notes worth knowing:
 - Token totals mean the same thing everywhere but arrive differently: Claude
   Code needs the transcript read (its payload's `context_window` is current
   occupancy, not a running total), while Copilot CLI puts conversation totals in
-  the payload. The transcript is only read when your Format mentions a token
-  field, and never on a CLI that does not need it. On a 1.5MB transcript that
+  the payload. The transcript is read when your Format mentions a token field or
+  `{cost}`, and never on a CLI that does not need it. On a 1.5MB transcript that
   read costs about 7ms.
 - `0` is a value, but a share of nothing is not: a conversation that has really
   sent 0 tokens shows `sent 0`, while `{cr}` has no denominator yet and
   disappears until the first response. A payload with no transcript to read
-  shows nothing at all — those are three different facts.
+  shows nothing at all — those are three different facts. The money runs the
+  other way: with no transcript to read, `{cost}` is shown rather than
+  withdrawn, because a file that cannot be read says nothing about whether the
+  model could be priced.
 - `wk` still works as an alias for `7d`.
 
 ## Themes

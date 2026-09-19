@@ -81,6 +81,12 @@ so any published list price is a third party's guess at a rate nobody published.
   revisiting trigger: **the day the status line Payload carries `costBasis`, or a
   reseller supplies rates, this rule is what to delete.** The field would answer
   the question directly, and the guesswork would go with it.
+  The loss is accepted rather than mitigated: no Representation of `cost` and no
+  second Field prints the number a substituted rate produced. An escape hatch —
+  a `raw` Representation, a `{cost_raw}`, a flag — would put a rate belonging to
+  some other model back on the line under a different label, and a reader who
+  reaches for it once will have it on ever after. The way out is the Host saying
+  so, not the reader overriding it.
 - A user whose `modelOverrides` maps a non-Claude id onto a Claude one is priced
   by the Host and hidden here. Deliberate, rare, and wrong in the direction that
   hides rather than lies.
@@ -90,3 +96,20 @@ so any published list price is a third party's guess at a rate nobody published.
 - A Conversation that changed models mid-flight carries a guess inside its total,
   so it is Missing rather than partly right. There is no way to subtract it out,
   and a total that is mostly right is the thing this ADR exists to stop printing.
+- **The criterion is "a model the Host could not price", and `/claude-/i` is this
+  Adapter's approximation of it — never the rule.** For Claude Code the two
+  coincide, because every id in its catalogue is a Claude id. They will not
+  coincide everywhere: a Host whose catalogue is some other family's models
+  prices *those* and cannot price a Claude one, and a test written in terms of
+  the word "claude" would hide exactly the wrong half. What is shared is the
+  question, not the test that answers it.
+- **Priceability is the Adapter's to answer.** A Host that supplies money
+  declares whether it could price what served the Conversation, and the evidence
+  it uses is its own: Claude Code's is the transcript, and a Host whose Payload
+  already carries its totals has no such file to read. There is no shared test,
+  because there is no shared evidence — and a substitute invented in one Host's
+  terms would be a price table under another name (ADR-0008).
+- **Only the money is suspect.** `lines_add` and `lines_del` arrive in the same
+  Payload object and are drawn in the same Field group, but they are counts of
+  what the code did rather than a flow priced, and a substituted rate cannot
+  spoil a count. They stay when the money goes.

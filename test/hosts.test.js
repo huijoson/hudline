@@ -120,6 +120,21 @@ test("money is not withdrawn on no evidence", () => {
   assert.equal(r.get("cost"), "$1.23");
 });
 
+test("only the money is suspect: a substituted rate cannot spoil a count", () => {
+  // `lines_add` and `lines_del` ride in the same Payload object as the cost and
+  // are drawn in the same Field group, but they are counts of what the code
+  // did, not a flow priced. They stay when the money goes.
+  const payload = { cost: { total_cost_usd: 60.35, total_lines_added: 412, total_lines_removed: 97 } };
+  const r = createResolver(claudeCode, payload, {
+    colour: false, format: "{cost}|{lines_add}|{lines_del}",
+    totals: { served_models: ["deepseek-v4.1-flash"] },
+  });
+
+  assert.equal(r.get("cost"), undefined);
+  assert.equal(r.get("lines_add"), "412");
+  assert.equal(r.get("lines_del"), "97");
+});
+
 test("Copilot has no such doubt: it prices nothing and reports its own total", () => {
   assert.equal(copilot.transcriptExtract, undefined);
 });

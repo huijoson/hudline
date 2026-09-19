@@ -104,7 +104,10 @@ none: the Field is Missing, and nothing is invented to fill it.
 How many decimals it is written with is not part of the value. `$0.23` and
 `$0.2304` are one Conversation cost.
 
-_Avoid_: Session cost, spend
+A billable unit a Host reports — premium requests, credits — is not a
+Conversation cost: it says what a plan was charged, not what the flow is worth.
+
+_Avoid_: Session cost, spend, billable unit
 
 ## Substituted rate
 
@@ -117,6 +120,13 @@ A Conversation cost computed from a substituted rate is a price of something
 that did not run. It is not a Conversation cost, and the Field is Missing for it.
 
 _Avoid_: estimated cost, approximate cost
+
+## Lines changed
+
+What the code gained and lost over a Conversation, counted in lines. It is a
+count of what the code did, not a flow priced: it rides in the same Payload
+object as the Conversation cost and is drawn beside it, but a Substituted rate
+cannot spoil it, and it survives when the money does not.
 
 ## Available / Missing
 
