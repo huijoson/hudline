@@ -21,6 +21,7 @@ import {
 } from './format'
 import type { Role } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
+import { canCrown, FAMILY, KING_SHOW_TICKS, slimeCells, slimeColumns, slimeText, STAGE_ROWS } from './slime'
 
 const branch = atom({ plugin: 'pixel-hud', key: 'branch' } as const, null)
 const usage = atom({ plugin: 'pixel-hud', key: 'usage' } as const, null)
@@ -45,6 +46,12 @@ const FULL_ROWS = 5
 // /clear empties $.state, and a branch switched outside Claude Code raises no
 // event: poll to catch both.
 const POLL_MS = 3000
+// The slime family hops at this pace, repainted in place by $.ui.blit.
+const HOP_MS = 140
+const SLIMES_KEY = 'slimes'
+// A task long enough to earn the King Slime: the slimes merge, reign, and split.
+const KING_AFTER_MS = 20_000
+const KING_COMMAND = 'slime-king'
 // $.fs.read refuses files over 4 MiB.
 const READ_LIMIT = 4 * 1024 * 1024
 
@@ -119,25 +126,83 @@ function add(a: Flow, b: Flow): Flow {
   }
 }
 
-// How many glyphs of the name fit beside the sprite and the dirty mark.
-function fitName(name: string, isDirty: boolean, columns: number): string | null {
+// How many glyphs of the name fit beside the sprite, the dirty mark and the
+// slimes. The whole name comes first: slimes leave, one by one, to make room.
+function fitBranch(name: string, isDirty: boolean, columns: number): { name: string; slimes: number } | null {
   const fixed = (BRANCH_SPRITE[0] ?? '').length + GAP.length + (isDirty ? GAP.length + pixelWidth(1) : 0)
-  const room = Math.floor((columns - fixed + 1) / 4)
+  const roomFor = (slimes: number) => {
+    const used = fixed + (slimes > 0 ? GAP.length + slimeColumns(slimes) : 0)
+    return Math.floor((columns - used + 1) / 4)
+  }
+  for (let slimes = FAMILY.length; slimes > 0; slimes -= 1) {
+    if (name.length <= roomFor(slimes)) {
+      return { name, slimes }
+    }
+  }
+  const room = roomFor(0)
   if (room < 4) {
     return null
   }
-  return name.length <= room ? name : `${name.slice(0, room - 2)}..`
+  return { name: name.length <= room ? name : `${name.slice(0, room - 2)}..`, slimes: 0 }
 }
 
 export const register: Register = on => {
   let poll: Timer | undefined
+  let hop: Timer | undefined
+  let tick = 0
+  // The band the slimes were last drawn in, and how many: what a blit repaints.
+  let stage: { requestId: string; slimes: number } | null = null
+  // The tick the King Slime show began on, while it plays.
+  let crowned: number | null = null
+  const showFrame = () => {
+    if (crowned === null) return null
+    const frame = tick - crowned
+    if (frame >= KING_SHOW_TICKS) crowned = null
+    return crowned === null ? null : frame
+  }
+  // Starts the show unless one is playing or there is no room for the king.
+  const crown = () => {
+    if (crowned !== null || !stage || !canCrown(stage.slimes)) return false
+    crowned = tick
+    return true
+  }
 
   on('session.start', async ($, e, next) => {
     await refresh($)
     poll?.cancel()
     poll = $.clock.every(POLL_MS, () => void refresh($))
+    hop?.cancel()
+    hop = $.clock.every(HOP_MS, () => {
+      tick += 1
+      const drawn = stage
+      if (!drawn) return
+      void $.ui
+        .blit({ requestId: drawn.requestId, key: SLIMES_KEY, cells: slimeCells(drawn.slimes, tick, showFrame()) })
+        .then(r => {
+          // Gone (band hidden, redrawn without them): rest until a render seats them again.
+          if ('deny' in r && stage === drawn) stage = null
+        })
+        .catch(() => undefined)
+    })
+    // Last, so a refused command never keeps the slimes from hopping.
+    await $.command
+      .register({
+        name: KING_COMMAND,
+        description: 'Merge the slimes beside the branch into a King Slime, then split them back',
+      })
+      .catch(() => undefined)
     return next(e)
   })
+
+  on('command.run', { command: KING_COMMAND }, async () => ({
+    text: crown() ? 'The slimes are merging...' : 'No room for a King Slime here: widen the terminal.',
+  }))
+
+  on('turn.complete', async ($, e, next) => {
+    const result = await next(e)
+    if (!e.agentId && e.reason === 'answer' && e.durationMs >= KING_AFTER_MS) crown()
+    return result
+  }).catch(($, e, next) => next(e))
 
   on('session.end', async ($, e, next) => {
     const result = await next(e)
@@ -221,8 +286,13 @@ export const register: Register = on => {
     const { Box, Text } = $.ui.resolve(e)
 
     // Branch: big glyphs when there is room, else a chunky chip.
-    const name = git && e.props.maxRows >= FULL_ROWS ? fitName(git.name, git.isDirty, e.props.bodyColumns) : null
-    const glyphs = name === null ? null : pixelText(name)
+    const fit = git && e.props.maxRows >= FULL_ROWS ? fitBranch(git.name, git.isDirty, e.props.bodyColumns) : null
+    const glyphs = fit === null ? null : pixelText(fit.name)
+    const slimes = fit?.slimes ?? 0
+    // The terminal paints them in full color and makes them hop; elsewhere they rest.
+    const Raster = e.surface === 'terminal' && slimes > 0 ? $.ui.resolve(e).Raster : null
+    stage = Raster ? { requestId: e.requestId, slimes } : null
+    const still = Raster === null && slimes > 0 ? slimeText(slimes) : null
     const dirty = pixelText('*')
     const chip =
       git && glyphs === null
@@ -332,18 +402,32 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column">
-        {glyphs && git
-          ? glyphs.map((line, row) => (
-              <Box key={`row-${row}`}>
-                <Text color={SPRITE_COLOR}>{SPRITE[row]}</Text>
-                <Text>{GAP}</Text>
-                <Text color={ROW_COLORS[row]} bold>
-                  {line}
-                </Text>
-                {git.isDirty ? <Text color={DIRTY_COLOR}>{GAP + dirty[row]}</Text> : null}
-              </Box>
-            ))
-          : null}
+        {glyphs && git ? (
+          <Box key="branch">
+            <Box flexDirection="column">
+              {glyphs.map((line, row) => (
+                <Box key={`row-${row}`}>
+                  <Text color={SPRITE_COLOR}>{SPRITE[row]}</Text>
+                  <Text>{GAP}</Text>
+                  <Text color={ROW_COLORS[row]} bold>
+                    {line}
+                  </Text>
+                  {git.isDirty ? <Text color={DIRTY_COLOR}>{GAP + dirty[row]}</Text> : null}
+                  {still ? <Text>{GAP}</Text> : null}
+                  {still?.[row]?.map((s, i) => (
+                    <Text key={`slime-${i}`} color={s.color}>
+                      {s.text}
+                    </Text>
+                  ))}
+                </Box>
+              ))}
+            </Box>
+            {Raster ? <Text>{GAP}</Text> : null}
+            {Raster ? (
+              <Raster key={SLIMES_KEY} columns={slimeColumns(slimes)} rows={STAGE_ROWS} cells={slimeCells(slimes, tick, showFrame())} />
+            ) : null}
+          </Box>
+        ) : null}
         {meterRow ? (
           <Box key="meter" flexWrap="wrap">
             {chip}

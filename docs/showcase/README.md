@@ -38,12 +38,17 @@ or newer) besides Pillow and the font:
 
 ```sh
 /tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py
+/tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --king
 ```
+
+The second draws `pixel-hud-king.png`: a task of a minute ends, and the image
+catches the King Slime mid-reign, 22 ticks of the slimes' clock later.
 
 The script copies the mod to a temporary folder, adds one test that hands it
 the sample figures through Claude Code's own plugin test host, and runs
 `claude plugin test`. The test prints the tree the mod drew, and the script
-paints that tree. The branch is `main` and clean.
+paints that tree, the slimes' Raster cells included. The branch is `main` and
+clean, and the slimes are caught at rest.
 
 The mod writes reset times in the machine's local zone, and the test host does
 not take `TZ`. The script shifts the sample instants by the local offset, so the

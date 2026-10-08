@@ -14,6 +14,7 @@ import {
   usd,
 } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
+import { canCrown, HOP, KING_SHOW_TICKS, kingStage, slimeCells, slimeColumns, slimeText, stage } from './slime'
 
 const SPRITE_ROW = pack(BRANCH_SPRITE)[0]
 
@@ -118,6 +119,7 @@ function answers(on: On, git: Git) {
       cost: { usd: 1.234 },
     },
   }))
+  on('command.register', async () => ({ value: undefined }) as never)
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
 }
 
@@ -224,5 +226,114 @@ test('picks up a branch switched outside Claude Code on the next poll', async ($
   for (const line of pixelText('dev')) {
     expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
   }
+  await ui.unmount()
+})
+
+describe('slime family', () => {
+  test('stands on the floor at rest and leaves it mid-hop', async () => {
+    const floor = (tick: number) => stage(1, tick)[5]?.some(p => p !== null)
+    expect(floor(0)).toBe(true)
+    const airborne = HOP.findIndex(p => p.lift === 2)
+    expect(floor(airborne)).toBe(false)
+  })
+
+  test('packs a frame into three rows of Raster cells', async () => {
+    const bytes = atob(slimeCells(3, 0)).length
+    expect(bytes).toBe(slimeColumns(3) * 3 * 3 * 4)
+  })
+
+  test('draws a resting frame as text where there is no Raster', async () => {
+    const rows = slimeText(2)
+    expect(rows.length).toBe(3)
+    expect(rows[2]?.[0]?.text).toBe(' █████ ')
+    expect(rows[0]?.[1]?.color).toBe('#fc7460')
+  })
+})
+
+test('the slimes hop beside the branch on the terminal and rest on desktop', async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+
+  const ui = await mount($, 'terminal', 10, 120)
+  const raster = await ui.find({ type: 'Raster', key: 'slimes' })
+  expect(raster?.props.columns).toBe(slimeColumns(4))
+  expect(raster?.props.rows).toBe(3)
+  await clock.advance(140 * 3)
+  expect(blits.length).toBeGreaterThan(0)
+  expect(new Set(blits).size).toBeGreaterThan(1)
+  await ui.unmount()
+
+  const desk = await mount($, 'desktop', 10, 120)
+  expect(await desk.find({ type: 'Raster' })).toBeUndefined()
+  expect(await desk.find({ type: 'Text', text: ' █████ ' })).toBeDefined()
+  await desk.unmount()
+})
+
+test('slimes give up their room before the branch name does', async ($, on) => {
+  answers(on, { name: 'feature/slimes', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 70)
+  for (const line of pixelText('feature/slimes')) {
+    expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
+  }
+  const raster = await ui.find({ type: 'Raster', key: 'slimes' })
+  expect((raster?.props.columns as number | undefined) ?? 0).toBeLessThan(slimeColumns(4))
+  await ui.unmount()
+})
+
+describe('King Slime', () => {
+  const GOLD = 0xfcbc3c
+  const hasGold = (pixels: (number | null)[][]) => pixels.some(row => row.includes(GOLD))
+
+  test('needs two slimes of room', async () => {
+    expect(canCrown(1)).toBe(false)
+    expect(canCrown(2)).toBe(true)
+  })
+
+  test('the slimes gather, the king reigns crowned, and they end back home', async () => {
+    expect(hasGold(kingStage(4, 0, 0))).toBe(false)
+    expect(hasGold(kingStage(4, 20, 20))).toBe(true)
+    expect(kingStage(4, KING_SHOW_TICKS - 1, 7)).toEqual(stage(4, 7))
+  })
+})
+
+function goldIn(cells: string): boolean {
+  const bytes = Uint8Array.from(atob(cells), c => c.charCodeAt(0))
+  const words = new Uint32Array(bytes.buffer)
+  return words.some((w, i) => i % 3 !== 0 && w === 0xfcbc3c)
+}
+
+test('a long task crowns a King Slime, and the slimes come back after', async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('turn.complete', async () => ({ text: 'done' }))
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+
+  // A quick answer is no occasion.
+  await $.turn.complete({ answer: 'ok', durationMs: 3_000, isAborted: false, turnId: 't1', reason: 'answer' })
+  await clock.advance(140 * KING_SHOW_TICKS)
+  expect(blits.some(goldIn)).toBe(false)
+
+  await $.turn.complete({ answer: 'ok', durationMs: 60_000, isAborted: false, turnId: 't2', reason: 'answer' })
+  blits.length = 0
+  await clock.advance(140 * KING_SHOW_TICKS)
+  expect(blits.some(goldIn)).toBe(true)
+
+  blits.length = 0
+  await clock.advance(140 * 10)
+  expect(blits.length).toBeGreaterThan(0)
+  expect(blits.some(goldIn)).toBe(false)
   await ui.unmount()
 })

@@ -2,6 +2,7 @@
 """Render the real pixel-hud mod's drawing as a documentation PNG."""
 
 import argparse
+import base64
 import json
 from pathlib import Path
 import re
@@ -18,6 +19,8 @@ ROOT = HERE.parent.parent
 MOD = ROOT / "plugins" / "pixel-hud"
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--font", default="/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
+parser.add_argument("--king", action="store_true",
+                    help="draw the King Slime show after a long task (pixel-hud-king.png)")
 args = parser.parse_args()
 font = ImageFont.truetype(args.font, 24)
 small = ImageFont.truetype(args.font, 18)
@@ -64,7 +67,9 @@ test('showcase', async ($, on) => {
   on('session.model', async () => ({ value: MODEL }))
   on('session.usage', async () => ({ value: USAGE as never }))
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
-  mock.clock(on)
+  const clock = mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('turn.complete', async () => ({ text: '' }))
   on('classic.SessionStart', async () => ({}) as never)
   on('fs.exists', async () => ({ value: true }))
   on('fs.stat', async () => ({ value: { kind: 'file', size: TRANSCRIPT.length, mtimeMs: 0, isLink: false } }))
@@ -86,6 +91,13 @@ test('showcase', async ($, on) => {
     await ui.unmount()
     ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
   }
+  if (KING) {
+    // A task of a minute ends; the King Slime reigns some 22 ticks later.
+    await $.turn.complete({ answer: '', durationMs: 60_000, isAborted: false, turnId: 't', reason: 'answer' })
+    await clock.advance(140 * 22)
+    await ui.unmount()
+    ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
+  }
   console.log('SHOWCASE' + JSON.stringify(await ui.drawn()))
   await ui.unmount()
 })
@@ -99,7 +111,8 @@ with tempfile.TemporaryDirectory() as tmp:
               .replace("EFFORT", json.dumps(payload["effort"]["level"]))
               .replace("USAGE", json.dumps(usage))
               .replace("TRANSCRIPT", json.dumps(transcript))
-              .replace("COLUMNS", str(COLUMNS)))
+              .replace("COLUMNS", str(COLUMNS))
+              .replace("KING", "true" if args.king else "false"))
     (copy / "hooks" / "showcase.test.tsx").write_text(source)
     run = subprocess.run(["claude", "plugin", "test", str(copy)], text=True,
                          capture_output=True)
@@ -109,24 +122,50 @@ with tempfile.TemporaryDirectory() as tmp:
     tree = json.loads(found.group(1))
 
 
-# Flatten the drawing into rows of cells; the meter row wraps at COLUMNS the
-# way a terminal wraps it, and nothing else is reinterpreted.
-def texts(node):
-    if isinstance(node, str):
-        return
-    if node.get("type") == "Text":
-        props = node.get("props") or {}
-        content = "".join(c for c in node.get("children", []) if isinstance(c, str))
-        yield content, props.get("color"), props.get("backgroundColor")
-        return
-    for child in node.get("children", []):
-        yield from texts(child)
-
-
 INK = "#dedee5"
+DEFAULT = 0x01000000
+
+
+def raster(props):
+    # A Raster's cells: little-endian u32 triplets [codePoint, fg, bg], row-major.
+    raw = base64.b64decode(props["cells"])
+    words = [int.from_bytes(raw[i:i + 4], "little") for i in range(0, len(raw), 4)]
+    colour = lambda w: None if w == DEFAULT else f"#{w:06x}"
+    cols = props["columns"]
+    cells = [(chr(words[k]), colour(words[k + 1]) or INK, colour(words[k + 2]))
+             for k in range(0, len(words), 3)]
+    return [cells[r * cols:(r + 1) * cols] for r in range(props["rows"])]
+
+
+# Lays the drawing out as rows of cells: a column Box stacks its children, any
+# other Box sets them side by side, as the terminal does. Nothing else is
+# reinterpreted.
+def layout(node):
+    if isinstance(node, str):
+        return []
+    props = node.get("props") or {}
+    if node.get("type") == "Text":
+        content = "".join(c for c in node.get("children", []) if isinstance(c, str))
+        return [[(ch, props.get("color") or INK, props.get("backgroundColor")) for ch in content]]
+    if node.get("type") == "Raster":
+        return raster(props)
+    parts = [layout(child) for child in node.get("children", [])]
+    parts = [p for p in parts if p]
+    if props.get("flexDirection") == "column":
+        return [row for p in parts for row in p]
+    height = max((len(p) for p in parts), default=0)
+    rows = [[] for _ in range(height)]
+    for p in parts:
+        width = max(len(row) for row in p)
+        for r in range(height):
+            row = p[r] if r < len(p) else []
+            rows[r] += row + [(" ", INK, None)] * (width - len(row))
+    return rows
+
+
+# The meter row wraps at COLUMNS the way a terminal wraps it.
 rows = []
-for row in tree.get("children", []):
-    cells = [(ch, fg or INK, bg) for content, fg, bg in texts(row) for ch in content]
+for cells in layout(tree):
     if not cells:
         continue
     for start in range(0, len(cells), COLUMNS):
@@ -161,7 +200,7 @@ for r, cells in enumerate(rows):
             draw.text((x, y + 26), char, font=font, fill=fg, anchor="ls")
 draw.text((48, height - 53), "SAMPLE VALUES  /  UTC reset times  /  84-column wrap",
           font=small, fill="#b6b2c4")
-output = HERE / "pixel-hud.png"
+output = HERE / ("pixel-hud-king.png" if args.king else "pixel-hud.png")
 canvas.save(output)
 for cells in rows:
     print("".join(ch for ch, _, _ in cells))

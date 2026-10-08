@@ -11,9 +11,10 @@ wrapped at 84 columns. Reset times in this image use UTC.*
 Fields without data disappear automatically. [Reproduce this image](docs/showcase/README.md).
 
 In Claude Code, the same line can also be drawn **above** the prompt as a mod,
-with the git branch in 8-bit pixel letters. See [Claude Code: as a mod](#claude-code-as-a-mod).
+with the git branch in 8-bit pixel letters and a family of slimes hopping beside it.
+See [Claude Code: as a mod](#claude-code-as-a-mod).
 
-![pixel-hud, the Claude Code mod: the branch name main in 8-bit pixel letters above the same neon line, with the same sample values.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
+![pixel-hud, the Claude Code mod: the branch name main in 8-bit pixel letters with four pixel-art slimes beside it, above the same neon line, with the same sample values.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
 
 | What to watch | How to read it |
 |---|---|
@@ -65,10 +66,17 @@ Claude Code can also run hudline as a **mod**: a plugin that draws the line
 **above** the prompt, in the same neon look, and adds the git branch in 8-bit
 pixel letters on top. It needs no Node.js and no `statusLine` setting.
 
-![pixel-hud: the branch main in 8-bit pixel letters above hudline's neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
+![pixel-hud: the branch main in 8-bit pixel letters, four pixel-art slimes beside it, above hudline's neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
+
+Beside the branch a slime family hops: a slime, a she-slime, a metal slime and a
+bubble slime, each in its own time. When a task of 20 seconds or more finishes,
+they gather, merge into a crowned **King Slime** that reigns for a few seconds,
+then split and hop home. Type `/slime-king` to see it any time.
+
+![pixel-hud after a long task: the slimes merged into a crowned King Slime beside the branch.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-king.png)
 
 *Rendered from the mod's own drawing with the same sample values as the image
-above; [reproduce it](docs/showcase/README.md#the-mod-image).*
+above; [reproduce them](docs/showcase/README.md#the-mod-image).*
 
 Install it from a terminal session of Claude Code 2.1.294 or newer:
 
@@ -91,7 +99,10 @@ colours follow the same ramps. What the mod does not have:
 - **Effort** appears after the first reply, and the narration has no
   `agent_running` line.
 
-The branch shrinks to a `▶ BRANCH` chip when the band is narrow or short, and is
+The slimes give up their room one by one before the branch name is shortened,
+and need at least two of them for the King Slime. They hop in full colour in a
+terminal; the desktop app's Code tab draws them resting, one colour each. The
+branch shrinks to a `▶ BRANCH` chip when the band is narrow or short, and is
 hidden outside a git repository. Run the mod *or* the status line: with both,
 everything but the branch is shown twice. Uninstall with
 `/plugin uninstall pixel-hud`. Its source is [`plugins/pixel-hud/`](plugins/pixel-hud);
