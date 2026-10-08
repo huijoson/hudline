@@ -29,3 +29,22 @@ clears user presentation overrides, and invokes `bin/hudline.js` without format
 or theme flags. It draws the emitted text, foreground and background colours;
 it does not recreate hudline's field formatting or theme logic. Unsupported ANSI
 controls cause an error so changes can be reviewed before updating the image.
+
+## The mod image
+
+`pixel-hud.png` is drawn by the Claude Code mod in `plugins/pixel-hud/`, fed the
+same `payload.json` and `transcript.jsonl`. It needs the `claude` CLI (2.1.294
+or newer) besides Pillow and the font:
+
+```sh
+/tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py
+```
+
+The script copies the mod to a temporary folder, adds one test that hands it
+the sample figures through Claude Code's own plugin test host, and runs
+`claude plugin test`. The test prints the tree the mod drew, and the script
+paints that tree. The branch is `main` and clean.
+
+The mod writes reset times in the machine's local zone, and the test host does
+not take `TZ`. The script shifts the sample instants by the local offset, so the
+image shows the same UTC times as `hudline.png`.

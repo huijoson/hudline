@@ -10,6 +10,11 @@ wrapped at 84 columns. Reset times in this image use UTC.*
 5-hour and weekly quotas require Claude Pro/Max quota data from the host.
 Fields without data disappear automatically. [Reproduce this image](docs/showcase/README.md).
 
+In Claude Code, the same line can also be drawn **above** the prompt as a mod,
+with the git branch in 8-bit pixel letters. See [Claude Code: as a mod](#claude-code-as-a-mod).
+
+![pixel-hud, the Claude Code mod: the branch name main in 8-bit pixel letters above the same neon line, with the same sample values.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
+
 | What to watch | How to read it |
 |---|---|
 | **Context & quota** — `CTX`, `5H`, `7D` | `CTX 42%` is context **used now**. `5H 61%` and `7D 83%` are quota **remaining**, followed by their reset time or date. The meters measure different things: full context is bad; full remaining quota is good. |
@@ -60,13 +65,10 @@ Claude Code can also run hudline as a **mod**: a plugin that draws the line
 **above** the prompt, in the same neon look, and adds the git branch in 8-bit
 pixel letters on top. It needs no Node.js and no `statusLine` setting.
 
-```
-█▀▄▀█  ▄▀▄ ▀█▀ ▀█▀ █▀▄
-█   █  █▀█  █   █  █ █
-▀ ▄▀   ▀ ▀ ▀▀▀ ▀▀▀ ▀ ▀
- Opus 5.5 :high ★ CTX ▰▰▱▱▱ 42% ★ 5H ▰▰▰▱▱ 61% (18:30) ★ 7D ▰▰▰▰▱ 83% (09/13) ★ $1.23
-SENT 1.2M CR 98% ★ OUT 21.1k TH 24%
-```
+![pixel-hud: the branch main in 8-bit pixel letters above hudline's neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
+
+*Rendered from the mod's own drawing with the same sample values as the image
+above; [reproduce it](docs/showcase/README.md#the-mod-image).*
 
 Install it from a terminal session of Claude Code 2.1.294 or newer:
 
