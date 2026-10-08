@@ -82,6 +82,20 @@ settings file.
 }
 ```
 
+#### Or as a mod
+
+Claude Code 2.1.294 and newer can run hudline as a mod instead: no Node.js, no
+settings file, drawn above the prompt with the git branch in pixel letters.
+From a terminal session:
+
+```
+/plugin install pixel-hud --marketplace huijoson/hudline
+```
+
+Answer `y`, pick the user scope. Use the mod or the `statusLine` block, not
+both. What the mod cannot do is listed in the
+[README](../README.md#claude-code-as-a-mod).
+
 ### GitHub Copilot CLI
 
 | | |
@@ -291,10 +305,20 @@ than reporting a different number under the old one. Pinning a version
 
 Installed globally: `npm update -g hudline`.
 
+The Claude Code mod updates through its marketplace:
+
+```
+claude plugin marketplace update hudline
+claude plugin update pixel-hud@hudline
+```
+
+then restart Claude Code.
+
 ## Uninstalling
 
 Delete the `statusLine` key from your CLI's settings file and restart it. If you
-installed globally, `npm uninstall -g hudline`.
+installed globally, `npm uninstall -g hudline`. The Claude Code mod:
+`/plugin uninstall pixel-hud`.
 
 hudline writes nothing else: no state files, no hooks, no network calls beyond
 `npx` fetching the package. The only file it ever touches is the settings file

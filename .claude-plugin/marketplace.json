@@ -1,0 +1,14 @@
+{
+  "name": "hudline",
+  "owner": { "name": "Lawrence (huijoson)" },
+  "metadata": {
+    "description": "hudline for Claude Code, as a mod drawn above the prompt"
+  },
+  "plugins": [
+    {
+      "name": "pixel-hud",
+      "source": "./plugins/pixel-hud",
+      "description": "hudline as a Claude Code mod: the git branch in 8-bit pixel glyphs above hudline's neon line"
+    }
+  ]
+}

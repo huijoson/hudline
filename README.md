@@ -54,6 +54,47 @@ totals, its transcript. No network calls, hooks or persistent state files.
 > Renamed from `cc-token-statusline`. Existing `--show` / `--hide` commands keep
 > working unchanged.
 
+## Claude Code: as a mod
+
+Claude Code can also run hudline as a **mod**: a plugin that draws the line
+**above** the prompt, in the same neon look, and adds the git branch in 8-bit
+pixel letters on top. It needs no Node.js and no `statusLine` setting.
+
+```
+█▀▄▀█  ▄▀▄ ▀█▀ ▀█▀ █▀▄
+█   █  █▀█  █   █  █ █
+▀ ▄▀   ▀ ▀ ▀▀▀ ▀▀▀ ▀ ▀
+ Opus 5.5 :high ★ CTX ▰▰▱▱▱ 42% ★ 5H ▰▰▰▱▱ 61% (18:30) ★ 7D ▰▰▰▰▱ 83% (09/13) ★ $1.23
+SENT 1.2M CR 98% ★ OUT 21.1k TH 24%
+```
+
+Install it from a terminal session of Claude Code 2.1.294 or newer:
+
+```
+/plugin install pixel-hud --marketplace huijoson/hudline
+```
+
+Answer `y` to add the marketplace and pick the **user** scope. It is active at
+once, and a desktop app Code tab on the same machine loads it too.
+
+Every field means what it means on the status line: `5H` and `7D` are quota
+**remaining**, `SENT`/`CR`/`OUT`/`TH` are read from the same transcript, and the
+colours follow the same ramps. What the mod does not have:
+
+- **No Format or Theme.** It draws the neon default line. Use the status line
+  when you want to choose the fields.
+- **Transcripts over 4 MiB.** A mod may not read a larger file. `SENT`, `CR`
+  and `OUT` keep counting from the responses themselves, but thinking is only in
+  the transcript, so `TH` disappears.
+- **Effort** appears after the first reply, and the narration has no
+  `agent_running` line.
+
+The branch shrinks to a `▶ BRANCH` chip when the band is narrow or short, and is
+hidden outside a git repository. Run the mod *or* the status line: with both,
+everything but the branch is shown twice. Uninstall with
+`/plugin uninstall pixel-hud`. Its source is [`plugins/pixel-hud/`](plugins/pixel-hud);
+[ADR-0011](docs/adr/0011-claude-code-also-ships-as-a-mod.md) records why it exists.
+
 ## Reading the default line
 
 That is one line; here it is in pieces.
@@ -422,6 +463,7 @@ Windows, manual installation, verification, troubleshooting, and migrating from
 ```sh
 npm test
 echo '{"model":{"display_name":"Opus 5"}}' | node bin/hudline.js --no-color
+claude plugin test plugins/pixel-hud      # the Claude Code mod
 ```
 
 `CONTEXT.md` is the glossary; `docs/adr/` records the decisions that are hard to
