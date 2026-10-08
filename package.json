@@ -1,6 +1,6 @@
 {
   "name": "hudline",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Claude Code status line for context usage, remaining quota, and cumulative input/output tokens with cache-read and thinking shares. Customizable, zero dependencies.",
   "license": "MIT",
   "author": "Lawrence (huijoson)",
