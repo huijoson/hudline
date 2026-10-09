@@ -68,10 +68,13 @@ pixel letters on top. It needs no Node.js and no `statusLine` setting.
 
 ![pixel-hud: the branch main in 8-bit pixel letters, four pixel-art slimes beside it, above hudline's neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
 
-Beside the branch a slime family hops: a slime, a she-slime, a metal slime and a
-bubble slime, each in its own time. When a task of 20 seconds or more finishes,
-they gather, merge into a crowned **King Slime** that reigns for a few seconds,
-then split and hop home. Type `/slime-king` to see it any time.
+Beside the branch sits a slime family: a slime, a she-slime, a metal slime and a
+bubble slime. When a task of 20 seconds or more finishes, they gather, merge
+into a crowned **King Slime** that reigns for a few seconds, then split and go
+home. Type `/slime-king` to see it any time.
+
+They sit still by default. To make them hop, each in its own time, turn on
+**Slimes hop** for pixel-hud in `/config` (the `slimesHop` option).
 
 ![pixel-hud after a long task: the slimes merged into a crowned King Slime beside the branch.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-king.png)
 
@@ -100,7 +103,7 @@ colours follow the same ramps. What the mod does not have:
   `agent_running` line.
 
 The slimes give up their room one by one before the branch name is shortened,
-and need at least two of them for the King Slime. They hop in full colour in a
+and need at least two of them for the King Slime. They are drawn in full colour in a
 terminal; the desktop app's Code tab draws them resting, one colour each. The
 branch shrinks to a `▶ BRANCH` chip when the band is narrow or short, and is
 hidden outside a git repository. Run the mod *or* the status line: with both,

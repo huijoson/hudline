@@ -237,6 +237,15 @@ describe('slime family', () => {
     expect(floor(airborne)).toBe(false)
   })
 
+  test('at rest every slime sits on the floor', async () => {
+    const rest = stage(4, null)
+    for (let i = 0; i < 4; i += 1) {
+      expect(rest[5]?.slice(i * slimeColumns(1), (i + 1) * slimeColumns(1)).some(p => p !== null)).toBe(true)
+    }
+    expect(rest[0]?.some(p => p !== null)).toBe(false)
+    expect(rest[1]?.some(p => p !== null)).toBe(false)
+  })
+
   test('packs a frame into three rows of Raster cells', async () => {
     const bytes = atob(slimeCells(3, 0)).length
     expect(bytes).toBe(slimeColumns(3) * 3 * 3 * 4)
@@ -250,7 +259,7 @@ describe('slime family', () => {
   })
 })
 
-test('the slimes hop beside the branch on the terminal and rest on desktop', async ($, on) => {
+test('the slimes hop beside the branch on the terminal and rest on desktop', { options: { slimesHop: true } }, async ($, on) => {
   const clock = mock.clock(on)
   const blits: string[] = []
   on('ui.blit', async (_$, e) => {
@@ -273,6 +282,33 @@ test('the slimes hop beside the branch on the terminal and rest on desktop', asy
   expect(await desk.find({ type: 'Raster' })).toBeUndefined()
   expect(await desk.find({ type: 'Text', text: ' █████ ' })).toBeDefined()
   await desk.unmount()
+})
+
+test('by default the slimes sit still, and the King Slime still plays', async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('turn.complete', async () => ({ text: 'done' }))
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+  const raster = await ui.find({ type: 'Raster', key: 'slimes' })
+  expect(raster?.props.cells).toBe(slimeCells(4, null))
+  await clock.advance(140 * 10)
+  expect(blits.length).toBe(0)
+
+  await $.turn.complete({ answer: 'ok', durationMs: 60_000, isAborted: false, turnId: 't1', reason: 'answer' })
+  await clock.advance(140 * (KING_SHOW_TICKS + 2))
+  expect(blits.some(goldIn)).toBe(true)
+  expect(blits.at(-1)).toBe(slimeCells(4, null))
+
+  blits.length = 0
+  await clock.advance(140 * 10)
+  expect(blits.length).toBe(0)
+  await ui.unmount()
 })
 
 test('slimes give up their room before the branch name does', async ($, on) => {
@@ -309,7 +345,7 @@ function goldIn(cells: string): boolean {
   return words.some((w, i) => i % 3 !== 0 && w === 0xfcbc3c)
 }
 
-test('a long task crowns a King Slime, and the slimes come back after', async ($, on) => {
+test('a long task crowns a King Slime, and the slimes come back after', { options: { slimesHop: true } }, async ($, on) => {
   const clock = mock.clock(on)
   const blits: string[] = []
   on('ui.blit', async (_$, e) => {

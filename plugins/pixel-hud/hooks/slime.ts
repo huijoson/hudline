@@ -76,12 +76,14 @@ function kinPalette(i: number): Palette {
   return { B: kin.body, H: kin.highlight, K: kin.eye }
 }
 
-function pose(i: number, tick: number): Pose {
+// A null `tick` is the slimes at rest: all of them sitting on the floor.
+function pose(i: number, tick: number | null): Pose {
+  if (tick === null) return HOP[0] as Pose
   return HOP[(tick + (PHASE[i % PHASE.length] ?? 0)) % HOP.length] as Pose
 }
 
 // The stage's pixels for `count` slimes at `tick`: a color per pixel, or null.
-export function stage(count: number, tick: number): Pixels {
+export function stage(count: number, tick: number | null): Pixels {
   const pixels = blank(count)
   for (let i = 0; i < count; i += 1) {
     const p = pose(i, tick)
@@ -134,7 +136,7 @@ export function canCrown(count: number): boolean {
 }
 
 // The slimes hopping from home toward the middle, `t` of the way there (0 to 1).
-function travel(pixels: Pixels, count: number, tick: number, t: number) {
+function travel(pixels: Pixels, count: number, tick: number | null, t: number) {
   const middle = Math.floor((slimeColumns(count) - SLIME_WIDTH) / 2)
   for (let i = 0; i < count; i += 1) {
     const home = i * SLIME_WIDTH
@@ -148,7 +150,7 @@ function whiteOf(sprite: readonly string[]): Palette {
 }
 
 // The stage `frame` ticks into the King Slime show, `tick` keeping the hops going.
-export function kingStage(count: number, frame: number, tick: number): Pixels {
+export function kingStage(count: number, frame: number, tick: number | null): Pixels {
   const pixels = blank(count)
   const kingX = Math.floor((slimeColumns(count) - KING_WIDTH) / 2)
   const king: Palette = { ...kinPalette(0), Y: GOLD, R: JEWEL }
@@ -197,8 +199,8 @@ export function kingStage(count: number, frame: number, tick: number): Pixels {
 }
 
 // The stage as Raster cells: base64 of [codePoint, fg, bg] u32 triplets.
-// `show` is how many ticks into the King Slime show, or null when there is none.
-export function slimeCells(count: number, tick: number, show: number | null = null): string {
+// `tick` null draws them at rest; `show` is how many ticks into the King Slime show, or null when there is none.
+export function slimeCells(count: number, tick: number | null, show: number | null = null): string {
   const pixels = show !== null && show < KING_SHOW_TICKS && canCrown(count) ? kingStage(count, show, tick) : stage(count, tick)
   const width = slimeColumns(count)
   const words = new Uint32Array(width * STAGE_ROWS * 3)

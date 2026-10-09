@@ -8,7 +8,7 @@
     {
       "name": "pixel-hud",
       "source": "./plugins/pixel-hud",
-      "description": "hudline as a Claude Code mod: the git branch in 8-bit pixel glyphs, with a hopping slime family, above hudline's neon line"
+      "description": "hudline as a Claude Code mod: the git branch in 8-bit pixel glyphs, with a slime family that can hop, above hudline's neon line"
     }
   ]
 }

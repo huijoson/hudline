@@ -46,7 +46,7 @@ const FULL_ROWS = 5
 // /clear empties $.state, and a branch switched outside Claude Code raises no
 // event: poll to catch both.
 const POLL_MS = 3000
-// The slime family hops at this pace, repainted in place by $.ui.blit.
+// The slime family hops at this pace (when slimesHop is on), repainted in place by $.ui.blit.
 const HOP_MS = 140
 const SLIMES_KEY = 'slimes'
 // A task long enough to earn the King Slime: the slimes merge, reign, and split.
@@ -146,7 +146,9 @@ function fitBranch(name: string, isDirty: boolean, columns: number): { name: str
   return { name: name.length <= room ? name : `${name.slice(0, room - 2)}..`, slimes: 0 }
 }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  // Off by default: the slimes sit still, and only the King Slime show moves them.
+  const isHopping = options.slimesHop === true
   let poll: Timer | undefined
   let hop: Timer | undefined
   let tick = 0
@@ -154,12 +156,15 @@ export const register: Register = on => {
   let stage: { requestId: string; slimes: number } | null = null
   // The tick the King Slime show began on, while it plays.
   let crowned: number | null = null
+  // Whether the last blit was a show frame: at rest, one more repaints them home.
+  let wasShowing = false
   const showFrame = () => {
     if (crowned === null) return null
     const frame = tick - crowned
     if (frame >= KING_SHOW_TICKS) crowned = null
     return crowned === null ? null : frame
   }
+  const hopTick = () => (isHopping ? tick : null)
   // Starts the show unless one is playing or there is no room for the king.
   const crown = () => {
     if (crowned !== null || !stage || !canCrown(stage.slimes)) return false
@@ -176,8 +181,12 @@ export const register: Register = on => {
       tick += 1
       const drawn = stage
       if (!drawn) return
+      const show = showFrame()
+      const isStill = !isHopping && show === null && !wasShowing
+      wasShowing = show !== null
+      if (isStill) return
       void $.ui
-        .blit({ requestId: drawn.requestId, key: SLIMES_KEY, cells: slimeCells(drawn.slimes, tick, showFrame()) })
+        .blit({ requestId: drawn.requestId, key: SLIMES_KEY, cells: slimeCells(drawn.slimes, hopTick(), show) })
         .then(r => {
           // Gone (band hidden, redrawn without them): rest until a render seats them again.
           if ('deny' in r && stage === drawn) stage = null
@@ -289,7 +298,7 @@ export const register: Register = on => {
     const fit = git && e.props.maxRows >= FULL_ROWS ? fitBranch(git.name, git.isDirty, e.props.bodyColumns) : null
     const glyphs = fit === null ? null : pixelText(fit.name)
     const slimes = fit?.slimes ?? 0
-    // The terminal paints them in full color and makes them hop; elsewhere they rest.
+    // The terminal paints them in full color and can make them hop; elsewhere they rest.
     const Raster = e.surface === 'terminal' && slimes > 0 ? $.ui.resolve(e).Raster : null
     stage = Raster ? { requestId: e.requestId, slimes } : null
     const still = Raster === null && slimes > 0 ? slimeText(slimes) : null
@@ -424,7 +433,7 @@ export const register: Register = on => {
             </Box>
             {Raster ? <Text>{GAP}</Text> : null}
             {Raster ? (
-              <Raster key={SLIMES_KEY} columns={slimeColumns(slimes)} rows={STAGE_ROWS} cells={slimeCells(slimes, tick, showFrame())} />
+              <Raster key={SLIMES_KEY} columns={slimeColumns(slimes)} rows={STAGE_ROWS} cells={slimeCells(slimes, hopTick(), showFrame())} />
             ) : null}
           </Box>
         ) : null}
