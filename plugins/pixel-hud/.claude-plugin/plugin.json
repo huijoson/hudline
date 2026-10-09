@@ -1,6 +1,6 @@
 {
   "name": "pixel-hud",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "hudline as a Claude Code mod: the git branch in 8-bit pixel glyphs, with a slime family that can hop, above hudline's neon line (model, effort, context, 5h/7d quota left, cost, token flow)",
   "author": {
     "name": "yuhan"
