@@ -166,10 +166,11 @@ export const register: Register = (on, options) => {
   }
   const hopTick = () => (isHopping ? tick : null)
   // Starts the show unless one is playing or there is no room for the king.
-  const crown = () => {
-    if (crowned !== null || !stage || !canCrown(stage.slimes)) return false
+  const crown = (): 'crowned' | 'reigning' | 'no-room' => {
+    if (crowned !== null) return 'reigning'
+    if (!stage || !canCrown(stage.slimes)) return 'no-room'
     crowned = tick
-    return true
+    return 'crowned'
   }
 
   on('session.start', async ($, e, next) => {
@@ -203,9 +204,12 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  on('command.run', { command: KING_COMMAND }, async () => ({
-    text: crown() ? 'The slimes are merging...' : 'No room for a King Slime here: widen the terminal.',
-  }))
+  const KING_SAYS = {
+    crowned: 'The slimes are merging...',
+    reigning: 'The King Slime already reigns.',
+    'no-room': 'No room for a King Slime here: widen the terminal.',
+  } as const
+  on('command.run', { command: KING_COMMAND }, async () => ({ text: KING_SAYS[crown()] }))
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
