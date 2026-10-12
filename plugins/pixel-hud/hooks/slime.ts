@@ -124,7 +124,10 @@ const TWINKLES = [
 ]
 
 // One leap, in ticks: crouch, rise, the top, fall, land.
-const LEAP = 5
+export const LEAP = 5
+// Where the slimes collide, the top of the second leap in: they leap out of
+// the king from there too, so none of them pops out of nowhere.
+const COLLIDE = 0.5 + (0.5 * (LEAP - 2)) / (LEAP - 1)
 // The show, in ticks: leap to halfway, leap together and collide in the air,
 // land merged, flash, the king's reign, flash, leap out twice, and rest.
 const GATHER = LEAP + LEAP - 1
@@ -202,7 +205,7 @@ export function kingStage(count: number, frame: number, tick: number | null): Pi
     return pixels
   }
   f -= 2
-  if (f < LEAP) leap(pixels, count, 1, 0.5, f)
+  if (f < LEAP) leap(pixels, count, COLLIDE, 0.5, f)
   else if (f < LEAP * 2) leap(pixels, count, 0.5, 0, f - LEAP)
   else return stage(count, tick)
   return pixels
