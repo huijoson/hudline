@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the real pixel-hud mod's drawing as a documentation PNG."""
+"""Render the real pixel-hud mod's drawing as a documentation PNG, or GIF."""
 
 import argparse
 import base64
@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 from datetime import datetime, timezone
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, features
 
 
 HERE = Path(__file__).resolve().parent
@@ -24,6 +24,10 @@ parser.add_argument("--king", action="store_true",
 parser.add_argument("--gif", action="store_true",
                     help="animate the whole King Slime show, one frame a tick (pixel-hud-king.gif)")
 args = parser.parse_args()
+# Text is laid out with libraqm, as the committed images were: Pillow's basic
+# layout advances each cell 14 px instead of 14.45 and draws narrower images.
+if not features.check("raqm"):
+    raise SystemExit("Pillow was built without libraqm; see docs/showcase/README.md")
 font = ImageFont.truetype(args.font, 24)
 small = ImageFont.truetype(args.font, 18)
 title = ImageFont.truetype(args.font, 30)
@@ -222,6 +226,13 @@ def paint(tree):
 
 if args.gif:
     frames = [paint(tree)[0] for tree in trees]
+    # One palette for every frame, so the text that stays put does not flicker
+    # as each frame would otherwise pick its own colours.
+    sheet = Image.new("RGB", (frames[0].width, frames[0].height * len(frames)))
+    for i, frame in enumerate(frames):
+        sheet.paste(frame, (0, i * frame.height))
+    palette = sheet.quantize(colors=256)
+    frames = [frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames]
     # The slimes at rest a moment, then the show at the slimes' own pace.
     durations = [1200] + [140] * (len(frames) - 2) + [1200]
     output = HERE / "pixel-hud-king.gif"

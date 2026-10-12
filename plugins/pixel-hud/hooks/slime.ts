@@ -103,7 +103,7 @@ const KING = [
   'BBBBBBBBBBBBB',
 ]
 const KING_BLINK = [KING[0], KING[1], KING[2], '..BBBBBBBBB..', KING[4], KING[5]] as string[]
-const KING_WIDTH = 13
+export const KING_WIDTH = 13
 // The slimes landing on one another: a splat, then a blob bouncing up.
 const MERGED = [
   ['...BBBBHBB...', '.BBKBBBBBKBB.', 'BBBBBBBBBBBBB'],
@@ -124,7 +124,10 @@ const TWINKLES = [
 ]
 
 // One leap, in ticks: crouch, rise, the top, fall, land.
-const LEAP = 5
+export const LEAP = 5
+// Where the slimes collide, on the fall of the second leap in: they leap out
+// of the king from there too, so none of them pops out of nowhere.
+const COLLIDE = 0.5 + (0.5 * (LEAP - 2)) / (LEAP - 1)
 // The show, in ticks: leap to halfway, leap together and collide in the air,
 // land merged, flash, the king's reign, flash, leap out twice, and rest.
 const GATHER = LEAP + LEAP - 1
@@ -139,7 +142,8 @@ export function canCrown(count: number): boolean {
 }
 
 // Every slime `step` ticks into a leap that takes it `from` (0 home, 1 the
-// middle) `to` the next spot: it moves only while in the air.
+// middle) `to` the next spot: it moves only while in the air. Each one rounds
+// away from the middle, so short of it they keep their order and all show.
 function leap(pixels: Pixels, count: number, from: number, to: number, step: number) {
   const middle = Math.floor((slimeColumns(count) - SLIME_WIDTH) / 2)
   const t = from + ((to - from) * step) / (LEAP - 1)
@@ -147,7 +151,8 @@ function leap(pixels: Pixels, count: number, from: number, to: number, step: num
   const sprite = lift === 0 ? SQUASH : STAND
   for (let i = 0; i < count; i += 1) {
     const home = i * SLIME_WIDTH
-    paint(pixels, sprite, Math.round(home + (middle - home) * t), lift, kinPalette(i))
+    const x = home + (middle - home) * t
+    paint(pixels, sprite, home < middle ? Math.floor(x) : Math.ceil(x), lift, kinPalette(i))
   }
 }
 
@@ -202,7 +207,7 @@ export function kingStage(count: number, frame: number, tick: number | null): Pi
     return pixels
   }
   f -= 2
-  if (f < LEAP) leap(pixels, count, 1, 0.5, f)
+  if (f < LEAP) leap(pixels, count, COLLIDE, 0.5, f)
   else if (f < LEAP * 2) leap(pixels, count, 0.5, 0, f - LEAP)
   else return stage(count, tick)
   return pixels
