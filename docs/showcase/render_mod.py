@@ -21,6 +21,8 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--font", default="/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
 parser.add_argument("--king", action="store_true",
                     help="draw the King Slime show after a long task (pixel-hud-king.png)")
+parser.add_argument("--gif", action="store_true",
+                    help="animate the whole King Slime show, one frame a tick (pixel-hud-king.gif)")
 args = parser.parse_args()
 font = ImageFont.truetype(args.font, 24)
 small = ImageFont.truetype(args.font, 18)
@@ -58,6 +60,7 @@ COLUMNS = 84
 
 SHOWCASE_TEST = """
 import { mock, test } from 'claude-code/testing'
+import { KING_SHOW_TICKS } from './slime'
 
 test('showcase', async ($, on) => {
   on('process.run', async (_$, e) => ({
@@ -98,7 +101,18 @@ test('showcase', async ($, on) => {
     await ui.unmount()
     ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
   }
-  console.log('SHOWCASE' + JSON.stringify(await ui.drawn()))
+  if (FRAMES > 0) {
+    // A task of a minute ends; one drawing a tick, from the slimes at rest
+    // through the whole show and home again.
+    console.log('SHOWCASE' + JSON.stringify(await ui.drawn()))
+    await $.turn.complete({ answer: '', durationMs: 60_000, isAborted: false, turnId: 't', reason: 'answer' })
+    for (let i = 0; i < FRAMES; i += 1) {
+      await ui.unmount()
+      ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
+      console.log('SHOWCASE' + JSON.stringify(await ui.drawn()))
+      await clock.advance(140)
+    }
+  } else console.log('SHOWCASE' + JSON.stringify(await ui.drawn()))
   await ui.unmount()
 })
 """
@@ -112,14 +126,15 @@ with tempfile.TemporaryDirectory() as tmp:
               .replace("USAGE", json.dumps(usage))
               .replace("TRANSCRIPT", json.dumps(transcript))
               .replace("COLUMNS", str(COLUMNS))
-              .replace("KING", "true" if args.king else "false"))
+              .replace("if (KING)", "if (true)" if args.king else "if (false)")
+              .replace("FRAMES", "KING_SHOW_TICKS + 6" if args.gif else "0"))
     (copy / "hooks" / "showcase.test.tsx").write_text(source)
     run = subprocess.run(["claude", "plugin", "test", str(copy)], text=True,
                          capture_output=True)
-    found = re.search(r"^SHOWCASE(.*)$", run.stdout + run.stderr, re.M)
+    found = re.findall(r"^SHOWCASE(.*)$", run.stdout + run.stderr, re.M)
     if not found:
         raise SystemExit(f"the mod drew nothing:\n{run.stdout}\n{run.stderr}")
-    tree = json.loads(found.group(1))
+    trees = [json.loads(f) for f in found]
 
 
 INK = "#dedee5"
@@ -163,43 +178,60 @@ def layout(node):
     return rows
 
 
-# The meter row wraps at COLUMNS the way a terminal wraps it.
-rows = []
-for cells in layout(tree):
-    if not cells:
-        continue
-    for start in range(0, len(cells), COLUMNS):
-        rows.append(cells[start:start + COLUMNS])
+# Paints one drawing of the mod; the meter row wraps at COLUMNS the way a
+# terminal wraps it.
+def paint(tree):
+    rows = []
+    for cells in layout(tree):
+        if not cells:
+            continue
+        for start in range(0, len(cells), COLUMNS):
+            rows.append(cells[start:start + COLUMNS])
 
-cell_width = font.getlength("M")
-row_height = 36
-width = round(COLUMNS * cell_width) + 112
-height = 210 + len(rows) * row_height
-canvas = Image.new("RGB", (width, height), "#101116")
-draw = ImageDraw.Draw(canvas)
-draw.text((48, 30), "pixel-hud", font=title, fill="#f5f3f8")
-draw.text((width - 48, 40), "CLAUDE CODE MOD / ABOVE THE PROMPT", font=small,
-          fill="#b6b2c4", anchor="ra")
-draw.rounded_rectangle((32, 91, width - 32, 125 + len(rows) * row_height),
-                       radius=12, fill="#191a21", outline="#32333f")
-for r, cells in enumerate(rows):
-    y = 108 + r * row_height
-    for c, (char, fg, bg) in enumerate(cells):
-        x = 56 + c * cell_width
-        if bg:
-            draw.rectangle((x, y, x + cell_width, y + row_height - 1), fill=bg)
-        # Half blocks are drawn as the pixels they stand for, so the letters are
-        # solid at any font's line height.
-        if char == "█":
-            draw.rectangle((x, y, x + cell_width, y + row_height - 1), fill=fg)
-        elif char == "▀":
-            draw.rectangle((x, y, x + cell_width, y + row_height / 2 - 1), fill=fg)
-        elif char == "▄":
-            draw.rectangle((x, y + row_height / 2, x + cell_width, y + row_height - 1), fill=fg)
-        elif char != " ":
-            draw.text((x, y + 26), char, font=font, fill=fg, anchor="ls")
-draw.text((48, height - 53), "SAMPLE VALUES  /  UTC reset times  /  84-column wrap",
-          font=small, fill="#b6b2c4")
+    cell_width = font.getlength("M")
+    row_height = 36
+    width = round(COLUMNS * cell_width) + 112
+    height = 210 + len(rows) * row_height
+    canvas = Image.new("RGB", (width, height), "#101116")
+    draw = ImageDraw.Draw(canvas)
+    draw.text((48, 30), "pixel-hud", font=title, fill="#f5f3f8")
+    draw.text((width - 48, 40), "CLAUDE CODE MOD / ABOVE THE PROMPT", font=small,
+              fill="#b6b2c4", anchor="ra")
+    draw.rounded_rectangle((32, 91, width - 32, 125 + len(rows) * row_height),
+                           radius=12, fill="#191a21", outline="#32333f")
+    for r, cells in enumerate(rows):
+        y = 108 + r * row_height
+        for c, (char, fg, bg) in enumerate(cells):
+            x = 56 + c * cell_width
+            if bg:
+                draw.rectangle((x, y, x + cell_width, y + row_height - 1), fill=bg)
+            # Half blocks are drawn as the pixels they stand for, so the letters are
+            # solid at any font's line height.
+            if char == "█":
+                draw.rectangle((x, y, x + cell_width, y + row_height - 1), fill=fg)
+            elif char == "▀":
+                draw.rectangle((x, y, x + cell_width, y + row_height / 2 - 1), fill=fg)
+            elif char == "▄":
+                draw.rectangle((x, y + row_height / 2, x + cell_width, y + row_height - 1), fill=fg)
+            elif char != " ":
+                draw.text((x, y + 26), char, font=font, fill=fg, anchor="ls")
+    draw.text((48, height - 53), "SAMPLE VALUES  /  UTC reset times  /  84-column wrap",
+              font=small, fill="#b6b2c4")
+    return canvas, rows
+
+
+if args.gif:
+    frames = [paint(tree)[0] for tree in trees]
+    # The slimes at rest a moment, then the show at the slimes' own pace.
+    durations = [1200] + [140] * (len(frames) - 2) + [1200]
+    output = HERE / "pixel-hud-king.gif"
+    frames[0].save(output, save_all=True, append_images=frames[1:], duration=durations,
+                   loop=0, optimize=True)
+    width, height = frames[0].size
+    print(f"Wrote {output} ({width} x {height}, {len(frames)} frames)")
+    raise SystemExit
+canvas, rows = paint(trees[-1])
+width, height = canvas.size
 output = HERE / ("pixel-hud-king.png" if args.king else "pixel-hud.png")
 canvas.save(output)
 for cells in rows:

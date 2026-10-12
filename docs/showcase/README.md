@@ -39,10 +39,14 @@ or newer) besides Pillow and the font:
 ```sh
 /tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py
 /tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --king
+/tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --gif
 ```
 
 The second draws `pixel-hud-king.png`: a task of a minute ends, and the image
 catches the King Slime mid-reign, 22 ticks of the slimes' clock later.
+The third draws `pixel-hud-king.gif`, the README's demo: the same task, one
+frame for each tick of the slimes' 140 ms clock, from the slimes at rest through
+the whole show and home again. Pillow folds repeated frames into one.
 
 The script copies the mod to a temporary folder, adds one test that hands it
 the sample figures through Claude Code's own plugin test host, and runs

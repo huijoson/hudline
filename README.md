@@ -69,17 +69,18 @@ pixel letters on top. It needs no Node.js and no `statusLine` setting.
 ![pixel-hud: the branch main in 8-bit pixel letters, four pixel-art slimes beside it, above hudline's neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
 
 Beside the branch sits a slime family: a slime, a she-slime, a metal slime and a
-bubble slime. When a task of 20 seconds or more finishes, they gather, merge
-into a crowned **King Slime** that reigns for a few seconds, then split and go
-home. Type `/slime-king` to see it any time.
+bubble slime. When a task of 20 seconds or more finishes, they leap toward each
+other in two hops, collide in mid-air and land as one, a crowned **King Slime**
+that reigns for a few seconds, then leap back home. Type `/slime-king` to see
+it any time.
 
 They sit still by default. To make them hop, each in its own time, turn on
 **Slimes hop** for pixel-hud in `/config` (the `slimesHop` option).
 
-![pixel-hud after a long task: the slimes merged into a crowned King Slime beside the branch.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-king.png)
+![pixel-hud after a long task: the slimes leap together, merge into a crowned King Slime beside the branch, then leap back home.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-king.gif)
 
-*Rendered from the mod's own drawing with the same sample values as the image
-above; [reproduce them](docs/showcase/README.md#the-mod-image).*
+*Rendered from the mod's own drawing, one frame a tick, with the same sample
+values as the image above; [reproduce them](docs/showcase/README.md#the-mod-image).*
 
 Install it from a terminal session of Claude Code 2.1.294 or newer:
 
