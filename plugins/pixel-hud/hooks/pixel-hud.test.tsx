@@ -15,7 +15,7 @@ import {
   usd,
 } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { canCrown, FAMILY, HOP, KING_SHOW_TICKS, kingStage, LEAP, slimeCells, slimeColumns, slimeText, stage } from './slime'
+import { canCrown, FAMILY, HOP, KING_SHOW_TICKS, KING_WIDTH, kingStage, LEAP, slimeCells, slimeColumns, slimeText, stage } from './slime'
 
 const SPRITE_ROW = pack(BRANCH_SPRITE)[0]
 
@@ -354,8 +354,11 @@ describe('King Slime', () => {
   const atTop = (pixels: Pixels) => pixels.slice(-2).every(row => row.every(c => c === null))
   const left = (pixels: Pixels) => Math.min(...pixels.map(row => row.findIndex(c => c !== null)).filter(x => x >= 0))
   const right = (pixels: Pixels) => Math.max(...pixels.map(row => row.findLastIndex(c => c !== null)))
-  const at = (frame: number) => kingStage(4, frame, null)
+  const at = (frame: number, count = 4) => kingStage(count, frame, null)
   const bodies = (pixels: Pixels) => FAMILY.filter(kin => pixels.some(row => row.includes(kin.body))).length
+  // The frame the slimes collide in mid-air, and the first of their leap out.
+  const collide = LEAP * 2 - 2
+  const out = KING_SHOW_TICKS - 1 - LEAP * 2
 
   test('the slimes leap toward the middle, moving only in the air', async () => {
     // Crouched at home, up through the top of the leap, and landed halfway.
@@ -370,7 +373,6 @@ describe('King Slime', () => {
   })
 
   test('the slimes collide in mid-air, further in than halfway, and land merged', async () => {
-    const collide = LEAP * 2 - 2
     expect(grounded(at(collide))).toBe(false)
     expect(left(at(collide))).toBeGreaterThan(left(at(LEAP - 1)))
     // Pressed together, every one of them still shows.
@@ -379,14 +381,12 @@ describe('King Slime', () => {
     // the first slime's colours: not the four landed on one spot.
     const splat = at(collide + 1)
     expect(grounded(splat)).toBe(true)
-    expect(right(splat) - left(splat) + 1).toBe(13)
+    expect(right(splat) - left(splat) + 1).toBe(KING_WIDTH)
     expect(bodies(splat)).toBe(1)
     expect(splat.some(row => row.includes(FAMILY[0]?.body ?? -1))).toBe(true)
   })
 
   test('the slimes leap home in two hops, from where they collided', async () => {
-    const collide = LEAP * 2 - 2
-    const out = KING_SHOW_TICKS - 1 - LEAP * 2
     // Out of the king where they met, so every slime that went in comes out;
     // crouched, a slime is a pixel wider each side than in the air.
     expect([left(at(out)), right(at(out))]).toEqual([left(at(collide)) - 1, right(at(collide)) + 1])
@@ -399,6 +399,12 @@ describe('King Slime', () => {
     expect(at(out + LEAP)).toEqual(at(out + LEAP - 1))
     expect(atTop(at(out + LEAP + 2))).toBe(true)
     expect(left(at(out + LEAP * 2 - 1))).toBe(0)
+  })
+
+  test('however many slimes, every one shows where they collide and leap out', async () => {
+    for (const count of [2, 3, 4]) {
+      expect([count, bodies(at(collide, count)), bodies(at(out, count))]).toEqual([count, count, count])
+    }
   })
 
   test('the show lasts as long as it always has: 50 ticks, seven seconds', async () => {

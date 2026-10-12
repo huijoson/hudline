@@ -103,7 +103,7 @@ const KING = [
   'BBBBBBBBBBBBB',
 ]
 const KING_BLINK = [KING[0], KING[1], KING[2], '..BBBBBBBBB..', KING[4], KING[5]] as string[]
-const KING_WIDTH = 13
+export const KING_WIDTH = 13
 // The slimes landing on one another: a splat, then a blob bouncing up.
 const MERGED = [
   ['...BBBBHBB...', '.BBKBBBBBKBB.', 'BBBBBBBBBBBBB'],
