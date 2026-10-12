@@ -348,6 +348,19 @@ describe('King Slime', () => {
     expect(hasGold(kingStage(4, 20, 20))).toBe(true)
     expect(kingStage(4, KING_SHOW_TICKS - 1, 7)).toEqual(stage(4, 7))
   })
+
+  test('the slimes leap toward the middle, moving only in the air', async () => {
+    const grounded = (pixels: (number | null)[][]) => (pixels[pixels.length - 1] ?? []).some(c => c !== null)
+    const left = (pixels: (number | null)[][]) => Math.min(...pixels.map(row => row.findIndex(c => c !== null)).filter(x => x >= 0))
+    // Crouched at home, up through the top of the leap, and landed halfway.
+    expect(grounded(kingStage(4, 0, null))).toBe(true)
+    expect(left(kingStage(4, 0, null))).toBe(0)
+    expect([1, 2, 3].map(f => grounded(kingStage(4, f, null)))).toEqual([false, false, false])
+    expect(grounded(kingStage(4, 4, null))).toBe(true)
+    expect(left(kingStage(4, 4, null))).toBeGreaterThan(0)
+    // The second leap takes off from where the first landed.
+    expect(kingStage(4, 5, null)).toEqual(kingStage(4, 4, null))
+  })
 })
 
 function goldIn(cells: string): boolean {

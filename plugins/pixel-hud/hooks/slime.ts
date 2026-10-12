@@ -155,7 +155,8 @@ function whiteOf(sprite: readonly string[]): Palette {
   return Object.fromEntries([...new Set(sprite.join(''))].filter(ch => ch !== '.').map(ch => [ch, WHITE]))
 }
 
-// The stage `frame` ticks into the King Slime show, `tick` keeping the hops going.
+// The stage `frame` ticks into the King Slime show; `tick` poses the slimes
+// once they are home again.
 export function kingStage(count: number, frame: number, tick: number | null): Pixels {
   const pixels = blank(count)
   const kingX = Math.floor((slimeColumns(count) - KING_WIDTH) / 2)
