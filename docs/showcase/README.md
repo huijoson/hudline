@@ -4,7 +4,12 @@
 into a terminal-style panel. It is not a screenshot of a live Claude Code session.
 The image wraps at 84 columns without changing the default Format.
 
-Requirements: Node.js 18+, Python 3, Pillow 10.2.0 and DejaVu Sans Mono.
+Requirements: Node.js 18+, Python 3, Pillow 10.2.0 built with libraqm, and
+DejaVu Sans Mono. Pillow's wheels bundle libraqm, which loads the system's
+FriBiDi; check with
+`python -c "from PIL import features; print(features.check('raqm'))"`.
+Without it Pillow lays text out 14 px a cell instead of 14.45, and the images
+come out 1288 px wide instead of 1326, so the scripts refuse to run.
 These are documentation tools; the npm package has no new dependencies.
 
 From the repository root:
@@ -52,7 +57,8 @@ The script copies the mod to a temporary folder, adds one test that hands it
 the sample figures through Claude Code's own plugin test host, and runs
 `claude plugin test`. The test prints the tree the mod drew, and the script
 paints that tree, the slimes' Raster cells included. The branch is `main` and
-clean, and the slimes are caught at rest.
+clean. The plain image catches the slimes at rest; `--king` and `--gif` play
+the show after a long task.
 
 The mod writes reset times in the machine's local zone, and the test host does
 not take `TZ`. The script shifts the sample instants by the local offset, so the

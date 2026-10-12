@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, features
 
 
 HERE = Path(__file__).resolve().parent
@@ -16,6 +16,10 @@ ROOT = HERE.parent.parent
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--font", default="/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
 args = parser.parse_args()
+# Text is laid out with libraqm, as the committed images were: Pillow's basic
+# layout advances each cell 14 px instead of 14.45 and draws narrower images.
+if not features.check("raqm"):
+    raise SystemExit("Pillow was built without libraqm; see docs/showcase/README.md")
 font = ImageFont.truetype(args.font, 24)
 small = ImageFont.truetype(args.font, 18)
 title = ImageFont.truetype(args.font, 30)
