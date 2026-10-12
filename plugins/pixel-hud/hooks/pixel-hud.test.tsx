@@ -15,7 +15,7 @@ import {
   usd,
 } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { canCrown, HOP, KING_SHOW_TICKS, kingStage, LEAP, slimeCells, slimeColumns, slimeText, stage } from './slime'
+import { canCrown, FAMILY, HOP, KING_SHOW_TICKS, kingStage, LEAP, slimeCells, slimeColumns, slimeText, stage } from './slime'
 
 const SPRITE_ROW = pack(BRANCH_SPRITE)[0]
 
@@ -355,6 +355,7 @@ describe('King Slime', () => {
   const left = (pixels: Pixels) => Math.min(...pixels.map(row => row.findIndex(c => c !== null)).filter(x => x >= 0))
   const right = (pixels: Pixels) => Math.max(...pixels.map(row => row.findLastIndex(c => c !== null)))
   const at = (frame: number) => kingStage(4, frame, null)
+  const bodies = (pixels: Pixels) => FAMILY.filter(kin => pixels.some(row => row.includes(kin.body))).length
 
   test('the slimes leap toward the middle, moving only in the air', async () => {
     // Crouched at home, up through the top of the leap, and landed halfway.
@@ -372,7 +373,15 @@ describe('King Slime', () => {
     const collide = LEAP * 2 - 2
     expect(grounded(at(collide))).toBe(false)
     expect(left(at(collide))).toBeGreaterThan(left(at(LEAP - 1)))
-    expect(grounded(at(collide + 1))).toBe(true)
+    // Pressed together, every one of them still shows.
+    expect(bodies(at(collide))).toBe(4)
+    // The next tick they are one splat on the floor, as wide as the king, in
+    // the first slime's colours: not the four landed on one spot.
+    const splat = at(collide + 1)
+    expect(grounded(splat)).toBe(true)
+    expect(right(splat) - left(splat) + 1).toBe(13)
+    expect(bodies(splat)).toBe(1)
+    expect(splat.some(row => row.includes(FAMILY[0]?.body ?? -1))).toBe(true)
   })
 
   test('the slimes leap home in two hops, from where they collided', async () => {
@@ -381,6 +390,7 @@ describe('King Slime', () => {
     // Out of the king where they met, so every slime that went in comes out;
     // crouched, a slime is a pixel wider each side than in the air.
     expect([left(at(out)), right(at(out))]).toEqual([left(at(collide)) - 1, right(at(collide)) + 1])
+    expect(bodies(at(out))).toBe(4)
     expect(grounded(at(out))).toBe(true)
     expect(atTop(at(out + 2))).toBe(true)
     expect(grounded(at(out + LEAP - 1))).toBe(true)
