@@ -23,15 +23,28 @@ type Beat = Pose & { ticks: number }
 
 const RESTING_POSE: Pose = { sprite: STAND, lift: 0 }
 
+// Durations of the moving hop phases, shared with the King's leaps.
+export const HOP_CROUCH_TICKS = 2
+export const HOP_LAUNCH_TICKS = 1
+export const HOP_RISE_TICKS = 1
+export const HOP_HANG_TICKS = 2
+export const HOP_FALL_TICKS = 1
+export const HOP_LAND_TICKS = 2
+export const HOP_REBOUND_TICKS = 1
+export const HOP_SETTLE_TICKS = 1
+const HOP_RISE_START = HOP_CROUCH_TICKS + HOP_LAUNCH_TICKS
+const HOP_AIR_TICKS = HOP_RISE_TICKS + HOP_HANG_TICKS
+const HOP_FALL_START = HOP_RISE_START + HOP_AIR_TICKS
+
 // One hop: crouch, launch, rise/hang, fall, land, rebound, settle.
 export const HOP: readonly Pose[] = ([
-  { sprite: SQUASH, lift: 0, ticks: 2 },
-  { sprite: STRETCH, lift: 0, ticks: 1 },
-  { sprite: STAND, lift: 1, ticks: 3 },
-  { sprite: STRETCH, lift: 0, ticks: 1 },
-  { sprite: SQUASH, lift: 0, ticks: 2 },
-  { sprite: STRETCH, lift: 0, ticks: 1 },
-  { sprite: STAND, lift: 0, ticks: 1 },
+  { sprite: SQUASH, lift: 0, ticks: HOP_CROUCH_TICKS },
+  { sprite: STRETCH, lift: 0, ticks: HOP_LAUNCH_TICKS },
+  { sprite: STAND, lift: 1, ticks: HOP_AIR_TICKS },
+  { sprite: STRETCH, lift: 0, ticks: HOP_FALL_TICKS },
+  { sprite: SQUASH, lift: 0, ticks: HOP_LAND_TICKS },
+  { sprite: STRETCH, lift: 0, ticks: HOP_REBOUND_TICKS },
+  { sprite: STAND, lift: 0, ticks: HOP_SETTLE_TICKS },
 ] satisfies Beat[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
 export const HOP_TICKS = HOP.length
 // Fixed rest lengths in ticks keep each kin's pauses varied and repeatable.
@@ -114,6 +127,15 @@ function pose(i: number, tick: number | null, rest: Rest): Pose {
     const isSquishing = tick % breath.period >= breath.period - BREATH_SQUISH_TICKS
     return isSquishing ? { sprite: WIDE, lift: 0 } : RESTING_POSE
   }
+  const { step, cycle } = hopClock(i, tick)
+  if (step < HOP_TICKS) return HOP[step] as Pose
+  // One tick inside every third rest; offsets 1–4 fit even a six-tick rest.
+  const isBlinking = cycle % BLINK_EVERY_CYCLES === BLINK_EVERY_CYCLES - 1 && step === HOP_TICKS + 1 + i % FAMILY.length
+  return isBlinking ? { sprite: BLINK, lift: 0 } : RESTING_POSE
+}
+
+// Locate a kin in its deterministic hop/rest sequence.
+function hopClock(i: number, tick: number): { step: number; cycle: number } {
   const rests = HOP_RESTS[i % HOP_RESTS.length] as number[]
   const period = rests.reduce((total, ticks) => total + HOP_TICKS + ticks, 0)
   let step = (tick + (PHASE[i % PHASE.length] ?? 0)) % period
@@ -122,10 +144,14 @@ function pose(i: number, tick: number | null, rest: Rest): Pose {
     step -= HOP_TICKS + (rests[cycle] as number)
     cycle += 1
   }
-  if (step < HOP_TICKS) return HOP[step] as Pose
-  // One tick inside every third rest; offsets 1–4 fit even a six-tick rest.
-  const isBlinking = cycle % BLINK_EVERY_CYCLES === BLINK_EVERY_CYCLES - 1 && step === HOP_TICKS + 1 + i % FAMILY.length
-  return isBlinking ? { sprite: BLINK, lift: 0 } : RESTING_POSE
+  return { step, cycle }
+}
+
+// The endpoint is plain STAND; resume only at Rest or the first Crouch tick.
+function hopRejoinTick(i: number, endpoint: number): number {
+  const nextTick = endpoint + 1
+  const { step } = hopClock(i, nextTick)
+  return step === 0 || step >= HOP_TICKS ? nextTick : nextTick + HOP_TICKS - step
 }
 
 // The stage's pixels for `count` slimes at `tick`: a color per pixel, or null.
@@ -156,14 +182,15 @@ const KING_SQUASH = [
   '..BBKMMMMMKBB..',
   'DDDDDDDDDDDDDDD',
 ]
-const KING_DROP: readonly Pose[] = [
-  { sprite: KING, lift: 4 },
-  { sprite: KING, lift: 2 },
-  { sprite: KING_SQUASH, lift: 0 },
-  { sprite: KING_SQUASH, lift: 0 },
-  { sprite: KING, lift: 1 },
-  { sprite: KING, lift: 0 },
-]
+export const KING_DROP_FALL_TICKS = 2
+export const KING_DROP_SQUASH_TICKS = 2
+const KING_DROP: readonly Pose[] = ([
+  { sprite: KING, lift: 4, ticks: KING_DROP_FALL_TICKS / 2 },
+  { sprite: KING, lift: 2, ticks: KING_DROP_FALL_TICKS / 2 },
+  { sprite: KING_SQUASH, lift: 0, ticks: KING_DROP_SQUASH_TICKS },
+  { sprite: KING, lift: 1, ticks: HOP_REBOUND_TICKS },
+  { sprite: KING, lift: 0, ticks: HOP_SETTLE_TICKS },
+] satisfies Beat[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
 const KING_BLINK = KING.map(row => row.replaceAll('W', 'B'))
 export const KING_WIDTH = 13
 // The slimes landing on one another: a splat, then a blob bouncing up.
@@ -185,26 +212,37 @@ const TWINKLES = [
   [[-2, 2], [14, 0], [15, 4]],
 ]
 
-const SCATTER: readonly Pose[] = [
-  { sprite: STRETCH, lift: 1 },
-  { sprite: STAND, lift: 1 },
-  { sprite: STAND, lift: 1 },
-  { sprite: STRETCH, lift: 1 },
-  { sprite: SQUASH, lift: 0 },
-  { sprite: SQUASH, lift: 0 },
-]
+export const KING_SCATTER_AIR_TICKS = HOP_AIR_TICKS + HOP_FALL_TICKS
+const SCATTER: readonly Pose[] = ([
+  { sprite: STRETCH, lift: 1, ticks: HOP_RISE_TICKS },
+  { sprite: STAND, lift: 1, ticks: HOP_HANG_TICKS },
+  { sprite: STRETCH, lift: 1, ticks: HOP_FALL_TICKS },
+  { sprite: SQUASH, lift: 0, ticks: HOP_LAND_TICKS },
+] satisfies Beat[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
 
 // Reign blinks and twinkles hold for two ticks.
 export const KING_POSE_TICKS = 2
 export const LEAP = HOP_TICKS
-const COLLIDE = 0.875
-export const KING_GATHER_TICKS = 18
-export const KING_MERGE_TICKS = 6
+const HALFWAY = 0.5
+// Halfway in after leap one, then three quarters of the remaining way.
+const COLLIDE = HALFWAY + (1 - HALFWAY) * 3 / 4
+// One complete leap, then the second leap through its Fall.
+export const KING_GATHER_TICKS = LEAP + HOP_FALL_START + HOP_FALL_TICKS
+// Splat and blob each hold for three ticks.
+const KING_MERGE_POSE_TICKS = 3
+export const KING_MERGE_TICKS = MERGED.length * KING_MERGE_POSE_TICKS
+// Crown fall, heavy squash, rebound and settle.
 export const KING_DROP_TICKS = KING_DROP.length
+// White king, then poof.
 export const KING_FLASH_TICKS = 2
+// Crowned king with the existing blink and twinkles.
 export const KING_REIGN_TICKS = 40
+// Three hidden/shown pairs before the burst.
+const KING_FLICKER_TICKS = 2
 export const KING_DEFEAT_TICKS = 6
+// Poof before the family scatters.
 export const KING_POOF_TICKS = 2
+// One arc home, ending in a grounded squash.
 export const KING_SCATTER_TICKS = SCATTER.length
 export const KING_SHOW_TICKS = KING_GATHER_TICKS + KING_MERGE_TICKS + KING_DROP_TICKS + KING_FLASH_TICKS + KING_REIGN_TICKS + KING_DEFEAT_TICKS + KING_POOF_TICKS + KING_SCATTER_TICKS
 
@@ -217,6 +255,15 @@ export type Moment =
   | { kind: 'king' | 'level-up' | 'encounter'; startTick: number }
   | { kind: 'damage'; startTick: number; target: number }
 
+// Exclusive expiry: keep the exact endpoint, then release as soon as every kin
+// can join Rest or a fresh Crouch. Other Moments have no expiry yet.
+export function momentEndTick(moment: Moment, count: number, rest: Rest): number {
+  if (moment.kind !== 'king') return Infinity
+  const endpoint = moment.startTick + KING_SHOW_TICKS
+  if (rest !== 'hop') return endpoint + 1
+  return Math.max(...Array.from({ length: count }, (_, i) => hopRejoinTick(i, endpoint)), endpoint + 1)
+}
+
 const PRIORITY = { damage: 1, encounter: 2, 'level-up': 3, king: 4 }
 
 // Dropped moments are never queued. Equal priority keeps the current moment.
@@ -226,24 +273,25 @@ export function nextMoment(active: Moment | null, incoming: Moment, count: numbe
 }
 
 // Round away from the middle so every body shows when they press together.
-function familyAt(pixels: Pixels, count: number, progress: number, p: Pose) {
+function paintFamily(pixels: Pixels, count: number, progress: number, familyPose: Pose) {
   const middle = Math.floor((slimeColumns(count) - SLIME_WIDTH) / 2)
   for (let i = 0; i < count; i += 1) {
     const home = i * SLIME_WIDTH
     const x = home + (middle - home) * progress
-    paint(pixels, p.sprite, home < middle ? Math.floor(x) : Math.ceil(x), p.lift, kinPalette(i))
+    paint(pixels, familyPose.sprite, home < middle ? Math.floor(x) : Math.ceil(x), familyPose.lift, kinPalette(i))
   }
 }
 
 function gather(pixels: Pixels, count: number, frame: number) {
   const second = frame >= LEAP
   const step = second ? frame - LEAP : frame
-  const progress = Math.min(1, Math.max(0, step - 2) / 3)
+  // Advance once per airborne Rise/Hang tick, finishing before the Fall.
+  const progress = Math.min(1, Math.max(0, step - (HOP_RISE_START - 1)) / HOP_AIR_TICKS)
   const p = HOP[step] as Pose
-  // Cut the second fall above the floor, just before the merged splat.
-  const collision = second && step === 6
-  familyAt(pixels, count, second ? 0.5 + progress * (COLLIDE - 0.5) : progress * 0.5,
-    collision ? { sprite: STRETCH, lift: 1 } : p)
+  // Lifted STAND keeps the falling collision airborne without clipping STRETCH.
+  const collision = second && step === HOP_FALL_START
+  paintFamily(pixels, count, second ? HALFWAY + progress * (COLLIDE - HALFWAY) : progress * HALFWAY,
+    collision ? { sprite: STAND, lift: 1 } : p)
 }
 
 function whiteOf(sprite: readonly string[]): Palette {
@@ -263,7 +311,7 @@ export function kingStage(count: number, frame: number, tick: number | null, res
   }
   f -= KING_GATHER_TICKS
   if (f < KING_MERGE_TICKS) {
-    const blob = MERGED[f < KING_MERGE_TICKS / 2 ? 0 : 1] as string[]
+    const blob = MERGED[Math.floor(f / KING_MERGE_POSE_TICKS)] as string[]
     paint(pixels, blob, Math.floor((slimeColumns(count) - (blob[0] ?? '').length) / 2), 0, kinPalette(0))
     return pixels
   }
@@ -296,7 +344,7 @@ export function kingStage(count: number, frame: number, tick: number | null, res
   }
   f -= KING_REIGN_TICKS
   if (f < KING_DEFEAT_TICKS) {
-    if (f % 2 === 1) paint(pixels, KING, kingX, 0, king)
+    if (f % KING_FLICKER_TICKS === KING_FLICKER_TICKS - 1) paint(pixels, KING, kingX, 0, king)
     return pixels
   }
   f -= KING_DEFEAT_TICKS
@@ -305,9 +353,20 @@ export function kingStage(count: number, frame: number, tick: number | null, res
     return pixels
   }
   f -= KING_POOF_TICKS
-  if (f >= SCATTER.length) return stage(count, frame === KING_SHOW_TICKS ? null : tick, rest)
-  const progress = Math.min(1, f / 3)
-  familyAt(pixels, count, COLLIDE * (1 - progress), SCATTER[f] as Pose)
+  if (f >= SCATTER.length) {
+    const endpoint = momentEndTick({ kind: 'king', startTick: 0 }, count, 'still') - 1
+    if (tick === null) return stage(count, null)
+    const endpointTick = tick - frame + endpoint
+    const pixels = blank(count)
+    for (let i = 0; i < count; i += 1) {
+      const held = frame === endpoint || (rest === 'hop' && tick < hopRejoinTick(i, endpointTick))
+      const restingPose = pose(i, held ? null : tick, rest)
+      paint(pixels, restingPose.sprite, i * SLIME_WIDTH, restingPose.lift, kinPalette(i))
+    }
+    return pixels
+  }
+  const progress = Math.min(1, f / (KING_SCATTER_AIR_TICKS - 1))
+  paintFamily(pixels, count, COLLIDE * (1 - progress), SCATTER[f] as Pose)
   return pixels
 }
 
@@ -315,7 +374,7 @@ export function kingStage(count: number, frame: number, tick: number | null, res
 // Moments take the stage over resting motion; their start tick shares the clock.
 export function slimeCells(count: number, tick: number, moment: Moment | null = null, rest: Rest = 'breathe'): string {
   const frame = moment?.kind === 'king' ? tick - moment.startTick : null
-  const pixels = frame !== null && frame >= 0 && frame <= KING_SHOW_TICKS && canCrown(count)
+  const pixels = frame !== null && frame >= 0 && moment !== null && tick < momentEndTick(moment, count, rest) && canCrown(count)
     ? kingStage(count, frame, tick, rest)
     : stage(count, tick, rest)
   const width = slimeColumns(count)

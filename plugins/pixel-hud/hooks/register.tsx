@@ -21,7 +21,7 @@ import {
 } from './format'
 import type { Role } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { canCrown, FAMILY, FRAME_MS, KING_SHOW_TICKS, nextMoment, slimeCells, slimeColumns, slimeText, STAGE_ROWS } from './slime'
+import { canCrown, FAMILY, FRAME_MS, momentEndTick, nextMoment, slimeCells, slimeColumns, slimeText, STAGE_ROWS } from './slime'
 import type { Moment, Rest } from './slime'
 
 const branch = atom({ plugin: 'pixel-hud', key: 'branch' } as const, null)
@@ -155,9 +155,9 @@ export const register: Register = (on, options) => {
   let stage: { requestId: string; slimes: number; cells: string } | null = null
   // Keep one active moment so competing triggers cannot fight over the stage.
   let moment: Moment | null = null
-  // Keep the endpoint seated for one exact resting frame before motion resumes.
+  // Rendering and expiry share the same endpoint and grounded rejoin rule.
   const currentMoment = () => {
-    if (moment?.kind === 'king' && tick - moment.startTick > KING_SHOW_TICKS) moment = null
+    if (moment && tick >= momentEndTick(moment, stage?.slimes ?? FAMILY.length, rest)) moment = null
     return moment
   }
   // Starts the show unless one is playing or there is no room for the king.
