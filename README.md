@@ -82,7 +82,7 @@ Interrupting a tool does not count, and failures within two seconds of a flicker
 do not start another. The King, a level-up and the encounter take priority.
 
 When the conversation compacts, by hand or automatically, the family levels up:
-they hop once all together, the only time they move in step, and flash gold at
+they hop once all together, the only time they hop in step, and flash gold at
 the top of the hop. A level-up replaces the encounter or a flicker, and gives
 way to the King.
 
