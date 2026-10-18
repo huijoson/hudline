@@ -146,8 +146,9 @@ function fitBranch(name: string, isDirty: boolean, columns: number): { name: str
 }
 
 export const register: Register = (on, options) => {
-  // Off by default: the slimes sit still, and only the King Slime show moves them.
+  // Hopping supersedes breath; moments take the stage over either.
   const isHopping = options.slimesHop === true
+  const isBreathing = options.slimesIdle !== false
   let poll: Timer | undefined
   let hop: Timer | undefined
   let tick = 0
@@ -178,7 +179,7 @@ export const register: Register = (on, options) => {
       const drawn = stage
       if (!drawn) return
       const activeMoment = currentMoment()
-      const cells = slimeCells(drawn.slimes, tick, activeMoment, isHopping)
+      const cells = slimeCells(drawn.slimes, tick, activeMoment, isHopping, isBreathing)
       if (cells === drawn.cells) return
       drawn.cells = cells
       void $.ui
@@ -299,7 +300,7 @@ export const register: Register = (on, options) => {
     const slimes = fit?.slimes ?? 0
     // The terminal paints them in full color and can make them hop; elsewhere they rest.
     const Raster = e.surface === 'terminal' && slimes > 0 ? $.ui.resolve(e).Raster : null
-    const cells = Raster ? slimeCells(slimes, tick, currentMoment(), isHopping) : ''
+    const cells = Raster ? slimeCells(slimes, tick, currentMoment(), isHopping, isBreathing) : ''
     stage = Raster ? { requestId: e.requestId, slimes, cells } : null
     const still = Raster === null && slimes > 0 ? slimeText(slimes) : null
     const dirty = pixelText('*')

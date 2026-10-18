@@ -283,6 +283,64 @@ describe('slime family', () => {
     }
   })
 
+  test('breath widens for two ticks and returns to stand at each kin’s own pace', async () => {
+    const firstCycleTick = 0
+    const breathPeriods = [36, 44, 50, 40]
+    const rest = stage(4, null)
+    const poses: string[][] = []
+    for (const [i, period] of breathPeriods.entries()) {
+      const frames: string[] = []
+      for (let tick = firstCycleTick; tick <= period; tick += 1) {
+        const pixels = stage(4, tick, true)
+        const face = pixels.map(row => row.slice(i * 7, (i + 1) * 7))
+        expect(face[5]?.some(p => p !== null)).toBe(true)
+        frames.push(JSON.stringify(face))
+      }
+      const standing = JSON.stringify(rest.map(row => row.slice(i * 7, (i + 1) * 7)))
+      expect(frames.filter(frame => frame !== standing).length).toBe(2)
+      expect(frames.at(-1)).toBe(standing)
+      poses.push(frames.map(frame => frame === standing ? 'stand' : 'wide'))
+    }
+    for (let left = 0; left < poses.length; left += 1) {
+      for (let right = left + 1; right < poses.length; right += 1) {
+        const sharedTicks = Math.min(breathPeriods[left] ?? 0, breathPeriods[right] ?? 0)
+        expect(poses[left]?.slice(0, sharedTicks)).not.toEqual(poses[right]?.slice(0, sharedTicks))
+      }
+    }
+  })
+
+  test('each kin blinks once every third breath at its own offset', async () => {
+    const breathPeriods = [36, 44, 50, 40]
+    const blinkTicks: number[] = []
+    for (const [i, period] of breathPeriods.entries()) {
+      const blinkCycleTicks = period * 3
+      const blinks: number[] = []
+      for (let tick = 0; tick < blinkCycleTicks; tick += 1) {
+        const face = stage(4, tick, true).map(row => row.slice(i * 7, (i + 1) * 7))
+        if (face[1]?.[3] !== null && face[3]?.[2] !== WHITE && face[3]?.[4] !== WHITE) blinks.push(tick)
+      }
+      expect(blinks.length).toBe(1)
+      const blinkTick = blinks[0] ?? 0
+      blinkTicks.push(blinkTick)
+      const nextBlink = stage(4, blinkTick + blinkCycleTicks, true).map(row => row.slice(i * 7, (i + 1) * 7))
+      const firstBlink = stage(4, blinkTick, true).map(row => row.slice(i * 7, (i + 1) * 7))
+      expect(nextBlink).toEqual(firstBlink)
+    }
+    expect(new Set(blinkTicks).size).toBe(FAMILY.length)
+  })
+
+  test('hopping supersedes breath and the King returns to breathing', async () => {
+    const blinkCycleTicks = 3 * 50
+    for (let tick = 0; tick < blinkCycleTicks; tick += 1) {
+      expect(slimeCells(4, tick, null, true, true)).toBe(slimeCells(4, tick, null, true, false))
+    }
+    const king: Moment = { kind: 'king', startTick: 0 }
+    const kingSettles = KING_SHOW_TICKS - 1
+    const kingEnds = KING_SHOW_TICKS
+    expect(slimeCells(4, kingSettles, king, false, true)).toBe(slimeCells(4, kingSettles, null, false, true))
+    expect(slimeCells(4, kingEnds, king, false, true)).toBe(slimeCells(4, kingEnds, null, false, true))
+  })
+
   test('holds each hop pose for two ticks without cadence stutter', async () => {
     const runs: number[] = []
     let previous = ''
@@ -363,7 +421,9 @@ test('the slimes hop beside the branch on the terminal and rest on desktop', { o
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
   expect(raster?.props.columns).toBe(slimeColumns(4))
   expect(raster?.props.rows).toBe(3)
-  await clock.advance(FRAME_MS * 6)
+  const hopAirborneTick = 6
+  await clock.advance(FRAME_MS * hopAirborneTick)
+  expect(blits.at(-1)).toBe(slimeCells(4, hopAirborneTick))
   expect(blits.length).toBeGreaterThan(0)
   expect(new Set(blits).size).toBeGreaterThan(1)
   await ui.unmount()
@@ -419,7 +479,33 @@ test('a denied blit unseats the stage until a render seats it again', { options:
   await remount.unmount()
 })
 
-test('by default the slimes sit still, and the King Slime still plays', async ($, on) => {
+test('by default the slimes breathe without repainting unchanged cells', async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+  const raster = await ui.find({ type: 'Raster', key: 'slimes' })
+  const firstBreathStarts = 34
+  const firstBreathEnds = 36
+  await clock.advance(FRAME_MS * (firstBreathStarts - 1))
+  expect(blits.length).toBe(0)
+  await clock.advance(FRAME_MS)
+  expect(blits.length).toBe(1)
+  expect(blits[0]).not.toBe(raster?.props.cells)
+  await clock.advance(FRAME_MS)
+  expect(blits.length).toBe(1)
+  await clock.advance(FRAME_MS * (firstBreathEnds - firstBreathStarts - 1))
+  expect(blits.length).toBe(2)
+  expect(blits.at(-1)).toBe(raster?.props.cells)
+  await ui.unmount()
+})
+
+test('with breath off the slimes sit still, and the King Slime still plays', { options: { slimesIdle: false } }, async ($, on) => {
   const clock = mock.clock(on)
   const blits: string[] = []
   on('ui.blit', async (_$, e) => {
@@ -432,7 +518,8 @@ test('by default the slimes sit still, and the King Slime still plays', async ($
   const ui = await mount($, 'terminal', 10, 120)
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
   expect(raster?.props.cells).toBe(slimeCells(4, 0, null, false))
-  await clock.advance(FRAME_MS * 10)
+  const blinkCycleTicks = 3 * 50
+  await clock.advance(FRAME_MS * blinkCycleTicks)
   expect(blits.length).toBe(0)
 
   await $.turn.complete({ answer: 'ok', durationMs: 60_000, isAborted: false, turnId: 't1', reason: 'answer' })
