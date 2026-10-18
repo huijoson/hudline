@@ -589,8 +589,9 @@ for (const slimesIdle of [true, false]) {
     expect(raster?.props.columns).toBe(slimeColumns(4))
     expect(raster?.props.rows).toBe(3)
     const hopAirborneTick = 3
+    const encounter: Moment = { kind: 'encounter', startTick: 0 }
     await clock.advance(FRAME_MS * hopAirborneTick)
-    expect(blits.at(-1)).toBe(slimeCells(4, hopAirborneTick, null, 'hop'))
+    expect(blits.at(-1)).toBe(slimeCells(4, hopAirborneTick, encounter, 'hop'))
     expect(blits.length).toBeGreaterThan(0)
     expect(new Set(blits).size).toBeGreaterThan(1)
     await ui.unmount()
@@ -602,7 +603,74 @@ for (const slimesIdle of [true, false]) {
   })
 }
 
-test('each blit changes the seated cells, during hops and the King show', { options: { slimesHop: true } }, async ($, on) => {
+test('the encounter waits for a stage, plays once, and expires before resting hops resume', { options: { slimesHop: true } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const beforeSeatingTicks = 12
+  await clock.advance(FRAME_MS * beforeSeatingTicks)
+  const desktop = await mount($, 'desktop', 10, 120)
+  await desktop.unmount()
+  let ui = await mount($, 'terminal', 10, 120)
+  const encounter: Moment = { kind: 'encounter', startTick: beforeSeatingTicks }
+  const count = FAMILY.length
+  const initial = (await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells
+  expect(initial).toBe(slimeCells(count, beforeSeatingTicks, encounter, 'hop'))
+  expect(initial).not.toBe(slimeCells(count, beforeSeatingTicks, null, 'hop'))
+  const endpointTick = beforeSeatingTicks + 15
+  const expiredTick = momentEndTick(encounter, count, 'hop')
+  expect(Number.isFinite(expiredTick)).toBe(true)
+  for (let tick = beforeSeatingTicks + 1; tick <= expiredTick + HOP_TICKS; tick += 1) {
+    await clock.advance(FRAME_MS)
+    expect(blits.at(-1)).toBe(slimeCells(count, tick, encounter, 'hop'))
+    if (tick === endpointTick) {
+      expect(slimeCellFace(blits.at(-1) as string, count, count - 1)).toEqual(slimeCellFace(slimeCells(count, 0, null, 'still'), count, count - 1))
+    }
+  }
+  const remountTick = expiredTick + HOP_TICKS
+  await ui.unmount()
+  ui = await mount($, 'terminal', 10, 120)
+  expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells).toBe(slimeCells(count, remountTick, null, 'hop'))
+  await ui.unmount()
+})
+
+test('clear, polls and remounts do not replay an encounter displaced by the King', { options: { slimesIdle: false } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('session.end', async (_$, e) => ({ sessionId: e.sessionId }))
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  let ui = await mount($, 'terminal', 10, 120)
+  await $.command.run(KING)
+  const kingFinishedTick = KING_SHOW_TICKS + 1
+  await clock.advance(FRAME_MS * kingFinishedTick)
+  expect(blits.some(goldIn)).toBe(true)
+  expect(blits.at(-1)).toBe(slimeCells(4, 0, null, 'still'))
+  blits.length = 0
+  await $.session.end({ reason: 'clear', sessionId: 's1' } as never)
+  const pollWindowMs = 6000
+  await clock.advance(pollWindowMs)
+  await ui.unmount()
+  ui = await mount($, 'terminal', 10, 120)
+  expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells).toBe(slimeCells(4, 0, null, 'still'))
+  expect(blits.length).toBe(0)
+  await ui.unmount()
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  ui = await mount($, 'terminal', 10, 120)
+  expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells).not.toBe(slimeCells(4, 0, null, 'still'))
+  await ui.unmount()
+})
+
+test('each blit changes the seated cells, during encounter, hops and the King show', { options: { slimesHop: true } }, async ($, on) => {
   const clock = mock.clock(on)
   const cells: string[] = []
   on('ui.blit', async (_$, e) => {
@@ -615,7 +683,7 @@ test('each blit changes the seated cells, during hops and the King show', { opti
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
   cells.push(raster?.props.cells as string)
   await clock.advance(FRAME_MS)
-  expect(cells.length).toBe(1)
+  expect(cells.length).toBeGreaterThan(1)
   await clock.advance(FRAME_MS * 20)
   await $.command.run(KING)
   await clock.advance(FRAME_MS * (KING_SHOW_TICKS + 2))
@@ -657,19 +725,22 @@ test('by default the slimes breathe without repainting unchanged cells', async (
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await mount($, 'terminal', 10, 120)
-  const raster = await ui.find({ type: 'Raster', key: 'slimes' })
+  const encounterEnds = 16
+  await clock.advance(FRAME_MS * encounterEnds)
+  blits.length = 0
+  const standing = slimeCells(4, encounterEnds)
   const firstBreathStarts = 34
   const firstBreathEnds = 36
-  await clock.advance(FRAME_MS * (firstBreathStarts - 1))
+  await clock.advance(FRAME_MS * (firstBreathStarts - 1 - encounterEnds))
   expect(blits.length).toBe(0)
   await clock.advance(FRAME_MS)
   expect(blits.length).toBe(1)
-  expect(blits[0]).not.toBe(raster?.props.cells)
+  expect(blits[0]).not.toBe(standing)
   await clock.advance(FRAME_MS)
   expect(blits.length).toBe(1)
   await clock.advance(FRAME_MS * (firstBreathEnds - firstBreathStarts - 1))
   expect(blits.length).toBe(2)
-  expect(blits.at(-1)).toBe(raster?.props.cells)
+  expect(blits.at(-1)).toBe(standing)
   await ui.unmount()
 })
 
@@ -684,8 +755,10 @@ test('with breath off the slimes sit still, and the King Slime still plays', { o
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await mount($, 'terminal', 10, 120)
-  const raster = await ui.find({ type: 'Raster', key: 'slimes' })
-  expect(raster?.props.cells).toBe(slimeCells(4, 0, null, 'still'))
+  const encounterEnds = 16
+  await clock.advance(FRAME_MS * encounterEnds)
+  expect(blits.at(-1)).toBe(slimeCells(4, 0, null, 'still'))
+  blits.length = 0
   const blinkCycleTicks = BLINK_OBSERVATION_TICKS
   await clock.advance(FRAME_MS * blinkCycleTicks)
   expect(blits.length).toBe(0)
@@ -725,6 +798,73 @@ const kingDropStarts = KING_GATHER_TICKS + KING_MERGE_TICKS
 const kingReignStarts = KING_GATHER_TICKS + KING_MERGE_TICKS + KING_DROP_TICKS + KING_FLASH_TICKS
 
 describe('slime moments', () => {
+  test('each encounter arrival rejoins hopping only from rest or a fresh crouch', () => {
+    const shape = (pixels: (number | null)[][]) => JSON.stringify(pixels.map(row => row.map(p => p !== null)))
+    const staggerTicks = 3
+    const arrivalTicks = 6
+    const startWindowTicks = 100
+    for (const count of [1, 2, 3, 4]) {
+      const standing = slimeCells(count, 0, null, 'still')
+      for (let startTick = 0; startTick < startWindowTicks; startTick += 1) {
+        const encounter: Moment = { kind: 'encounter', startTick }
+        let allJoinedTick = startTick + 1
+        for (let i = 0; i < count; i += 1) {
+          const endpointTick = startTick + i * staggerTicks + arrivalTicks
+          const stand = shape(slimeFace(stage(count, null), i))
+          const crouch = shape(slimeFace(kingStage(count, 0, null), i))
+          let joined = false
+          for (let tick = endpointTick; tick <= endpointTick + HOP_TICKS; tick += 1) {
+            const global = shape(slimeFace(stage(count, tick, 'hop'), i))
+            const previous = shape(slimeFace(stage(count, tick - 1, 'hop'), i))
+            if (!joined && tick > endpointTick && (global === stand || global === crouch) && previous === stand) {
+              joined = true
+              allJoinedTick = Math.max(allJoinedTick, tick)
+            }
+            const expected = joined ? slimeCells(count, tick, null, 'hop') : standing
+            expect(slimeCellFace(slimeCells(count, tick, encounter, 'hop'), count, i)).toEqual(slimeCellFace(expected, count, i))
+          }
+          expect(joined).toBe(true)
+        }
+        expect(momentEndTick(encounter, count, 'hop')).toBe(allJoinedTick)
+      }
+    }
+  })
+
+  test('the encounter drops each kin three ticks apart, then lands, rebounds and rests', () => {
+    const count = FAMILY.length
+    const encounter: Moment = { kind: 'encounter', startTick: 0 }
+    const staggerTicks = 3
+    const fallTicks = 3
+    const squashTicks = 2
+    const reboundTicks = 1
+    const standing = slimeCells(count, 0, null, 'still')
+    const crouching = slimeCells(count, 0, { kind: 'king', startTick: 0 }, 'still')
+    const empty = slimeCellFace(slimeCells(count, 0, encounter, 'still'), count, 0)
+    const launchTick = HOP_CROUCH_TICKS
+    const stretching = slimeCells(count, launchTick, null, 'hop')
+    for (let i = 0; i < count; i += 1) {
+      const dropTick = i * staggerTicks
+      const landingTick = dropTick + fallTicks
+      const reboundTick = landingTick + squashTicks
+      const settledTick = reboundTick + reboundTicks
+      if (i > 0) expect(slimeCellFace(slimeCells(count, dropTick - 1, encounter, 'still'), count, i)).toEqual(empty)
+      const first = slimeCellFace(slimeCells(count, dropTick, encounter, 'still'), count, i)
+      expect(first).not.toEqual(slimeCellFace(standing, count, i))
+      for (let tick = dropTick; tick < landingTick; tick += 1) {
+        expect(slimeCellFace(slimeCells(count, tick, encounter, 'still'), count, i).at(-1)).not.toBe(slimeCellFace(standing, count, i).at(-1))
+      }
+      for (let tick = landingTick; tick < reboundTick; tick += 1) {
+        expect(slimeCellFace(slimeCells(count, tick, encounter, 'still'), count, i)).toEqual(slimeCellFace(crouching, count, i))
+      }
+      // Blue's launch gives the stretch silhouette; other kin use their own colours.
+      if (i === 0) expect(slimeCellFace(slimeCells(count, reboundTick, encounter, 'still'), count, i)).toEqual(slimeCellFace(stretching, count, i))
+      expect(slimeCellFace(slimeCells(count, settledTick, encounter, 'still'), count, i)).toEqual(slimeCellFace(standing, count, i))
+    }
+    const endpointTick = (count - 1) * staggerTicks + fallTicks + squashTicks + reboundTicks
+    expect(slimeCells(count, endpointTick, encounter, 'still')).toBe(standing)
+    expect(momentEndTick(encounter, count, 'still')).toBe(endpointTick + 1)
+  })
+
   test('King replaces another moment only when there is room, and renders from its start tick', () => {
     const damage: Moment = { kind: 'damage', startTick: 1, target: 0 }
     const king: Moment = { kind: 'king', startTick: 100 }

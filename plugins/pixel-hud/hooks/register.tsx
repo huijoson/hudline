@@ -155,6 +155,7 @@ export const register: Register = (on, options) => {
   let stage: { requestId: string; slimes: number; cells: string } | null = null
   // Keep one active moment so competing triggers cannot fight over the stage.
   let moment: Moment | null = null
+  let encounterPending = false
   // Rendering and expiry share the same endpoint and grounded rejoin rule.
   const currentMoment = () => {
     if (moment && tick >= momentEndTick(moment, stage?.slimes ?? FAMILY.length, rest)) moment = null
@@ -169,6 +170,9 @@ export const register: Register = (on, options) => {
   }
 
   on('session.start', async ($, e, next) => {
+    encounterPending = true
+    moment = null
+    stage = null
     await refresh($)
     poll?.cancel()
     poll = $.clock.every(POLL_MS, () => void refresh($))
@@ -299,6 +303,10 @@ export const register: Register = (on, options) => {
     const slimes = fit?.slimes ?? 0
     // The terminal paints them in full color and can make them hop; elsewhere they rest.
     const Raster = e.surface === 'terminal' && slimes > 0 ? $.ui.resolve(e).Raster : null
+    if (Raster && encounterPending) {
+      moment = nextMoment(currentMoment(), { kind: 'encounter', startTick: tick }, slimes)
+      encounterPending = false
+    }
     const cells = Raster ? slimeCells(slimes, tick, currentMoment(), rest) : ''
     stage = Raster ? { requestId: e.requestId, slimes, cells } : null
     const still = Raster === null && slimes > 0 ? slimeText(slimes) : null
