@@ -11,8 +11,6 @@ export const STRETCH = ['...B...', '..BHB..', '.BWBWB.', '.BKBKB.', '.BMMMB.', '
 export const BLINK = STAND.map(row => row.replaceAll('W', 'B'))
 
 export const FRAME_MS = 80
-// Two clock ticks (160 ms) is the nearest whole-tick hold to the shipped poses.
-export const HOP_POSE_TICKS = 2
 
 export const SLIME_WIDTH = 7
 export const STAGE_ROWS = 3
@@ -22,20 +20,24 @@ export type Rest = 'hop' | 'breathe' | 'still'
 
 type Pose = { sprite: readonly string[]; lift: number }
 
-// One hop: rest, crouch, spring up one pixel, hang, land, rest a while.
+// One hop: crouch, launch, rise/hang, fall, land, rebound, settle.
 export const HOP: readonly Pose[] = ([
-  { sprite: STAND, lift: 0 },
-  { sprite: SQUASH, lift: 0 },
-  { sprite: STAND, lift: 1 },
-  { sprite: STAND, lift: 1 },
-  { sprite: STAND, lift: 1 },
-  { sprite: STAND, lift: 1 },
-  { sprite: SQUASH, lift: 0 },
-  { sprite: STAND, lift: 0 },
-  { sprite: STAND, lift: 0 },
-  { sprite: STAND, lift: 0 },
-] satisfies Pose[]).flatMap(pose => Array<Pose>(HOP_POSE_TICKS).fill(pose))
+  { sprite: SQUASH, lift: 0, ticks: 2 },
+  { sprite: STRETCH, lift: 0, ticks: 1 },
+  { sprite: STAND, lift: 1, ticks: 3 },
+  { sprite: STRETCH, lift: 0, ticks: 1 },
+  { sprite: SQUASH, lift: 0, ticks: 2 },
+  { sprite: STRETCH, lift: 0, ticks: 1 },
+  { sprite: STAND, lift: 0, ticks: 1 },
+] satisfies (Pose & { ticks: number })[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
 export const HOP_TICKS = HOP.length
+// Fixed rest sequences keep each kin's pauses varied and repeatable.
+const HOP_RESTS = [
+  [6, 10, 14],
+  [9, 14, 7],
+  [12, 6, 10],
+  [14, 8, 11],
+]
 
 type Kin = { body: number; highlight: number; eye: number; shade: number }
 
@@ -47,7 +49,7 @@ export const FAMILY: readonly Kin[] = [
   { body: 0x38c838, highlight: 0xb8f818, eye: 0x0b0a0d, shade: 0x188818 },
 ]
 // Each one starts its hop at a different moment, so they never move in step.
-const PHASE = [0, 4, 7, 2]
+const PHASE = [0, 3, 7, 12]
 
 const BLINK_EVERY_CYCLES = 3
 const BREATH_SQUISH_TICKS = 2
@@ -109,7 +111,15 @@ function pose(i: number, tick: number | null, rest: Rest): Pose {
     const isSquishing = tick % breath.period >= breath.period - BREATH_SQUISH_TICKS
     return { sprite: isSquishing ? WIDE : STAND, lift: 0 }
   }
-  return HOP[(tick + (PHASE[i % PHASE.length] ?? 0) * HOP_POSE_TICKS) % HOP.length] as Pose
+  const rests = HOP_RESTS[i % HOP_RESTS.length] as number[]
+  const period = rests.reduce((total, ticks) => total + HOP_TICKS + ticks, 0)
+  let step = (tick + (PHASE[i % PHASE.length] ?? 0)) % period
+  for (const ticks of rests) {
+    const cycle = HOP_TICKS + ticks
+    if (step < cycle) return HOP[step] ?? { sprite: STAND, lift: 0 }
+    step -= cycle
+  }
+  return { sprite: STAND, lift: 0 }
 }
 
 // The stage's pixels for `count` slimes at `tick`: a color per pixel, or null.
@@ -154,7 +164,7 @@ const TWINKLES = [
   [[-2, 2], [14, 0], [15, 4]],
 ]
 
-// Each shipped King pose holds for two whole ticks, just like the hop.
+// Each shipped King pose holds for two whole ticks.
 export const KING_POSE_TICKS = 2
 // One leap: crouch, rise, the top, fall, land.
 export const LEAP = 5 * KING_POSE_TICKS

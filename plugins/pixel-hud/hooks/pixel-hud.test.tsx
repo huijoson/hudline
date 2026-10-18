@@ -19,7 +19,6 @@ import {
   canCrown,
   FAMILY,
   FRAME_MS,
-  HOP_POSE_TICKS,
   HOP_TICKS,
   KING_FLASH_TICKS,
   KING_GATHER_TICKS,
@@ -355,17 +354,72 @@ describe('slime family', () => {
     expect(slimeCells(4, kingEnds, king, 'breathe')).toBe(slimeCells(4, kingEnds, null, 'breathe'))
   })
 
-  test('holds each hop pose for two ticks without cadence stutter', () => {
+  test('a hop crouches, stretches, hangs, lands and rebounds before resting', () => {
+    const firstCrouchTick = 0
+    const launchTick = 2
+    const riseTick = 3
+    const fallTick = 6
+    const reboundTick = 9
+    const settleTick = 10
+    const nextCrouchTick = 17
     const runs: number[] = []
     let previous = ''
-    for (let tick = 0; tick < HOP_TICKS; tick += 1) {
+    for (let tick = firstCrouchTick; tick < nextCrouchTick; tick += 1) {
       const cells = slimeCells(1, tick, null, 'hop')
       if (cells === previous) runs[runs.length - 1] = (runs[runs.length - 1] ?? 0) + 1
       else runs.push(1)
       previous = cells
     }
-    // Stand, crouch, four airborne poses, land, three resting poses.
-    expect(runs).toEqual([2, 2, 8, 2, 6])
+    // Crouch, launch, rise/hang, fall, land, rebound, settle/rest.
+    expect(runs).toEqual([2, 1, 3, 1, 2, 1, 7])
+    const stretch = stage(1, launchTick, 'hop')
+    expect(stretch[0]?.filter(p => p !== null)).toEqual([FAMILY[0]?.body])
+    expect(stretch[5]?.filter(p => p !== null).length).toBe(3)
+    expect(stage(1, fallTick, 'hop')).toEqual(stretch)
+    expect(stage(1, reboundTick, 'hop')).toEqual(stretch)
+    expect(stage(1, riseTick, 'hop')[5]?.every(p => p === null)).toBe(true)
+    expect(stage(1, settleTick, 'hop')).toEqual(stage(1, null))
+  })
+
+  test('hop rests vary by kin and cycle, within six to fourteen ticks, deterministically', () => {
+    const observationTicks = 200
+    const movingTicks = 11
+    const launchOffset = 2
+    const riseOffset = 3
+    const minRestTicks = 6
+    const maxRestTicks = 14
+    const restLengths: number[][] = []
+    for (let i = 0; i < FAMILY.length; i += 1) {
+      const crouches: number[] = []
+      for (let tick = 0; tick < observationTicks; tick += 1) {
+        const face = slimeFace(stage(4, tick, 'hop'), i)
+        const launch = slimeFace(stage(4, tick + launchOffset, 'hop'), i)
+        const rise = slimeFace(stage(4, tick + riseOffset, 'hop'), i)
+        const isCrouching = face.slice(0, 2).flat().every(p => p === null)
+        const isLaunching = launch[0]?.some(p => p !== null) && launch[5]?.some(p => p !== null)
+        const isRising = rise[5]?.every(p => p === null)
+        if (isCrouching && isLaunching && isRising) crouches.push(tick)
+        expect(slimeFace(stage(4, tick, 'hop'), i)).toEqual(face)
+      }
+      const rests = crouches.slice(1).map((tick, cycle) => tick - (crouches[cycle] ?? 0) - movingTicks)
+      expect(rests.length).toBeGreaterThan(2)
+      expect(new Set(rests).size).toBeGreaterThan(1)
+      for (const rest of rests) {
+        expect(rest >= minRestTicks && rest <= maxRestTicks).toBe(true)
+      }
+      for (const crouchTick of crouches) {
+        const settleTick = crouchTick + movingTicks - 1
+        const restTick = crouchTick + movingTicks
+        expect(slimeFace(stage(4, settleTick, 'hop'), i)).toEqual(slimeFace(stage(4, null), i))
+        expect(slimeFace(stage(4, restTick, 'hop'), i)).toEqual(slimeFace(stage(4, null), i))
+      }
+      restLengths.push(rests)
+    }
+    for (let left = 0; left < restLengths.length; left += 1) {
+      for (let right = left + 1; right < restLengths.length; right += 1) {
+        expect(restLengths[left]).not.toEqual(restLengths[right])
+      }
+    }
   })
 
   test('the pointed tip stays visible throughout a hop in the six-pixel stage', () => {
@@ -387,8 +441,9 @@ describe('slime family', () => {
     expect(floor(0)).toBe(true)
     expect(Array.from({ length: HOP_TICKS }, (_, tick) => floor(tick))).toContain(false)
     expect(floor(HOP_TICKS)).toBe(true)
-    // The top of the hop stays airborne, and the full cycle returns home.
-    expect(floor(3 * HOP_POSE_TICKS)).toBe(false)
+    // The top of the hop stays airborne; its moving phase ends grounded.
+    const hangTick = 4
+    expect(floor(hangTick)).toBe(false)
   })
 
   test('at rest every slime sits on the floor', () => {
@@ -400,7 +455,8 @@ describe('slime family', () => {
   })
 
   test('the crouch keeps the white eyes and grin in a lower silhouette', () => {
-    const crouch = stage(1, 2, 'hop')
+    const crouchTick = 0
+    const crouch = stage(1, crouchTick, 'hop')
     expect(crouch.slice(0, 2).flat().every(p => p === null)).toBe(true)
     expect(crouch.flat().filter(p => p === WHITE).length).toBe(2)
     expect(crouch[5]?.includes(MOUTH)).toBe(true)
@@ -436,7 +492,7 @@ for (const slimesIdle of [true, false]) {
     const raster = await ui.find({ type: 'Raster', key: 'slimes' })
     expect(raster?.props.columns).toBe(slimeColumns(4))
     expect(raster?.props.rows).toBe(3)
-    const hopAirborneTick = 6
+    const hopAirborneTick = 3
     await clock.advance(FRAME_MS * hopAirborneTick)
     expect(blits.at(-1)).toBe(slimeCells(4, hopAirborneTick, null, 'hop'))
     expect(blits.length).toBeGreaterThan(0)
