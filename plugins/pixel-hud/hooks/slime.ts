@@ -7,6 +7,10 @@
 const STAND = ['...B...', '..BHB..', '.BKBKB.', '.BBBBB.']
 const SQUASH = ['..BHB..', '.BKBKB.', 'BBBBBBB']
 
+export const FRAME_MS = 80
+// Preserve the shipped poses and their pace until the new motion tables land.
+const POSE_MS = 140
+
 export const SLIME_WIDTH = 7
 export const STAGE_ROWS = 3
 const STAGE_PIXELS = STAGE_ROWS * 2
@@ -79,7 +83,7 @@ function kinPalette(i: number): Palette {
 // A null `tick` is the slimes at rest: all of them sitting on the floor.
 function pose(i: number, tick: number | null): Pose {
   if (tick === null) return HOP[0] as Pose
-  return HOP[(tick + (PHASE[i % PHASE.length] ?? 0)) % HOP.length] as Pose
+  return HOP[(Math.floor(tick * FRAME_MS / POSE_MS) + (PHASE[i % PHASE.length] ?? 0)) % HOP.length] as Pose
 }
 
 // The stage's pixels for `count` slimes at `tick`: a color per pixel, or null.
@@ -134,7 +138,7 @@ const GATHER = LEAP + LEAP - 1
 const MERGE = MERGED.length
 const REIGN = 24
 const SCATTER = LEAP * 2 + 1
-export const KING_SHOW_TICKS = GATHER + MERGE + 2 + REIGN + 2 + SCATTER
+export const KING_SHOW_TICKS = Math.floor((GATHER + MERGE + 2 + REIGN + 2 + SCATTER) * POSE_MS / FRAME_MS)
 
 // Two slimes' room is the least the king needs.
 export function canCrown(count: number): boolean {
@@ -166,7 +170,7 @@ export function kingStage(count: number, frame: number, tick: number | null): Pi
   const pixels = blank(count)
   const kingX = Math.floor((slimeColumns(count) - KING_WIDTH) / 2)
   const king: Palette = { ...kinPalette(0), Y: GOLD, R: JEWEL }
-  let f = frame
+  let f = Math.floor(frame * FRAME_MS / POSE_MS)
   if (f < GATHER) {
     if (f < LEAP) leap(pixels, count, 0, 0.5, f)
     else leap(pixels, count, 0.5, 1, f - LEAP)

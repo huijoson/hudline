@@ -15,7 +15,7 @@ import {
   usd,
 } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { canCrown, FAMILY, HOP, KING_SHOW_TICKS, KING_WIDTH, kingStage, LEAP, slimeCells, slimeColumns, slimeText, stage } from './slime'
+import { canCrown, FAMILY, FRAME_MS, KING_SHOW_TICKS, KING_WIDTH, kingStage, slimeCells, slimeColumns, slimeText, stage } from './slime'
 
 const SPRITE_ROW = pack(BRANCH_SPRITE)[0]
 
@@ -244,8 +244,10 @@ describe('slime family', () => {
   test('stands on the floor at rest and leaves it mid-hop', async () => {
     const floor = (tick: number) => stage(1, tick)[5]?.some(p => p !== null)
     expect(floor(0)).toBe(true)
-    const airborne = HOP.findIndex(p => p.lift === 2)
-    expect(floor(airborne)).toBe(false)
+    expect(Array.from({ length: Math.ceil(1400 / FRAME_MS) }, (_, tick) => floor(tick))).toContain(false)
+    expect(floor(Math.ceil(1400 / FRAME_MS))).toBe(true)
+    // The original hop takes about 1.4 seconds, rather than speeding up with the clock.
+    expect(floor(Math.ceil(420 / FRAME_MS))).toBe(false)
   })
 
   test('at rest every slime sits on the floor', async () => {
@@ -284,7 +286,7 @@ test('the slimes hop beside the branch on the terminal and rest on desktop', { o
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
   expect(raster?.props.columns).toBe(slimeColumns(4))
   expect(raster?.props.rows).toBe(3)
-  await clock.advance(140 * 3)
+  await clock.advance(FRAME_MS * 3)
   expect(blits.length).toBeGreaterThan(0)
   expect(new Set(blits).size).toBeGreaterThan(1)
   await ui.unmount()
@@ -308,16 +310,16 @@ test('by default the slimes sit still, and the King Slime still plays', async ($
   const ui = await mount($, 'terminal', 10, 120)
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
   expect(raster?.props.cells).toBe(slimeCells(4, null))
-  await clock.advance(140 * 10)
+  await clock.advance(FRAME_MS * 10)
   expect(blits.length).toBe(0)
 
   await $.turn.complete({ answer: 'ok', durationMs: 60_000, isAborted: false, turnId: 't1', reason: 'answer' })
-  await clock.advance(140 * (KING_SHOW_TICKS + 2))
+  await clock.advance(FRAME_MS * (KING_SHOW_TICKS + 2))
   expect(blits.some(goldIn)).toBe(true)
   expect(blits.at(-1)).toBe(slimeCells(4, null))
 
   blits.length = 0
-  await clock.advance(140 * 10)
+  await clock.advance(FRAME_MS * 10)
   expect(blits.length).toBe(0)
   await ui.unmount()
 })
@@ -345,7 +347,7 @@ describe('King Slime', () => {
 
   test('the slimes gather, the king reigns crowned, and they end back home', async () => {
     expect(hasGold(kingStage(4, 0, 0))).toBe(false)
-    expect(hasGold(kingStage(4, 20, 20))).toBe(true)
+    expect(hasGold(kingStage(4, Math.ceil(2800 / FRAME_MS), 20))).toBe(true)
     expect(kingStage(4, KING_SHOW_TICKS - 1, 7)).toEqual(stage(4, 7))
   })
 
@@ -357,29 +359,29 @@ describe('King Slime', () => {
   const at = (frame: number, count = 4) => kingStage(count, frame, null)
   const bodies = (pixels: Pixels) => FAMILY.filter(kin => pixels.some(row => row.includes(kin.body))).length
   // The frame the slimes collide in mid-air, and the first of their leap out.
-  const collide = LEAP * 2 - 2
-  const out = KING_SHOW_TICKS - 1 - LEAP * 2
+  const collide = 14
+  const out = 69
 
   test('the slimes leap toward the middle, moving only in the air', async () => {
     // Crouched at home, up through the top of the leap, and landed halfway.
     expect(grounded(at(0))).toBe(true)
     expect(left(at(0))).toBe(0)
-    expect([1, 2, 3].map(f => grounded(at(f)))).toEqual([false, false, false])
-    expect(atTop(at(2))).toBe(true)
-    expect(grounded(at(LEAP - 1))).toBe(true)
-    expect(left(at(LEAP - 1))).toBeGreaterThan(0)
+    expect([2, 4, 6].map(f => grounded(at(f)))).toEqual([false, false, false])
+    expect(atTop(at(4))).toBe(true)
+    expect(grounded(at(7))).toBe(true)
+    expect(left(at(7))).toBeGreaterThan(0)
     // The second leap takes off from where the first landed.
-    expect(at(LEAP)).toEqual(at(LEAP - 1))
+    expect(at(9)).toEqual(at(7))
   })
 
   test('the slimes collide in mid-air, further in than halfway, and land merged', async () => {
     expect(grounded(at(collide))).toBe(false)
-    expect(left(at(collide))).toBeGreaterThan(left(at(LEAP - 1)))
+    expect(left(at(collide))).toBeGreaterThan(left(at(7)))
     // Pressed together, every one of them still shows.
     expect(bodies(at(collide))).toBe(4)
     // The next tick they are one splat on the floor, as wide as the king, in
     // the first slime's colours: not the four landed on one spot.
-    const splat = at(collide + 1)
+    const splat = at(16)
     expect(grounded(splat)).toBe(true)
     expect(right(splat) - left(splat) + 1).toBe(KING_WIDTH)
     expect(bodies(splat)).toBe(1)
@@ -392,13 +394,13 @@ describe('King Slime', () => {
     expect([left(at(out)), right(at(out))]).toEqual([left(at(collide)) - 1, right(at(collide)) + 1])
     expect(bodies(at(out))).toBe(4)
     expect(grounded(at(out))).toBe(true)
-    expect(atTop(at(out + 2))).toBe(true)
-    expect(grounded(at(out + LEAP - 1))).toBe(true)
-    expect(left(at(out + LEAP - 1))).toBeLessThan(left(at(out)))
-    expect(left(at(out + LEAP - 1))).toBeGreaterThan(0)
-    expect(at(out + LEAP)).toEqual(at(out + LEAP - 1))
-    expect(atTop(at(out + LEAP + 2))).toBe(true)
-    expect(left(at(out + LEAP * 2 - 1))).toBe(0)
+    expect(atTop(at(out + 3))).toBe(true)
+    expect(grounded(at(out + 7))).toBe(true)
+    expect(left(at(out + 7))).toBeLessThan(left(at(out)))
+    expect(left(at(out + 7))).toBeGreaterThan(0)
+    expect(at(out + 9)).toEqual(at(out + 7))
+    expect(atTop(at(out + 12))).toBe(true)
+    expect(left(at(out + 15))).toBe(0)
   })
 
   test('however many slimes, every one shows where they collide and leap out', async () => {
@@ -407,8 +409,10 @@ describe('King Slime', () => {
     }
   })
 
-  test('the show lasts as long as it always has: 50 ticks, seven seconds', async () => {
-    expect(KING_SHOW_TICKS).toBe(50)
+  test('the show lasts 6.5 to 7 seconds at 80 ms per frame', async () => {
+    expect(FRAME_MS).toBe(80)
+    expect(KING_SHOW_TICKS * FRAME_MS).toBeGreaterThanOrEqual(6500)
+    expect(KING_SHOW_TICKS * FRAME_MS).toBeLessThanOrEqual(7000)
   })
 })
 
@@ -432,16 +436,16 @@ test('a long task crowns a King Slime, and the slimes come back after', { option
 
   // A quick answer is no occasion.
   await $.turn.complete({ answer: 'ok', durationMs: 3_000, isAborted: false, turnId: 't1', reason: 'answer' })
-  await clock.advance(140 * KING_SHOW_TICKS)
+  await clock.advance(FRAME_MS * KING_SHOW_TICKS)
   expect(blits.some(goldIn)).toBe(false)
 
   await $.turn.complete({ answer: 'ok', durationMs: 60_000, isAborted: false, turnId: 't2', reason: 'answer' })
   blits.length = 0
-  await clock.advance(140 * KING_SHOW_TICKS)
+  await clock.advance(FRAME_MS * KING_SHOW_TICKS)
   expect(blits.some(goldIn)).toBe(true)
 
   blits.length = 0
-  await clock.advance(140 * 10)
+  await clock.advance(FRAME_MS * 10)
   expect(blits.length).toBeGreaterThan(0)
   expect(blits.some(goldIn)).toBe(false)
   await ui.unmount()
@@ -498,10 +502,10 @@ test('/slime-king is registered, and crowns the slimes while they are on stage',
   expect((await $.command.run(KING)).text).toBe('The slimes are merging...')
   // Asking again mid-show is not a question of room.
   expect((await $.command.run(KING)).text).toBe('The King Slime already reigns.')
-  await clock.advance(140 * KING_SHOW_TICKS)
+  await clock.advance(FRAME_MS * KING_SHOW_TICKS)
   expect(blits.some(goldIn)).toBe(true)
   // The show over, the next ask crowns again.
-  await clock.advance(140 * 2)
+  await clock.advance(FRAME_MS * 2)
   expect((await $.command.run(KING)).text).toBe('The slimes are merging...')
   await ui.unmount()
 })
@@ -531,7 +535,7 @@ test('only the main loop answering after a long task crowns the king', async ($,
   await $.turn.complete({ ...long, reason: 'answer', agentId: 'sub' } as never)
   await $.turn.complete({ ...long, reason: 'aborted', isAborted: true })
   await $.turn.complete({ ...long, reason: 'error' })
-  await clock.advance(140 * KING_SHOW_TICKS)
+  await clock.advance(FRAME_MS * KING_SHOW_TICKS)
   expect(blits.some(goldIn)).toBe(false)
   await ui.unmount()
 })

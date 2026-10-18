@@ -21,7 +21,7 @@ import {
 } from './format'
 import type { Role } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { canCrown, FAMILY, KING_SHOW_TICKS, slimeCells, slimeColumns, slimeText, STAGE_ROWS } from './slime'
+import { canCrown, FAMILY, FRAME_MS, KING_SHOW_TICKS, slimeCells, slimeColumns, slimeText, STAGE_ROWS } from './slime'
 
 const branch = atom({ plugin: 'pixel-hud', key: 'branch' } as const, null)
 const usage = atom({ plugin: 'pixel-hud', key: 'usage' } as const, null)
@@ -46,8 +46,6 @@ const FULL_ROWS = 5
 // /clear empties $.state, and a branch switched outside Claude Code raises no
 // event: poll to catch both.
 const POLL_MS = 3000
-// The slime family hops at this pace (when slimesHop is on), repainted in place by $.ui.blit.
-const HOP_MS = 140
 const SLIMES_KEY = 'slimes'
 // A task long enough to earn the King Slime: the slimes merge, reign, and split.
 const KING_AFTER_MS = 20_000
@@ -178,7 +176,7 @@ export const register: Register = (on, options) => {
     poll?.cancel()
     poll = $.clock.every(POLL_MS, () => void refresh($))
     hop?.cancel()
-    hop = $.clock.every(HOP_MS, () => {
+    hop = $.clock.every(FRAME_MS, () => {
       tick += 1
       const drawn = stage
       if (!drawn) return
