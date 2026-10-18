@@ -281,6 +281,16 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
+  // Compaction, manual or automatic, levels up a seated family unless the King reigns.
+  on('classic.PostCompact', async ($, e, next) => {
+    if (stage) {
+      const incoming: Moment = { kind: 'level-up', startTick: tick }
+      moment = nextMoment(currentMoment(), incoming, stage.slimes)
+      if (moment === incoming) void repaint($, stage, tick, moment, rest).then(unseat)
+    }
+    return next(e)
+  })
+
   on('tool.call', async ($, e, next) => {
     const result = await next(e)
     if (e.tool === 'Bash' || e.tool === 'Edit' || e.tool === 'Write') {

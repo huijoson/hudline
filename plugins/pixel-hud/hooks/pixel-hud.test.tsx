@@ -61,6 +61,7 @@ import {
 import type { Moment } from './slime'
 
 const failure = { tool_name: 'Bash', tool_input: {}, tool_use_id: 'failed-tool', error: 'failed' }
+const compaction = { compact_summary: 'The conversation so far, compacted.' }
 
 function shape(pixels: (number | null)[][]): string {
   return JSON.stringify(pixels.map(row => row.map(p => p !== null)))
@@ -862,6 +863,88 @@ test('damage returns to grounded hopping, expires, and admits the next failure',
   await $.classic.PostToolUseFailure(failure as never)
   const nextDamage: Moment = { kind: 'damage', startTick: nextFailureTick, target: 1 }
   expect(blits.at(-1)).toBe(slimeCells(count, nextFailureTick, nextDamage, 'hop'))
+  await ui.unmount()
+})
+
+test('compaction levels up in gold over the encounter and damage, but not over the King', { options: { slimesIdle: false } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('classic.PostToolUseFailure', async () => ({}) as never)
+  on('classic.PostCompact', async () => ({}) as never)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+  const count = FAMILY.length
+  const midEncounterTick = ENCOUNTER_STAGGER_TICKS
+  await clock.advance(FRAME_MS * midEncounterTick)
+  expect(blits.some(goldIn)).toBe(false)
+  await $.classic.PostCompact({ ...compaction, trigger: 'auto' } as never)
+  const levelUp: Moment = { kind: 'level-up', startTick: midEncounterTick }
+  expect(blits.at(-1)).toBe(slimeCells(count, midEncounterTick, levelUp, 'still'))
+  const levelUpEnds = momentEndTick(levelUp, count, 'still')
+  for (let tick = midEncounterTick + 1; tick <= levelUpEnds; tick += 1) {
+    await clock.advance(FRAME_MS)
+    expect(blits.at(-1)).toBe(slimeCells(count, tick, levelUp, 'still'))
+  }
+  expect(blits.some(goldIn)).toBe(true)
+  expect(blits.at(-1)).toBe(slimeCells(count, 0, null, 'still'))
+
+  await $.classic.PostToolUseFailure(failure as never)
+  const damage: Moment = { kind: 'damage', startTick: levelUpEnds, target: 0 }
+  expect(blits.at(-1)).toBe(slimeCells(count, levelUpEnds, damage, 'still'))
+  await clock.advance(FRAME_MS)
+  const midDamageTick = levelUpEnds + 1
+  await $.classic.PostCompact({ ...compaction, trigger: 'manual' } as never)
+  const manualLevelUp: Moment = { kind: 'level-up', startTick: midDamageTick }
+  expect(blits.at(-1)).toBe(slimeCells(count, midDamageTick, manualLevelUp, 'still'))
+
+  await $.command.run(KING)
+  const king: Moment = { kind: 'king', startTick: midDamageTick }
+  const beforeCompaction = blits.length
+  await $.classic.PostCompact({ ...compaction, trigger: 'auto' } as never)
+  expect(blits.length).toBe(beforeCompaction)
+  const kingEnds = momentEndTick(king, count, 'still')
+  for (let tick = midDamageTick + 1; tick <= kingEnds; tick += 1) {
+    await clock.advance(FRAME_MS)
+    expect(blits.at(-1)).toBe(slimeCells(count, tick, king, 'still'))
+  }
+  await ui.unmount()
+})
+
+test('level-up returns to grounded hopping, expires, and admits lower-priority damage', { options: { slimesHop: true } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('classic.PostToolUseFailure', async () => ({}) as never)
+  on('classic.PostCompact', async () => ({}) as never)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+  const count = FAMILY.length
+  const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'hop')
+  await clock.advance(FRAME_MS * encounterEnds)
+  await $.classic.PostCompact({ ...compaction, trigger: 'auto' } as never)
+  const levelUp: Moment = { kind: 'level-up', startTick: encounterEnds }
+  const settleTick = encounterEnds + HOP_TICKS - HOP_SETTLE_TICKS
+  const expiryTick = momentEndTick(levelUp, count, 'hop')
+  expect(Number.isFinite(expiryTick)).toBe(true)
+  for (let tick = encounterEnds + 1; tick <= expiryTick + HOP_TICKS; tick += 1) {
+    await clock.advance(FRAME_MS)
+    expect(blits.at(-1)).toBe(slimeCells(count, tick, levelUp, 'hop'))
+    if (tick === settleTick) expect(blits.at(-1)).toBe(slimeCells(count, tick, null, 'still'))
+    if (tick >= expiryTick) expect(blits.at(-1)).toBe(slimeCells(count, tick, null, 'hop'))
+  }
+  const failureTick = expiryTick + HOP_TICKS
+  await $.classic.PostToolUseFailure(failure as never)
+  const damage: Moment = { kind: 'damage', startTick: failureTick, target: 0 }
+  expect(blits.at(-1)).toBe(slimeCells(count, failureTick, damage, 'hop'))
   await ui.unmount()
 })
 

@@ -79,7 +79,12 @@ and settling at rest. Type `/slime-king` to see the show any time.
 
 A failed tool makes one slime flicker three times, rotating through the family.
 Interrupting a tool does not count, and failures within two seconds of a flicker
-do not start another. The King and encounter take priority.
+do not start another. The King, a level-up and the encounter take priority.
+
+When the conversation compacts, by hand or automatically, the family levels up:
+they hop once all together, the only time they move in step, and flash gold at
+the top of the hop. A level-up replaces the encounter or a flicker, and gives
+way to the King.
 
 They breathe and blink at rest. To make them hop instead, each in its own time,
 turn on **Slimes hop** for pixel-hud in `/config` (the `slimesHop` option). With
