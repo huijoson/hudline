@@ -256,20 +256,49 @@ export type Moment =
   | { kind: 'damage'; startTick: number; target: number }
 
 export const ENCOUNTER_STAGGER_TICKS = 3
+export const ENCOUNTER_FALL_TICKS = 3
+export const ENCOUNTER_START_LIFT = 6
 const ENCOUNTER: readonly Pose[] = ([
-  { sprite: STAND, lift: 6, ticks: 1 },
-  { sprite: STAND, lift: 4, ticks: 1 },
-  { sprite: STAND, lift: 2, ticks: 1 },
+  ...Array.from({ length: ENCOUNTER_FALL_TICKS }, (_, i) => ({
+    sprite: STAND, lift: ENCOUNTER_START_LIFT - i * ENCOUNTER_START_LIFT / ENCOUNTER_FALL_TICKS, ticks: 1,
+  })),
   { sprite: SQUASH, lift: 0, ticks: HOP_LAND_TICKS },
   { sprite: STRETCH, lift: 0, ticks: HOP_REBOUND_TICKS },
 ] satisfies Beat[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
+export const ENCOUNTER_ARRIVAL_TICKS = ENCOUNTER.length
+
+// Relative endpoint of one kin, shared by rendering and expiry.
+function encounterEndpoint(i: number): number {
+  return i * ENCOUNTER_STAGGER_TICKS + ENCOUNTER_ARRIVAL_TICKS
+}
+
+type MomentMotion = {
+  endpoint: ((i: number, count: number) => number) | null
+  stage: ((moment: Moment, count: number, tick: number, rest: Rest) => Pixels) | null
+}
+
+const MOMENT_MOTION: Record<Moment['kind'], MomentMotion> = {
+  king: {
+    endpoint: () => KING_SHOW_TICKS,
+    stage: (moment, count, tick, rest) => canCrown(count)
+      ? kingStage(count, tick - moment.startTick, tick, rest)
+      : stage(count, tick, rest),
+  },
+  encounter: {
+    endpoint: encounterEndpoint,
+    stage: (moment, count, tick, rest) => encounterStage(count, tick - moment.startTick, tick, rest),
+  },
+  // Placeholders: no expiry or moment stage until their own tickets land.
+  damage: { endpoint: null, stage: null },
+  'level-up': { endpoint: null, stage: null },
+}
 
 // Exclusive expiry: keep the exact endpoint, then release as soon as every kin
 // can join Rest or a fresh Crouch. Unimplemented Moments have no expiry yet.
 export function momentEndTick(moment: Moment, count: number, rest: Rest): number {
-  if (moment.kind !== 'king' && moment.kind !== 'encounter') return Infinity
-  const endpoints = Array.from({ length: count }, (_, i) => moment.startTick +
-    (moment.kind === 'king' ? KING_SHOW_TICKS : i * ENCOUNTER_STAGGER_TICKS + ENCOUNTER.length))
+  const { endpoint } = MOMENT_MOTION[moment.kind]
+  if (!endpoint) return Infinity
+  const endpoints = Array.from({ length: count }, (_, i) => moment.startTick + endpoint(i, count))
   return Math.max(...endpoints.map((endpoint, i) => rest === 'hop' ? hopRejoinTick(i, endpoint) : endpoint + 1), moment.startTick + 1)
 }
 
@@ -384,7 +413,7 @@ function encounterStage(count: number, frame: number, tick: number, rest: Rest):
   for (let i = 0; i < count; i += 1) {
     const step = frame - i * ENCOUNTER_STAGGER_TICKS
     if (step < 0) continue
-    const endpointTick = tick - step + ENCOUNTER.length
+    const endpointTick = tick - frame + encounterEndpoint(i)
     const held = step === ENCOUNTER.length || (rest === 'hop' && tick < hopRejoinTick(i, endpointTick))
     const p = step < ENCOUNTER.length ? ENCOUNTER[step] as Pose : pose(i, held ? null : tick, rest)
     paint(pixels, p.sprite, i * SLIME_WIDTH, p.lift, kinPalette(i))
@@ -398,8 +427,7 @@ export function slimeCells(count: number, tick: number, moment: Moment | null = 
   const frame = moment ? tick - moment.startTick : -1
   let pixels = stage(count, tick, rest)
   if (moment && frame >= 0 && tick < momentEndTick(moment, count, rest)) {
-    if (moment.kind === 'king' && canCrown(count)) pixels = kingStage(count, frame, tick, rest)
-    if (moment.kind === 'encounter') pixels = encounterStage(count, frame, tick, rest)
+    pixels = MOMENT_MOTION[moment.kind].stage?.(moment, count, tick, rest) ?? pixels
   }
   const width = slimeColumns(count)
   const words = new Uint32Array(width * STAGE_ROWS * 3)

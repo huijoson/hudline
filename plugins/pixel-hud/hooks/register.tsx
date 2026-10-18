@@ -46,7 +46,7 @@ const SEP = ' ★ '
 const FULL_ROWS = 5
 // /clear empties $.state, and a branch switched outside Claude Code raises no
 // event: poll to catch both.
-const POLL_MS = 3000
+export const POLL_MS = 3000
 const SLIMES_KEY = 'slimes'
 // A task long enough to earn the King Slime: the slimes merge, reign, and split.
 const KING_AFTER_MS = 20_000
@@ -155,6 +155,7 @@ export const register: Register = (on, options) => {
   let stage: { requestId: string; slimes: number; cells: string } | null = null
   // Keep one active moment so competing triggers cannot fight over the stage.
   let moment: Moment | null = null
+  // Armed once per session; consumed by the first eligible Raster stage.
   let encounterPending = false
   // Rendering and expiry share the same endpoint and grounded rejoin rule.
   const currentMoment = () => {
@@ -171,6 +172,8 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     encounterPending = true
+    // Discard the previous session: session.start never fires on /clear,
+    // so neither this reset nor the pending encounter can replay there.
     moment = null
     stage = null
     await refresh($)
