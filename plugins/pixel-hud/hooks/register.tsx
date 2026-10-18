@@ -21,7 +21,7 @@ import {
 } from './format'
 import type { Role } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { canCrown, FAMILY, FRAME_MS, momentEndTick, nextMoment, slimeCells, slimeColumns, slimeText, STAGE_ROWS } from './slime'
+import { canCrown, DAMAGE_COOLDOWN_TICKS, FAMILY, FRAME_MS, momentEndTick, nextMoment, slimeCells, slimeColumns, slimeText, STAGE_ROWS } from './slime'
 import type { Moment, Rest } from './slime'
 
 const branch = atom({ plugin: 'pixel-hud', key: 'branch' } as const, null)
@@ -51,7 +51,6 @@ const SLIMES_KEY = 'slimes'
 // A task long enough to earn the King Slime: the slimes merge, reign, and split.
 const KING_AFTER_MS = 20_000
 const KING_COMMAND = 'slime-king'
-const DAMAGE_COOLDOWN_TICKS = 25
 // $.fs.read refuses files over 4 MiB.
 const READ_LIMIT = 4 * 1024 * 1024
 
@@ -148,6 +147,7 @@ function fitBranch(name: string, isDirty: boolean, columns: number): { name: str
 
 type SlimeStage = { requestId: string; slimes: number; cells: string }
 
+// Repaint changed cells; return the denied stage so only that stage is unseated.
 async function repaint($: EngineInterface, drawn: SlimeStage | null, tick: number, moment: Moment | null, rest: Rest): Promise<SlimeStage | null> {
   if (!drawn) return null
   const cells = slimeCells(drawn.slimes, tick, moment, rest)
@@ -174,7 +174,9 @@ export const register: Register = (on, options) => {
   let moment: Moment | null = null
   // Armed once per session; consumed by the first eligible Raster stage.
   let encounterPending = false
+  // Only admitted damage spends the cooldown.
   let lastDamageTick = -Infinity
+  // Next kin in the rotation, wrapped to the currently visible family on admission.
   let damageTarget = 0
   // Rendering and expiry share the same endpoint and grounded rejoin rule.
   const currentMoment = () => {
@@ -263,6 +265,7 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
+  // Non-interrupt failures flicker one kin when a seated stage and priority allow.
   on('classic.PostToolUseFailure', async ($, e, next) => {
     const active = currentMoment()
     if (stage && e.is_interrupt !== true && tick - lastDamageTick >= DAMAGE_COOLDOWN_TICKS) {

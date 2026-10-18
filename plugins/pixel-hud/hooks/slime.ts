@@ -154,6 +154,13 @@ function hopRejoinTick(i: number, endpoint: number): number {
   return step === 0 || step >= HOP_TICKS ? nextTick : nextTick + HOP_TICKS - step
 }
 
+// Hold one kin through its endpoint, then rejoin Rest or a fresh Crouch.
+function paintRejoiningKin(pixels: Pixels, i: number, tick: number, rest: Rest, endpointTick: number) {
+  const held = tick <= endpointTick || (rest === 'hop' && tick < hopRejoinTick(i, endpointTick))
+  const p = pose(i, held ? null : tick, rest)
+  paint(pixels, p.sprite, i * SLIME_WIDTH, p.lift, kinPalette(i))
+}
+
 // The stage's pixels for `count` slimes at `tick`: a color per pixel, or null.
 export function stage(count: number, tick: number | null, rest: Rest = 'breathe'): Pixels {
   const pixels = blank(count)
@@ -255,8 +262,12 @@ export type Moment =
   | { kind: 'king' | 'level-up' | 'encounter'; startTick: number }
   | { kind: 'damage'; startTick: number; target: number }
 
-export const DAMAGE_TICKS = 6
+// Three hidden/shown pairs; the whole family holds still through the endpoint.
+const DAMAGE_FLICKERS = 3
 const DAMAGE_FLICKER_TICKS = 2
+export const DAMAGE_TICKS = DAMAGE_FLICKERS * DAMAGE_FLICKER_TICKS
+// Two seconds between admitted failures: 25 ticks at the shared frame rate.
+export const DAMAGE_COOLDOWN_TICKS = Math.round(2_000 / FRAME_MS)
 
 export const ENCOUNTER_STAGGER_TICKS = 3
 export const ENCOUNTER_FALL_TICKS = 3
@@ -403,9 +414,7 @@ export function kingStage(count: number, frame: number, tick: number | null, res
     const endpointTick = tick - frame + endpoint
     const pixels = blank(count)
     for (let i = 0; i < count; i += 1) {
-      const held = frame === endpoint || (rest === 'hop' && tick < hopRejoinTick(i, endpointTick))
-      const restingPose = pose(i, held ? null : tick, rest)
-      paint(pixels, restingPose.sprite, i * SLIME_WIDTH, restingPose.lift, kinPalette(i))
+      paintRejoiningKin(pixels, i, tick, rest, endpointTick)
     }
     return pixels
   }
@@ -414,28 +423,30 @@ export function kingStage(count: number, frame: number, tick: number | null, res
   return pixels
 }
 
+// Flicker the target while the family holds still, then rejoin resting motion.
 function damageStage(moment: Moment, count: number, tick: number, rest: Rest): Pixels {
   const pixels = blank(count)
   const frame = tick - moment.startTick
+  const endpointTick = moment.startTick + DAMAGE_TICKS
   for (let i = 0; i < count; i += 1) {
-    if ('target' in moment && i === moment.target && frame < DAMAGE_TICKS && frame % DAMAGE_FLICKER_TICKS === 0) continue
-    const endpointTick = moment.startTick + DAMAGE_TICKS
-    const held = frame <= DAMAGE_TICKS || (rest === 'hop' && tick < hopRejoinTick(i, endpointTick))
-    const p = pose(i, held ? null : tick, rest)
-    paint(pixels, p.sprite, i * SLIME_WIDTH, p.lift, kinPalette(i))
+    if (moment.kind === 'damage' && i === moment.target && frame < DAMAGE_TICKS && frame % DAMAGE_FLICKER_TICKS === 0) continue
+    paintRejoiningKin(pixels, i, tick, rest, endpointTick)
   }
   return pixels
 }
 
 function encounterStage(count: number, frame: number, tick: number, rest: Rest): Pixels {
   const pixels = blank(count)
+  const startTick = tick - frame
   for (let i = 0; i < count; i += 1) {
     const step = frame - i * ENCOUNTER_STAGGER_TICKS
     if (step < 0) continue
-    const endpointTick = tick - frame + encounterEndpoint(i)
-    const held = step === ENCOUNTER.length || (rest === 'hop' && tick < hopRejoinTick(i, endpointTick))
-    const p = step < ENCOUNTER.length ? ENCOUNTER[step] as Pose : pose(i, held ? null : tick, rest)
-    paint(pixels, p.sprite, i * SLIME_WIDTH, p.lift, kinPalette(i))
+    if (step < ENCOUNTER.length) {
+      const p = ENCOUNTER[step] as Pose
+      paint(pixels, p.sprite, i * SLIME_WIDTH, p.lift, kinPalette(i))
+    } else {
+      paintRejoiningKin(pixels, i, tick, rest, startTick + encounterEndpoint(i))
+    }
   }
   return pixels
 }

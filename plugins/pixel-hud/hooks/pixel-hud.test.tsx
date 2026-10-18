@@ -18,6 +18,7 @@ import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
 import { POLL_MS } from './register'
 import {
   canCrown,
+  DAMAGE_COOLDOWN_TICKS,
   DAMAGE_TICKS,
   ENCOUNTER_ARRIVAL_TICKS,
   ENCOUNTER_FALL_TICKS,
@@ -61,6 +62,10 @@ import type { Moment } from './slime'
 
 const failure = { tool_name: 'Bash', tool_input: {}, tool_use_id: 'failed-tool', error: 'failed' }
 
+function shape(pixels: (number | null)[][]): string {
+  return JSON.stringify(pixels.map(row => row.map(p => p !== null)))
+}
+
 const WHITE = 0xfcfcfc
 const MOUTH = 0x981828
 // Ticket #8's per-kin breathing periods, in clock ticks.
@@ -68,6 +73,8 @@ const BREATH_PERIODS = [36, 44, 50, 40]
 const BLINK_EVERY_CYCLES = 3
 const LONGEST_BREATH_PERIOD = Math.max(...BREATH_PERIODS)
 const BLINK_OBSERVATION_TICKS = BLINK_EVERY_CYCLES * LONGEST_BREATH_PERIOD
+// Sweep enough start offsets to exercise the staggered hop clocks.
+const HOP_START_WINDOW_TICKS = 100
 const kingLandingTick = KING_SHOW_TICKS - HOP_LAND_TICKS
 const TIP_ROW = 1
 const TIP_COLUMN = 3
@@ -732,13 +739,12 @@ test('the next damage target stays in range after the terminal seats fewer kin',
   expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns).toBe(slimeColumns(count))
   let tick = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
   await clock.advance(FRAME_MS * tick)
-  const cooldownTicks = 25
   // Leave the next target at kin 3, outside the narrower family's range.
   for (const target of [0, 1, 2]) {
     await $.classic.PostToolUseFailure(failure as never)
     expect(blits.at(-1)).toBe(slimeCells(count, tick, { kind: 'damage', startTick: tick, target }, 'still'))
-    await clock.advance(FRAME_MS * cooldownTicks)
-    tick += cooldownTicks
+    await clock.advance(FRAME_MS * DAMAGE_COOLDOWN_TICKS)
+    tick += DAMAGE_COOLDOWN_TICKS
   }
   await ui.unmount()
   const narrowerCount = 2
@@ -765,7 +771,6 @@ test('failures flicker rotating kin after encounter expiry, with interrupt and c
   const count = FAMILY.length
   const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
   await clock.advance(FRAME_MS * encounterEnds)
-  const cooldownTicks = 25
   let tick = encounterEnds
   for (let failureIndex = 0; failureIndex <= count; failureIndex += 1) {
     const beforeInterrupt = blits.length
@@ -779,12 +784,12 @@ test('failures flicker rotating kin after encounter expiry, with interrupt and c
       expect(blits.at(-1)).toBe(slimeCells(count, tick + frame, damage, 'still'))
     }
     const beforeCooldown = blits.length
-    const justBeforeCooldown = cooldownTicks - 1
+    const justBeforeCooldown = DAMAGE_COOLDOWN_TICKS - 1
     await clock.advance(FRAME_MS * (justBeforeCooldown - DAMAGE_TICKS - 1))
     await $.classic.PostToolUseFailure(failure as never)
     await clock.advance(FRAME_MS)
     expect(blits.length).toBe(beforeCooldown)
-    tick += cooldownTicks
+    tick += DAMAGE_COOLDOWN_TICKS
   }
   await ui.unmount()
 })
@@ -846,8 +851,7 @@ test('damage returns to grounded hopping, expires, and admits the next failure',
   const endpointTick = encounterEnds + DAMAGE_TICKS
   const expiryTick = momentEndTick(damage, count, 'hop')
   expect(Number.isFinite(expiryTick)).toBe(true)
-  const cooldownTicks = 25
-  const nextFailureTick = encounterEnds + cooldownTicks
+  const nextFailureTick = encounterEnds + DAMAGE_COOLDOWN_TICKS
   for (let tick = encounterEnds + 1; tick <= nextFailureTick; tick += 1) {
     await clock.advance(FRAME_MS)
     expect(blits.at(-1)).toBe(slimeCells(count, tick, damage, 'hop'))
@@ -1020,13 +1024,12 @@ const kingReignStarts = KING_GATHER_TICKS + KING_MERGE_TICKS + KING_DROP_TICKS +
 
 describe('slime moments', () => {
   test('damage flickers only its target for three hidden/shown pairs, then stands', () => {
-    const flickerTicks = 6
-    const startTick = 12
+    const startTick = DAMAGE_TICKS * 2
     for (const count of [1, 2, 3, 4]) {
       const standing = stage(count, null)
       for (let target = 0; target < count; target += 1) {
         const damage: Moment = { kind: 'damage', startTick, target }
-        for (let frame = 0; frame < flickerTicks; frame += 1) {
+        for (let frame = 0; frame < DAMAGE_TICKS; frame += 1) {
           const pixels = slimePixels(slimeCells(count, startTick + frame, damage, 'still'))
           for (let i = 0; i < count; i += 1) {
             const face = slimeFace(pixels, i)
@@ -1034,7 +1037,7 @@ describe('slime moments', () => {
             else expect(face).toEqual(slimeFace(standing, i))
           }
         }
-        const endpointTick = startTick + flickerTicks
+        const endpointTick = startTick + DAMAGE_TICKS
         expect(slimeCells(count, endpointTick, damage, 'still')).toBe(slimeCells(count, endpointTick, null, 'still'))
         expect(momentEndTick(damage, count, 'still')).toBe(endpointTick + 1)
       }
@@ -1061,11 +1064,9 @@ describe('slime moments', () => {
   })
 
   test('damage expires after every kin rejoins hopping from rest or a fresh crouch', () => {
-    const shape = (pixels: (number | null)[][]) => JSON.stringify(pixels.map(row => row.map(p => p !== null)))
-    const startWindowTicks = 100
     for (const count of [1, 2, 3, 4]) {
       const standing = slimeCells(count, 0, null, 'still')
-      for (let startTick = 0; startTick < startWindowTicks; startTick += 1) {
+      for (let startTick = 0; startTick < HOP_START_WINDOW_TICKS; startTick += 1) {
         const damage: Moment = { kind: 'damage', startTick, target: count - 1 }
         let allJoinedTick = startTick + 1
         for (let i = 0; i < count; i += 1) {
@@ -1091,13 +1092,11 @@ describe('slime moments', () => {
   })
 
   test('each encounter arrival rejoins hopping only from rest or a fresh crouch', () => {
-    const shape = (pixels: (number | null)[][]) => JSON.stringify(pixels.map(row => row.map(p => p !== null)))
     const staggerTicks = ENCOUNTER_STAGGER_TICKS
     const arrivalTicks = ENCOUNTER_ARRIVAL_TICKS
-    const startWindowTicks = 100
     for (const count of [1, 2, 3, 4]) {
       const standing = slimeCells(count, 0, null, 'still')
-      for (let startTick = 0; startTick < startWindowTicks; startTick += 1) {
+      for (let startTick = 0; startTick < HOP_START_WINDOW_TICKS; startTick += 1) {
         const encounter: Moment = { kind: 'encounter', startTick }
         let allJoinedTick = startTick + 1
         for (let i = 0; i < count; i += 1) {
