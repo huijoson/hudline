@@ -262,6 +262,25 @@ test('picks up a branch switched outside Claude Code on the next poll', async ($
 })
 
 describe('slime family', () => {
+  test('each kin has white eyes, dark pupils, a red grin and a shaded lower edge', async () => {
+    const rest = stage(4, null)
+    const bodies = [0x3cbcfc, 0xfc7460, 0xa8a8b8, 0x38c838]
+    for (let i = 0; i < 4; i += 1) {
+      const face = rest.map(row => row.slice(i * 7, (i + 1) * 7))
+      expect(face[0]?.every(p => p === null)).toBe(true)
+      expect(face[1]?.filter(p => p !== null)).toEqual([bodies[i]])
+      expect(face[3]?.filter(p => p === 0xfcfcfc).length).toBe(2)
+      expect(face[4]?.filter(p => p === 0x0b0a0d).length).toBe(2)
+      expect(face[5]?.slice(2, 5)).toEqual([0x981828, 0x981828, 0x981828])
+      const shade = face[5]?.[0] ?? 0xffffff
+      expect(shade).not.toBe(bodies[i])
+      expect(shade).not.toBe(0x0b0a0d)
+      for (const shift of [16, 8, 0]) {
+        expect((shade >> shift) & 255).toBeLessThan(((bodies[i] ?? 0) >> shift) & 255)
+      }
+    }
+  })
+
   test('holds each hop pose for two ticks without cadence stutter', async () => {
     const runs: number[] = []
     let previous = ''
@@ -271,8 +290,19 @@ describe('slime family', () => {
       else runs.push(1)
       previous = cells
     }
-    // Stand, crouch, rise, two top poses, fall, land, three resting poses.
-    expect(runs).toEqual([2, 2, 2, 4, 2, 2, 6])
+    // Stand, crouch, four airborne poses, land, three resting poses.
+    expect(runs).toEqual([2, 2, 8, 2, 6])
+  })
+
+  test('the pointed tip stays visible throughout a hop in the six-pixel stage', async () => {
+    for (let tick = 0; tick < HOP_TICKS; tick += 1) {
+      const pixels = stage(1, tick)
+      const top = pixels.find(row => row.some(p => p !== null))
+      if (!pixels[5]?.some(p => p !== null)) {
+        expect(top?.filter(p => p !== null)).toEqual([0x3cbcfc])
+        expect(pixels[4]?.slice(2, 5)).toEqual([0x981828, 0x981828, 0x981828])
+      }
+    }
   })
 
   test('stands on the floor at rest and leaves it mid-hop', async () => {
@@ -290,7 +320,13 @@ describe('slime family', () => {
       expect(rest[5]?.slice(i * slimeColumns(1), (i + 1) * slimeColumns(1)).some(p => p !== null)).toBe(true)
     }
     expect(rest[0]?.some(p => p !== null)).toBe(false)
-    expect(rest[1]?.some(p => p !== null)).toBe(false)
+  })
+
+  test('the crouch keeps the white eyes and grin in a lower silhouette', async () => {
+    const crouch = stage(1, 2)
+    expect(crouch.slice(0, 2).flat().every(p => p === null)).toBe(true)
+    expect(crouch.flat().filter(p => p === 0xfcfcfc).length).toBe(2)
+    expect(crouch[5]?.includes(0x981828)).toBe(true)
   })
 
   test('packs a frame into three rows of Raster cells', async () => {
@@ -299,10 +335,12 @@ describe('slime family', () => {
   })
 
   test('draws a resting frame as text where there is no Raster', async () => {
-    const rows = slimeText(2)
+    const rows = slimeText(4)
     expect(rows.length).toBe(3)
-    expect(rows[2]?.[0]?.text).toBe(' █████ ')
-    expect(rows[0]?.[1]?.color).toBe('#fc7460')
+    for (let i = 0; i < 4; i += 1) {
+      expect(rows.map(row => row[i]?.text)).toEqual(['   ▄   ', ' ▄███▄ ', '███████'])
+    }
+    expect(rows[0]?.map(part => part.color)).toEqual(['#3cbcfc', '#fc7460', '#a8a8b8', '#38c838'])
   })
 })
 
@@ -327,7 +365,7 @@ test('the slimes hop beside the branch on the terminal and rest on desktop', { o
 
   const desk = await mount($, 'desktop', 10, 120)
   expect(await desk.find({ type: 'Raster' })).toBeUndefined()
-  expect(await desk.find({ type: 'Text', text: ' █████ ' })).toBeDefined()
+  expect(await desk.find({ type: 'Text', text: '███████' })).toBeDefined()
   await desk.unmount()
 })
 
@@ -470,6 +508,19 @@ describe('King Slime', () => {
   const GOLD = 0xfcbc3c
   const hasGold = (pixels: (number | null)[][]) => pixels.some(row => row.includes(GOLD))
 
+  test('the king keeps its crown and jewel above white eyes and a wide red grin', async () => {
+    const pixels = kingStage(2, kingReignStarts, null)
+    expect(pixels.length).toBe(6)
+    expect(pixels[0]?.includes(0xf83800)).toBe(true)
+    expect(pixels[1]?.filter(p => p === GOLD).length).toBe(5)
+    expect(pixels[2]?.filter(p => p === 0xfcfcfc).length).toBe(2)
+    expect(pixels[3]?.filter(p => p === 0x0b0a0d).length).toBe(2)
+    expect(pixels[4]?.filter(p => p === 0x981828).length).toBe(5)
+    expect(pixels[5]?.filter(p => p !== null).length).toBe(13)
+    expect(pixels[5]?.filter(p => p === 0x1878bc).length).toBe(13)
+    expect(kingStage(2, kingReignStarts + 10, null)[2]?.includes(0xfcfcfc)).toBe(false)
+  })
+
   test('needs two slimes of room', async () => {
     expect(canCrown(1)).toBe(false)
     expect(canCrown(2)).toBe(true)
@@ -483,7 +534,7 @@ describe('King Slime', () => {
 
   type Pixels = (number | null)[][]
   const grounded = (pixels: Pixels) => (pixels[pixels.length - 1] ?? []).some(c => c !== null)
-  const atTop = (pixels: Pixels) => pixels.slice(-2).every(row => row.every(c => c === null))
+  const atTop = (pixels: Pixels) => pixels.slice(-1).every(row => row.every(c => c === null))
   const left = (pixels: Pixels) => Math.min(...pixels.map(row => row.findIndex(c => c !== null)).filter(x => x >= 0))
   const right = (pixels: Pixels) => Math.max(...pixels.map(row => row.findLastIndex(c => c !== null)))
   const at = (frame: number, count = 4) => kingStage(count, frame, null)
@@ -528,8 +579,8 @@ describe('King Slime', () => {
 
   test('the slimes leap home in two hops, from where they collided', async () => {
     // Out of the king where they met, so every slime that went in comes out;
-    // crouched, a slime is a pixel wider each side than in the air.
-    expect([left(at(out)), right(at(out))]).toEqual([left(at(collide)) - 1, right(at(collide)) + 1])
+    // both the crouch and the standing face span seven pixels.
+    expect([left(at(out)), right(at(out))]).toEqual([left(at(collide)), right(at(collide))])
     expect(bodies(at(out))).toBe(4)
     expect(grounded(at(out))).toBe(true)
     expect(atTop(at(out + top))).toBe(true)

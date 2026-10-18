@@ -2,10 +2,13 @@
 // Raster, two pixels to a cell ('▀' paints the top pixel in the foreground and
 // the bottom one in the background).
 
-// B body, H highlight, K eye, '.' transparent. Each frame is 7 wide; it sits in
-// a 6-pixel-tall stage (3 text rows), feet on the floor unless it is airborne.
-const STAND = ['...B...', '..BHB..', '.BKBKB.', '.BBBBB.']
-const SQUASH = ['..BHB..', '.BKBKB.', 'BBBBBBB']
+// B body, H highlight, W white, K pupil, M mouth, D shade, '.' transparent.
+// Each frame is 7 wide in a 6-pixel-tall stage (3 text rows), feet on the floor unless it is airborne.
+export const STAND = ['...B...', '..BHB..', '.BWBWB.', 'BBKBKBB', 'DDMMMDD']
+export const SQUASH = ['..BHB..', '.BWBWB.', 'BBKBKBB', 'DDDMDDD']
+export const WIDE = ['..BHB..', 'BWBBBWB', 'BKBBBKB', 'DDMMMDD']
+export const STRETCH = ['...B...', '..BHB..', '.BWBWB.', '.BKBKB.', '.BMMMB.', '..DDD..']
+export const BLINK = STAND.map(row => row.replaceAll('W', 'B'))
 
 export const FRAME_MS = 80
 // Two clock ticks (160 ms) is the nearest whole-tick hold to the shipped poses.
@@ -17,13 +20,13 @@ const STAGE_PIXELS = STAGE_ROWS * 2
 
 type Pose = { sprite: readonly string[]; lift: number }
 
-// One hop: rest, crouch, spring up two pixels, hang, land, rest a while.
+// One hop: rest, crouch, spring up one pixel, hang, land, rest a while.
 export const HOP: readonly Pose[] = ([
   { sprite: STAND, lift: 0 },
   { sprite: SQUASH, lift: 0 },
   { sprite: STAND, lift: 1 },
-  { sprite: STAND, lift: 2 },
-  { sprite: STAND, lift: 2 },
+  { sprite: STAND, lift: 1 },
+  { sprite: STAND, lift: 1 },
   { sprite: STAND, lift: 1 },
   { sprite: SQUASH, lift: 0 },
   { sprite: STAND, lift: 0 },
@@ -32,14 +35,14 @@ export const HOP: readonly Pose[] = ([
 ] satisfies Pose[]).flatMap(pose => Array<Pose>(HOP_POSE_TICKS).fill(pose))
 export const HOP_TICKS = HOP.length
 
-type Kin = { body: number; highlight: number; eye: number }
+type Kin = { body: number; highlight: number; eye: number; shade: number }
 
 // Slime, she-slime, metal slime, bubble slime.
 export const FAMILY: readonly Kin[] = [
-  { body: 0x3cbcfc, highlight: 0xbcf0fc, eye: 0x0b0a0d },
-  { body: 0xfc7460, highlight: 0xfcd8c8, eye: 0x0b0a0d },
-  { body: 0xa8a8b8, highlight: 0xfcfcfc, eye: 0x0b0a0d },
-  { body: 0x38c838, highlight: 0xb8f818, eye: 0x0b0a0d },
+  { body: 0x3cbcfc, shade: 0x1878bc, highlight: 0xbcf0fc, eye: 0x0b0a0d },
+  { body: 0xfc7460, shade: 0xbc3830, highlight: 0xfcd8c8, eye: 0x0b0a0d },
+  { body: 0xa8a8b8, shade: 0x686878, highlight: 0xfcfcfc, eye: 0x0b0a0d },
+  { body: 0x38c838, shade: 0x188818, highlight: 0xb8f818, eye: 0x0b0a0d },
 ]
 // Each one starts its hop at a different moment, so they never move in step.
 const PHASE = [0, 4, 7, 2]
@@ -78,7 +81,7 @@ function paint(pixels: Pixels, sprite: readonly string[], x: number, lift: numbe
 
 function kinPalette(i: number): Palette {
   const kin = FAMILY[i % FAMILY.length] as Kin
-  return { B: kin.body, H: kin.highlight, K: kin.eye }
+  return { B: kin.body, H: kin.highlight, K: kin.eye, W: WHITE, M: 0x981828, D: kin.shade }
 }
 
 // A null `tick` is the slimes at rest: all of them sitting on the floor.
@@ -98,16 +101,16 @@ export function stage(count: number, tick: number | null): Pixels {
 }
 
 // The King Slime: crowned, as wide as two slimes less one, the whole stage tall.
-// Y crown, R jewel, B body, H highlight, K eyes and smile.
+// Y crown and R jewel join the family face palette.
 const KING = [
   '....Y.R.Y....',
   '....YYYYY....',
-  '...BBBBBHB...',
+  '..BBWHBHWBB..',
   '..BBKBBBKBB..',
-  '.BBBBKKKBBBB.',
-  'BBBBBBBBBBBBB',
+  '.BBKMMMMMKBB.',
+  'DDDDDDDDDDDDD',
 ]
-const KING_BLINK = [KING[0], KING[1], KING[2], '..BBBBBBBBB..', KING[4], KING[5]] as string[]
+const KING_BLINK = KING.map(row => row.replaceAll('W', 'B'))
 export const KING_WIDTH = 13
 // The slimes landing on one another: a splat, then a blob bouncing up.
 const MERGED = [
@@ -166,7 +169,7 @@ function leap(pixels: Pixels, count: number, from: number, to: number, step: num
   const middle = Math.floor((slimeColumns(count) - SLIME_WIDTH) / 2)
   const heldStep = step - step % KING_POSE_TICKS
   const t = from + ((to - from) * heldStep) / (LEAP - KING_POSE_TICKS)
-  const lift = heldStep === 0 || heldStep === LEAP - KING_POSE_TICKS ? 0 : heldStep === 2 * KING_POSE_TICKS ? 2 : 1
+  const lift = heldStep === 0 || heldStep === LEAP - KING_POSE_TICKS ? 0 : 1
   const sprite = lift === 0 ? SQUASH : STAND
   for (let i = 0; i < count; i += 1) {
     const home = i * SLIME_WIDTH
@@ -264,7 +267,7 @@ export function slimeCells(count: number, tick: number, moment: Moment | null = 
 
 // Where there is no Raster: one resting frame, each slime one color, as text.
 export function slimeText(count: number): { text: string; color: string }[][] {
-  const pixels = stage(count, 0)
+  const pixels = stage(count, null)
   return Array.from({ length: STAGE_ROWS }, (_, row) =>
     Array.from({ length: count }, (_, i) => {
       let text = ''
