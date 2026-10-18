@@ -71,16 +71,17 @@ pixel letters on top. It needs no Node.js and no `statusLine` setting.
 
 Beside the branch sits a slime family: a slime, a she-slime, a metal slime and a
 bubble slime. When a task of 20 seconds or more finishes, they leap toward each
-other in two hops, collide in mid-air and land as one, a crowned **King Slime**
-that reigns for a few seconds, then leap back home. Type `/slime-king` to see
-it any time.
+other in two hops and collide in mid-air. They splat together, then a crowned
+**King Slime** drops in with a squash and rebound. It reigns for a few seconds,
+flickers in defeat, then bursts into the family, each arcing home in one leap
+and settling at rest. Type `/slime-king` to see the show any time.
 
 They breathe and blink at rest. To make them hop instead, each in its own time,
 turn on **Slimes hop** for pixel-hud in `/config` (the `slimesHop` option). With
 hopping off, turn off **Slimes breathe** (`slimesIdle`) to keep them perfectly
 still.
 
-![pixel-hud after a long task: the slimes leap together, merge into a crowned King Slime beside the branch, then leap back home.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-king.gif)
+![pixel-hud after a long task: the slimes leap together, merge into a crowned King Slime beside the branch, then burst apart and arc home.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-king.gif)
 
 *Rendered from the mod's own drawing, one frame a tick, with the same sample
 values as the image above; [reproduce them](docs/showcase/README.md#the-mod-image).*
