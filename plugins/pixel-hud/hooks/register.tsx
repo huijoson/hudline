@@ -282,6 +282,7 @@ export const register: Register = (on, options) => {
   })
 
   // Compaction, manual or automatic, levels up a seated family unless the King reigns.
+  // A compaction during a level-up is ignored (equal priority), not restarted.
   on('classic.PostCompact', async ($, e, next) => {
     if (stage) {
       const incoming: Moment = { kind: 'level-up', startTick: tick }

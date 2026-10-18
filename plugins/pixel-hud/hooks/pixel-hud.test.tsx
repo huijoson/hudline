@@ -915,6 +915,37 @@ test('compaction levels up in gold over the encounter and damage, but not over t
   await ui.unmount()
 })
 
+test('a second compaction during a level-up is ignored, and the first ends on time', { options: { slimesIdle: false } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('classic.PostCompact', async () => ({}) as never)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+  const count = FAMILY.length
+  const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
+  await clock.advance(FRAME_MS * encounterEnds)
+  await $.classic.PostCompact({ ...compaction, trigger: 'auto' } as never)
+  const levelUp: Moment = { kind: 'level-up', startTick: encounterEnds }
+  const secondCompactionTick = encounterEnds + hopLaunch
+  await clock.advance(FRAME_MS * hopLaunch)
+  const beforeSecond = blits.length
+  await $.classic.PostCompact({ ...compaction, trigger: 'manual' } as never)
+  expect(blits.length).toBe(beforeSecond)
+  expect(blits.at(-1)).toBe(slimeCells(count, secondCompactionTick, levelUp, 'still'))
+  const levelUpEnds = momentEndTick(levelUp, count, 'still')
+  for (let tick = secondCompactionTick + 1; tick <= levelUpEnds; tick += 1) {
+    await clock.advance(FRAME_MS)
+    expect(blits.at(-1)).toBe(slimeCells(count, tick, levelUp, 'still'))
+  }
+  expect(blits.at(-1)).toBe(slimeCells(count, 0, null, 'still'))
+  await ui.unmount()
+})
+
 test('level-up returns to grounded hopping, expires, and admits lower-priority damage', { options: { slimesHop: true } }, async ($, on) => {
   const clock = mock.clock(on)
   const blits: string[] = []
