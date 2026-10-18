@@ -381,6 +381,42 @@ describe('slime family', () => {
     expect(stage(1, settleTick, 'hop')).toEqual(stage(1, null))
   })
 
+  test('each kin blinks for one grounded tick strictly inside every third hop rest', () => {
+    const restSequences = [[6, 10, 14], [9, 14, 7], [12, 6, 10], [14, 8, 11]]
+    const phaseTicks = [0, 3, 7, 12]
+    const blinkOffsets: number[] = []
+    for (const [i, rests] of restSequences.entries()) {
+      const standing = slimeFace(stage(4, null), i)
+      const blinking = standing.map((row, r) => row.map((pixel, c) => r === EYE_ROW && (c === LEFT_EYE_COLUMN || c === RIGHT_EYE_COLUMN) ? FAMILY[i]?.body : pixel))
+      let crouchTick = -(phaseTicks[i] ?? 0)
+      for (let cycle = 0; cycle < BLINK_EVERY_CYCLES * 2; cycle += 1) {
+        const restTicks = rests[cycle % rests.length] ?? 0
+        const restStart = crouchTick + HOP_TICKS
+        const nextCrouch = restStart + restTicks
+        const blinks: number[] = []
+        for (let tick = Math.max(0, crouchTick); tick < nextCrouch; tick += 1) {
+          const face = slimeFace(stage(4, tick, 'hop'), i)
+          if (tick < restStart) expect(face).not.toEqual(blinking)
+          else if (JSON.stringify(face) === JSON.stringify(blinking)) blinks.push(tick)
+          else expect(face).toEqual(standing)
+        }
+        if (cycle % BLINK_EVERY_CYCLES === BLINK_EVERY_CYCLES - 1) {
+          expect(blinks.length).toBe(1)
+          const blinkTick = blinks[0] ?? 0
+          expect(blinkTick).toBeGreaterThan(restStart)
+          expect(blinkTick).toBeLessThan(nextCrouch - 1)
+          // Even the shortest six-tick rest has standing ticks on both sides.
+          expect(blinkTick - restStart).toBeLessThan(6 - 1)
+          expect(slimeFace(stage(4, blinkTick - 1, 'hop'), i)).toEqual(standing)
+          expect(slimeFace(stage(4, blinkTick + 1, 'hop'), i)).toEqual(standing)
+          if (cycle < BLINK_EVERY_CYCLES) blinkOffsets.push(blinkTick - restStart)
+        } else expect(blinks).toEqual([])
+        crouchTick = nextCrouch
+      }
+    }
+    expect(new Set(blinkOffsets).size).toBe(FAMILY.length)
+  })
+
   test('hop rests vary by kin and cycle, within six to fourteen ticks, deterministically', () => {
     const observationTicks = 200
     const movingTicks = 11

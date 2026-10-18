@@ -19,6 +19,9 @@ const STAGE_PIXELS = STAGE_ROWS * 2
 export type Rest = 'hop' | 'breathe' | 'still'
 
 type Pose = { sprite: readonly string[]; lift: number }
+type Beat = Pose & { ticks: number }
+
+const RESTING_POSE: Pose = { sprite: STAND, lift: 0 }
 
 // One hop: crouch, launch, rise/hang, fall, land, rebound, settle.
 export const HOP: readonly Pose[] = ([
@@ -29,15 +32,15 @@ export const HOP: readonly Pose[] = ([
   { sprite: SQUASH, lift: 0, ticks: 2 },
   { sprite: STRETCH, lift: 0, ticks: 1 },
   { sprite: STAND, lift: 0, ticks: 1 },
-] satisfies (Pose & { ticks: number })[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
+] satisfies Beat[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
 export const HOP_TICKS = HOP.length
-// Fixed rest sequences keep each kin's pauses varied and repeatable.
+// Fixed rest lengths in ticks keep each kin's pauses varied and repeatable.
 const HOP_RESTS = [
   [6, 10, 14],
   [9, 14, 7],
   [12, 6, 10],
   [14, 8, 11],
-]
+] satisfies number[][]
 
 type Kin = { body: number; highlight: number; eye: number; shade: number }
 
@@ -48,7 +51,7 @@ export const FAMILY: readonly Kin[] = [
   { body: 0xa8a8b8, highlight: 0xfcfcfc, eye: 0x0b0a0d, shade: 0x686878 },
   { body: 0x38c838, highlight: 0xb8f818, eye: 0x0b0a0d, shade: 0x188818 },
 ]
-// Each one starts its hop at a different moment, so they never move in step.
+// Each kin has an offset in ticks, so they never move in step.
 const PHASE = [0, 3, 7, 12]
 
 const BLINK_EVERY_CYCLES = 3
@@ -103,23 +106,26 @@ function kinPalette(i: number): Palette {
 
 // A null `tick` is the slimes at rest: all of them sitting on the floor.
 function pose(i: number, tick: number | null, rest: Rest): Pose {
-  if (tick === null || rest === 'still') return { sprite: STAND, lift: 0 }
+  if (tick === null || rest === 'still') return RESTING_POSE
   if (rest === 'breathe') {
     const breath = BREATH[i % BREATH.length] as Breath
     const isBlinking = tick % (breath.period * BLINK_EVERY_CYCLES) === breath.period * (BLINK_EVERY_CYCLES - 1) + breath.blink
     if (isBlinking) return { sprite: BLINK, lift: 0 }
     const isSquishing = tick % breath.period >= breath.period - BREATH_SQUISH_TICKS
-    return { sprite: isSquishing ? WIDE : STAND, lift: 0 }
+    return isSquishing ? { sprite: WIDE, lift: 0 } : RESTING_POSE
   }
   const rests = HOP_RESTS[i % HOP_RESTS.length] as number[]
   const period = rests.reduce((total, ticks) => total + HOP_TICKS + ticks, 0)
   let step = (tick + (PHASE[i % PHASE.length] ?? 0)) % period
-  for (const ticks of rests) {
-    const cycle = HOP_TICKS + ticks
-    if (step < cycle) return HOP[step] ?? { sprite: STAND, lift: 0 }
-    step -= cycle
+  let cycle = 0
+  while (step >= HOP_TICKS + (rests[cycle] as number)) {
+    step -= HOP_TICKS + (rests[cycle] as number)
+    cycle += 1
   }
-  return { sprite: STAND, lift: 0 }
+  if (step < HOP_TICKS) return HOP[step] as Pose
+  // One tick inside every third rest; offsets 1–4 fit even a six-tick rest.
+  const isBlinking = cycle % BLINK_EVERY_CYCLES === BLINK_EVERY_CYCLES - 1 && step === HOP_TICKS + 1 + i % FAMILY.length
+  return isBlinking ? { sprite: BLINK, lift: 0 } : RESTING_POSE
 }
 
 // The stage's pixels for `count` slimes at `tick`: a color per pixel, or null.
