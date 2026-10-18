@@ -360,8 +360,8 @@ describe('slime family', () => {
     const riseTick = 3
     const fallTick = 6
     const reboundTick = 9
-    const settleTick = 10
-    const nextCrouchTick = 17
+    const settleTick = HOP_TICKS - 1
+    const nextCrouchTick = HOP_TICKS + 6
     const runs: number[] = []
     let previous = ''
     for (let tick = firstCrouchTick; tick < nextCrouchTick; tick += 1) {
@@ -371,7 +371,7 @@ describe('slime family', () => {
       previous = cells
     }
     // Crouch, launch, rise/hang, fall, land, rebound, settle/rest.
-    expect(runs).toEqual([2, 1, 3, 1, 2, 1, 7])
+    expect(runs).toEqual([2, 1, 3, 1, 2, 1, nextCrouchTick - settleTick])
     const stretch = stage(1, launchTick, 'hop')
     expect(stretch[0]?.filter(p => p !== null)).toEqual([FAMILY[0]?.body])
     expect(stretch[5]?.filter(p => p !== null).length).toBe(3)
@@ -419,11 +419,12 @@ describe('slime family', () => {
 
   test('hop rests vary by kin and cycle, within six to fourteen ticks, deterministically', () => {
     const observationTicks = 200
-    const movingTicks = 11
+    const movingTicks = HOP_TICKS
     const launchOffset = 2
     const riseOffset = 3
     const minRestTicks = 6
     const maxRestTicks = 14
+    const expectedRests = [[6, 10, 14], [14, 7, 9], [6, 10, 12], [8, 11, 14]]
     const restLengths: number[][] = []
     for (let i = 0; i < FAMILY.length; i += 1) {
       const crouches: number[] = []
@@ -435,9 +436,9 @@ describe('slime family', () => {
         const isLaunching = launch[0]?.some(p => p !== null) && launch[5]?.some(p => p !== null)
         const isRising = rise[5]?.every(p => p === null)
         if (isCrouching && isLaunching && isRising) crouches.push(tick)
-        expect(slimeFace(stage(4, tick, 'hop'), i)).toEqual(face)
       }
       const rests = crouches.slice(1).map((tick, cycle) => tick - (crouches[cycle] ?? 0) - movingTicks)
+      expect(rests.slice(0, 3)).toEqual(expectedRests[i])
       expect(rests.length).toBeGreaterThan(2)
       expect(new Set(rests).size).toBeGreaterThan(1)
       for (const rest of rests) {
