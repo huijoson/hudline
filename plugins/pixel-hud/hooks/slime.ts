@@ -39,10 +39,10 @@ type Kin = { body: number; highlight: number; eye: number; shade: number }
 
 // Slime, she-slime, metal slime, bubble slime.
 export const FAMILY: readonly Kin[] = [
-  { body: 0x3cbcfc, shade: 0x1878bc, highlight: 0xbcf0fc, eye: 0x0b0a0d },
-  { body: 0xfc7460, shade: 0xbc3830, highlight: 0xfcd8c8, eye: 0x0b0a0d },
-  { body: 0xa8a8b8, shade: 0x686878, highlight: 0xfcfcfc, eye: 0x0b0a0d },
-  { body: 0x38c838, shade: 0x188818, highlight: 0xb8f818, eye: 0x0b0a0d },
+  { body: 0x3cbcfc, highlight: 0xbcf0fc, eye: 0x0b0a0d, shade: 0x1878bc },
+  { body: 0xfc7460, highlight: 0xfcd8c8, eye: 0x0b0a0d, shade: 0xbc3830 },
+  { body: 0xa8a8b8, highlight: 0xfcfcfc, eye: 0x0b0a0d, shade: 0x686878 },
+  { body: 0x38c838, highlight: 0xb8f818, eye: 0x0b0a0d, shade: 0x188818 },
 ]
 // Each one starts its hop at a different moment, so they never move in step.
 const PHASE = [0, 4, 7, 2]
@@ -60,6 +60,7 @@ type Pixels = (number | null)[][]
 type Palette = Partial<Record<string, number>>
 
 const WHITE = 0xfcfcfc
+const MOUTH = 0x981828
 const GOLD = 0xfcbc3c
 const JEWEL = 0xf83800
 
@@ -81,7 +82,7 @@ function paint(pixels: Pixels, sprite: readonly string[], x: number, lift: numbe
 
 function kinPalette(i: number): Palette {
   const kin = FAMILY[i % FAMILY.length] as Kin
-  return { B: kin.body, H: kin.highlight, K: kin.eye, W: WHITE, M: 0x981828, D: kin.shade }
+  return { B: kin.body, H: kin.highlight, K: kin.eye, W: WHITE, M: MOUTH, D: kin.shade }
 }
 
 // A null `tick` is the slimes at rest: all of them sitting on the floor.
@@ -101,7 +102,8 @@ export function stage(count: number, tick: number | null): Pixels {
 }
 
 // The King Slime: crowned, as wide as two slimes less one, the whole stage tall.
-// Y crown and R jewel join the family face palette.
+// B body, H highlight, Y gold crown, R red jewel, W white eyes,
+// K pupils and grin corners, M red mouth, D lower shade, '.' transparent.
 const KING = [
   '....Y.R.Y....',
   '....YYYYY....',
@@ -114,8 +116,8 @@ const KING_BLINK = KING.map(row => row.replaceAll('W', 'B'))
 export const KING_WIDTH = 13
 // The slimes landing on one another: a splat, then a blob bouncing up.
 const MERGED = [
-  ['...BBBBHBB...', '.BBKBBBBBKBB.', 'BBBBBBBBBBBBB'],
-  ['....BHB....', '..BBBBBBB..', '.BBBKBKBBB.', 'BBBBBBBBBBB', 'BBBBBBBBBBB'],
+  ['...BWHBHWB...', '.BBBKBBBKBBB.', 'DDDDDMMMDDDDD'],
+  ['....BHB....', '..BBBBBBB..', '.BBBWBWBBB.', '.BBBKBKBBB.', 'DDDDMMMDDDD'],
 ]
 const POOF = [
   '..W...W..W...',

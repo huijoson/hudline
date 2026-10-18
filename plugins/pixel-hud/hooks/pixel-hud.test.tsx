@@ -38,6 +38,9 @@ import {
 } from './slime'
 import type { Moment } from './slime'
 
+const WHITE = 0xfcfcfc
+const MOUTH = 0x981828
+
 const SPRITE_ROW = pack(BRANCH_SPRITE)[0]
 
 describe('pixel font', () => {
@@ -264,19 +267,18 @@ test('picks up a branch switched outside Claude Code on the next poll', async ($
 describe('slime family', () => {
   test('each kin has white eyes, dark pupils, a red grin and a shaded lower edge', async () => {
     const rest = stage(4, null)
-    const bodies = [0x3cbcfc, 0xfc7460, 0xa8a8b8, 0x38c838]
-    for (let i = 0; i < 4; i += 1) {
+    for (const [i, kin] of FAMILY.entries()) {
       const face = rest.map(row => row.slice(i * 7, (i + 1) * 7))
       expect(face[0]?.every(p => p === null)).toBe(true)
-      expect(face[1]?.filter(p => p !== null)).toEqual([bodies[i]])
-      expect(face[3]?.filter(p => p === 0xfcfcfc).length).toBe(2)
+      expect(face[1]?.filter(p => p !== null)).toEqual([kin.body])
+      expect(face[3]?.filter(p => p === WHITE).length).toBe(2)
       expect(face[4]?.filter(p => p === 0x0b0a0d).length).toBe(2)
-      expect(face[5]?.slice(2, 5)).toEqual([0x981828, 0x981828, 0x981828])
+      expect(face[5]?.slice(2, 5)).toEqual([MOUTH, MOUTH, MOUTH])
       const shade = face[5]?.[0] ?? 0xffffff
-      expect(shade).not.toBe(bodies[i])
+      expect(shade).not.toBe(kin.body)
       expect(shade).not.toBe(0x0b0a0d)
       for (const shift of [16, 8, 0]) {
-        expect((shade >> shift) & 255).toBeLessThan(((bodies[i] ?? 0) >> shift) & 255)
+        expect((shade >> shift) & 255).toBeLessThan((kin.body >> shift) & 255)
       }
     }
   })
@@ -295,14 +297,17 @@ describe('slime family', () => {
   })
 
   test('the pointed tip stays visible throughout a hop in the six-pixel stage', async () => {
+    let airborneTicks = 0
     for (let tick = 0; tick < HOP_TICKS; tick += 1) {
       const pixels = stage(1, tick)
       const top = pixels.find(row => row.some(p => p !== null))
       if (!pixels[5]?.some(p => p !== null)) {
+        airborneTicks += 1
         expect(top?.filter(p => p !== null)).toEqual([0x3cbcfc])
-        expect(pixels[4]?.slice(2, 5)).toEqual([0x981828, 0x981828, 0x981828])
+        expect(pixels[4]?.slice(2, 5)).toEqual([MOUTH, MOUTH, MOUTH])
       }
     }
+    expect(airborneTicks).toBeGreaterThan(0)
   })
 
   test('stands on the floor at rest and leaves it mid-hop', async () => {
@@ -325,8 +330,8 @@ describe('slime family', () => {
   test('the crouch keeps the white eyes and grin in a lower silhouette', async () => {
     const crouch = stage(1, 2)
     expect(crouch.slice(0, 2).flat().every(p => p === null)).toBe(true)
-    expect(crouch.flat().filter(p => p === 0xfcfcfc).length).toBe(2)
-    expect(crouch[5]?.includes(0x981828)).toBe(true)
+    expect(crouch.flat().filter(p => p === WHITE).length).toBe(2)
+    expect(crouch[5]?.includes(MOUTH)).toBe(true)
   })
 
   test('packs a frame into three rows of Raster cells', async () => {
@@ -513,12 +518,26 @@ describe('King Slime', () => {
     expect(pixels.length).toBe(6)
     expect(pixels[0]?.includes(0xf83800)).toBe(true)
     expect(pixels[1]?.filter(p => p === GOLD).length).toBe(5)
-    expect(pixels[2]?.filter(p => p === 0xfcfcfc).length).toBe(2)
+    expect(pixels[2]?.filter(p => p === WHITE).length).toBe(2)
     expect(pixels[3]?.filter(p => p === 0x0b0a0d).length).toBe(2)
-    expect(pixels[4]?.filter(p => p === 0x981828).length).toBe(5)
+    expect(pixels[4]?.filter(p => p === MOUTH).length).toBe(5)
     expect(pixels[5]?.filter(p => p !== null).length).toBe(13)
     expect(pixels[5]?.filter(p => p === 0x1878bc).length).toBe(13)
-    expect(kingStage(2, kingReignStarts + 10, null)[2]?.includes(0xfcfcfc)).toBe(false)
+    expect(kingStage(2, kingReignStarts + 10, null)[2]?.includes(WHITE)).toBe(false)
+  })
+
+  test('both merged poses keep white eyes, pupils, a red grin and lower shading at their original sizes', async () => {
+    for (const [offset, width, height] of [[0, 13, 3], [KING_POSE_TICKS, 11, 5]] as const) {
+      const pixels = kingStage(2, KING_GATHER_TICKS + offset, null)
+      const occupied = pixels.filter(row => row.some(p => p !== null))
+      expect(occupied.length).toBe(height)
+      const columns = pixels[5]?.map((_, x) => x).filter(x => pixels.some(row => row[x] !== null)) ?? []
+      expect(columns.length).toBe(width)
+      expect(pixels.flat().filter(p => p === WHITE).length).toBe(2)
+      expect(pixels.flat().filter(p => p === FAMILY[0]?.eye).length).toBe(2)
+      expect(pixels[5]?.filter(p => p === MOUTH).length).toBe(3)
+      expect(pixels[5]?.filter(p => p === FAMILY[0]?.shade).length).toBe(width - 3)
+    }
   })
 
   test('needs two slimes of room', async () => {
