@@ -21,7 +21,7 @@ import {
 } from './format'
 import type { Role } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { canCrown, FAMILY, FRAME_MS, KING_SHOW_TICKS, slimeCells, slimeColumns, slimeText, STAGE_ROWS, nextMoment } from './slime'
+import { canCrown, FAMILY, FRAME_MS, KING_SHOW_TICKS, nextMoment, slimeCells, slimeColumns, slimeText, STAGE_ROWS } from './slime'
 import type { Moment } from './slime'
 
 const branch = atom({ plugin: 'pixel-hud', key: 'branch' } as const, null)
@@ -153,7 +153,9 @@ export const register: Register = (on, options) => {
   let tick = 0
   // The band the slimes were last drawn in, and how many: what a blit repaints.
   let stage: { requestId: string; slimes: number; cells: string } | null = null
+  // Keep one active moment so competing triggers cannot fight over the stage.
   let moment: Moment | null = null
+  // Expire the King before rendering or deciding whether another show can start.
   const currentMoment = () => {
     if (moment?.kind === 'king' && tick - moment.startTick >= KING_SHOW_TICKS) moment = null
     return moment
@@ -175,8 +177,8 @@ export const register: Register = (on, options) => {
       tick += 1
       const drawn = stage
       if (!drawn) return
-      const show = currentMoment()
-      const cells = slimeCells(drawn.slimes, tick, show, isHopping)
+      const activeMoment = currentMoment()
+      const cells = slimeCells(drawn.slimes, tick, activeMoment, isHopping)
       if (cells === drawn.cells) return
       drawn.cells = cells
       void $.ui
