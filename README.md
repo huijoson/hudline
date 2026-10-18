@@ -70,7 +70,8 @@ pixel letters on top. It needs no Node.js and no `statusLine` setting.
 ![pixel-hud: the branch main in 8-bit pixel letters, four pixel-art slimes beside it, above hudline's neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
 
 Beside the branch sits a slime family: a slime, a she-slime, a metal slime and a
-bubble slime. When a task of 20 seconds or more finishes, they leap toward each
+bubble slime. At session start they drop in one by one, then settle into their
+resting motion. When a task of 20 seconds or more finishes, they leap toward each
 other in two hops and collide in mid-air. They splat together, then a crowned
 **King Slime** drops in with a squash and rebound. It reigns for a few seconds,
 flickers in defeat, then bursts into the family, each arcing home in one leap

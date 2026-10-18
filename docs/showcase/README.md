@@ -59,7 +59,8 @@ The script copies the mod to a temporary folder, adds one test that hands it
 the sample figures through Claude Code's own plugin test host, and runs
 `claude plugin test`. The test prints the tree the mod drew, and the script
 paints that tree, the slimes' Raster cells included. The branch is `main` and
-clean. The plain image catches the slimes at rest; `--king` and `--gif` play
+clean. The renderer waits for the session-start encounter to finish before taking
+its resting sample. The plain image catches the slimes at rest; `--king` and `--gif` play
 the show after a long task.
 
 The mod writes reset times in the machine's local zone, and the test host does

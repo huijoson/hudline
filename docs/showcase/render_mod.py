@@ -64,7 +64,7 @@ COLUMNS = 84
 
 SHOWCASE_TEST = """
 import { mock, test } from 'claude-code/testing'
-import { FRAME_MS, KING_GATHER_TICKS, KING_MERGE_TICKS, KING_DROP_TICKS, KING_FLASH_TICKS, KING_REIGN_TICKS, KING_SHOW_TICKS } from './slime'
+import { FRAME_MS, momentEndTick, SLIME_WIDTH, KING_GATHER_TICKS, KING_MERGE_TICKS, KING_DROP_TICKS, KING_FLASH_TICKS, KING_REIGN_TICKS, KING_SHOW_TICKS } from './slime'
 
 test('showcase', async ($, on) => {
   console.log('FRAME_MS' + FRAME_MS)
@@ -99,6 +99,12 @@ test('showcase', async ($, on) => {
     await ui.unmount()
     ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
   }
+  // Let the once-per-session encounter finish before the resting sample.
+  const raster = await ui.find({ type: 'Raster', key: 'slimes' })
+  const count = Number(raster?.props.columns) / SLIME_WIDTH
+  await clock.advance(FRAME_MS * momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'breathe'))
+  await ui.unmount()
+  ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
   if (KING) {
     // A task of a minute ends; catch the middle of the reign.
     await $.turn.complete({ answer: '', durationMs: 60_000, isAborted: false, turnId: 't', reason: 'answer' })
