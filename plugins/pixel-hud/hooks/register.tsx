@@ -21,7 +21,8 @@ import {
 } from './format'
 import type { Role } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { canCrown, FAMILY, KING_SHOW_TICKS, slimeCells, slimeColumns, slimeText, STAGE_ROWS } from './slime'
+import { canCrown, DAMAGE_COOLDOWN_TICKS, FAMILY, FRAME_MS, momentEndTick, nextMoment, slimeCells, slimeColumns, slimeText, STAGE_ROWS } from './slime'
+import type { Moment, Rest } from './slime'
 
 const branch = atom({ plugin: 'pixel-hud', key: 'branch' } as const, null)
 const usage = atom({ plugin: 'pixel-hud', key: 'usage' } as const, null)
@@ -45,9 +46,7 @@ const SEP = ' ★ '
 const FULL_ROWS = 5
 // /clear empties $.state, and a branch switched outside Claude Code raises no
 // event: poll to catch both.
-const POLL_MS = 3000
-// The slime family hops at this pace (when slimesHop is on), repainted in place by $.ui.blit.
-const HOP_MS = 140
+export const POLL_MS = 3000
 const SLIMES_KEY = 'slimes'
 // A task long enough to earn the King Slime: the slimes merge, reign, and split.
 const KING_AFTER_MS = 20_000
@@ -146,68 +145,85 @@ function fitBranch(name: string, isDirty: boolean, columns: number): { name: str
   return { name: name.length <= room ? name : `${name.slice(0, room - 2)}..`, slimes: 0 }
 }
 
+type SlimeStage = { requestId: string; slimes: number; cells: string }
+
+// Repaint changed cells; return the denied stage so only that stage is unseated.
+async function repaint($: EngineInterface, drawn: SlimeStage | null, tick: number, moment: Moment | null, rest: Rest): Promise<SlimeStage | null> {
+  if (!drawn) return null
+  const cells = slimeCells(drawn.slimes, tick, moment, rest)
+  if (cells === drawn.cells) return null
+  drawn.cells = cells
+  try {
+    const result = await $.ui.blit({ requestId: drawn.requestId, key: SLIMES_KEY, cells })
+    // Gone (band hidden, redrawn without them): rest until a render seats them again.
+    return 'deny' in result ? drawn : null
+  } catch {
+    return null
+  }
+}
+
 export const register: Register = (on, options) => {
-  // Off by default: the slimes sit still, and only the King Slime show moves them.
-  const isHopping = options.slimesHop === true
+  // Hopping supersedes breath; moments take the stage over either.
+  const rest: Rest = options.slimesHop === true ? 'hop' : options.slimesIdle !== false ? 'breathe' : 'still'
   let poll: Timer | undefined
   let hop: Timer | undefined
   let tick = 0
   // The band the slimes were last drawn in, and how many: what a blit repaints.
-  let stage: { requestId: string; slimes: number } | null = null
-  // The tick the King Slime show began on, while it plays.
-  let crowned: number | null = null
-  // Whether the last blit was a show frame: at rest, one more repaints them home.
-  let wasShowing = false
-  const showFrame = () => {
-    if (crowned === null) return null
-    const frame = tick - crowned
-    if (frame >= KING_SHOW_TICKS) crowned = null
-    return crowned === null ? null : frame
+  let stage: SlimeStage | null = null
+  // Keep one active moment so competing triggers cannot fight over the stage.
+  let moment: Moment | null = null
+  // Armed once per session; consumed by the first eligible Raster stage.
+  let encounterPending = false
+  // Only admitted damage spends the cooldown.
+  let lastDamageTick = -Infinity
+  // Next kin in the rotation, wrapped to the currently visible family on admission.
+  let damageTarget = 0
+  // Rendering and expiry share the same endpoint and grounded rejoin rule.
+  const currentMoment = () => {
+    if (moment && tick >= momentEndTick(moment, stage?.slimes ?? FAMILY.length, rest)) moment = null
+    return moment
   }
-  const hopTick = () => (isHopping ? tick : null)
+  const unseat = (denied: SlimeStage | null) => {
+    if (denied && stage === denied) stage = null
+  }
   // Starts the show unless one is playing or there is no room for the king.
   const crown = (): 'crowned' | 'reigning' | 'no-room' => {
-    if (crowned !== null) return 'reigning'
+    if (currentMoment()?.kind === 'king') return 'reigning'
     if (!stage || !canCrown(stage.slimes)) return 'no-room'
-    crowned = tick
+    moment = nextMoment(moment, { kind: 'king', startTick: tick }, stage.slimes)
     return 'crowned'
   }
 
   on('session.start', async ($, e, next) => {
+    encounterPending = true
+    lastDamageTick = -Infinity
+    damageTarget = 0
+    // Discard the previous session: session.start never fires on /clear,
+    // so neither this reset nor the pending encounter can replay there.
+    moment = null
+    stage = null
     await refresh($)
     poll?.cancel()
     poll = $.clock.every(POLL_MS, () => void refresh($))
     hop?.cancel()
-    hop = $.clock.every(HOP_MS, () => {
+    hop = $.clock.every(FRAME_MS, () => {
       tick += 1
-      const drawn = stage
-      if (!drawn) return
-      const show = showFrame()
-      const isStill = !isHopping && show === null && !wasShowing
-      wasShowing = show !== null
-      if (isStill) return
-      void $.ui
-        .blit({ requestId: drawn.requestId, key: SLIMES_KEY, cells: slimeCells(drawn.slimes, hopTick(), show) })
-        .then(r => {
-          // Gone (band hidden, redrawn without them): rest until a render seats them again.
-          if ('deny' in r && stage === drawn) stage = null
-        })
-        .catch(() => undefined)
+      void repaint($, stage, tick, currentMoment(), rest).then(unseat)
     })
     // Last, so a refused command never keeps the slimes from hopping.
     await $.command
       .register({
         name: KING_COMMAND,
-        description: 'Merge the slimes beside the branch into a King Slime, then split them back',
+        description: 'Call the slimes together to form a King Slime',
       })
       .catch(() => undefined)
     return next(e)
   })
 
   const KING_SAYS = {
-    crowned: 'The slimes are merging...',
-    reigning: 'The King Slime already reigns.',
-    'no-room': 'No room for a King Slime here: widen the terminal.',
+    crowned: 'The slimes band together... A King Slime appears!',
+    reigning: 'The King Slime is already here!',
+    'no-room': 'But there was no room for a King Slime! Widen the terminal.',
   } as const
   on('command.run', { command: KING_COMMAND }, async () => ({ text: KING_SAYS[crown()] }))
 
@@ -246,6 +262,33 @@ export const register: Register = (on, options) => {
   on('session.measure', async ($, e, next) => {
     const model = await $.session.model()
     await update($, usage, () => toUsage(model, e))
+    return next(e)
+  })
+
+  // Non-interrupt failures flicker one kin when a seated stage and priority allow.
+  on('classic.PostToolUseFailure', async ($, e, next) => {
+    const active = currentMoment()
+    if (stage && e.is_interrupt !== true && tick - lastDamageTick >= DAMAGE_COOLDOWN_TICKS) {
+      const incoming: Moment = { kind: 'damage', startTick: tick, target: damageTarget % stage.slimes }
+      const admitted = nextMoment(active, incoming, stage.slimes)
+      if (admitted === incoming) {
+        moment = admitted
+        lastDamageTick = tick
+        damageTarget = (incoming.target + 1) % stage.slimes
+        void repaint($, stage, tick, currentMoment(), rest).then(unseat)
+      }
+    }
+    return next(e)
+  })
+
+  // Compaction, manual or automatic, levels up a seated family unless the King reigns.
+  // A compaction during a level-up is ignored (equal priority), not restarted.
+  on('classic.PostCompact', async ($, e, next) => {
+    if (stage) {
+      const incoming: Moment = { kind: 'level-up', startTick: tick }
+      moment = nextMoment(currentMoment(), incoming, stage.slimes)
+      if (moment === incoming) void repaint($, stage, tick, moment, rest).then(unseat)
+    }
     return next(e)
   })
 
@@ -304,7 +347,12 @@ export const register: Register = (on, options) => {
     const slimes = fit?.slimes ?? 0
     // The terminal paints them in full color and can make them hop; elsewhere they rest.
     const Raster = e.surface === 'terminal' && slimes > 0 ? $.ui.resolve(e).Raster : null
-    stage = Raster ? { requestId: e.requestId, slimes } : null
+    if (Raster && encounterPending) {
+      moment = nextMoment(currentMoment(), { kind: 'encounter', startTick: tick }, slimes)
+      encounterPending = false
+    }
+    const cells = Raster ? slimeCells(slimes, tick, currentMoment(), rest) : ''
+    stage = Raster ? { requestId: e.requestId, slimes, cells } : null
     const still = Raster === null && slimes > 0 ? slimeText(slimes) : null
     const dirty = pixelText('*')
     const chip =
@@ -437,7 +485,7 @@ export const register: Register = (on, options) => {
             </Box>
             {Raster ? <Text>{GAP}</Text> : null}
             {Raster ? (
-              <Raster key={SLIMES_KEY} columns={slimeColumns(slimes)} rows={STAGE_ROWS} cells={slimeCells(slimes, hopTick(), showFrame())} />
+              <Raster key={SLIMES_KEY} columns={slimeColumns(slimes)} rows={STAGE_ROWS} cells={cells} />
             ) : null}
           </Box>
         ) : null}

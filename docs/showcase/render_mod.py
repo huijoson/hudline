@@ -64,9 +64,10 @@ COLUMNS = 84
 
 SHOWCASE_TEST = """
 import { mock, test } from 'claude-code/testing'
-import { KING_SHOW_TICKS } from './slime'
+import { FRAME_MS, momentEndTick, SLIME_WIDTH, KING_GATHER_TICKS, KING_MERGE_TICKS, KING_DROP_TICKS, KING_FLASH_TICKS, KING_REIGN_TICKS, KING_SHOW_TICKS } from './slime'
 
 test('showcase', async ($, on) => {
+  console.log('FRAME_MS' + FRAME_MS)
   on('process.run', async (_$, e) => ({
     value: { exitCode: 0, stdout: e.argv.includes('rev-parse') ? 'main\\n' : '', stderr: '',
              isStdoutTruncated: false, isStderrTruncated: false },
@@ -98,10 +99,17 @@ test('showcase', async ($, on) => {
     await ui.unmount()
     ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
   }
+  // Let the once-per-session encounter finish before the resting sample.
+  const raster = await ui.find({ type: 'Raster', key: 'slimes' })
+  const count = Number(raster?.props.columns) / SLIME_WIDTH
+  await clock.advance(FRAME_MS * momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'breathe'))
+  await ui.unmount()
+  ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
   if (KING) {
-    // A task of a minute ends; the King Slime reigns some 22 ticks later.
+    // A task of a minute ends; catch the middle of the reign.
     await $.turn.complete({ answer: '', durationMs: 60_000, isAborted: false, turnId: 't', reason: 'answer' })
-    await clock.advance(140 * 22)
+    // Skip the transformation to show the crowned king halfway through its reign.
+    await clock.advance(FRAME_MS * (KING_GATHER_TICKS + KING_MERGE_TICKS + KING_DROP_TICKS + KING_FLASH_TICKS + Math.floor(KING_REIGN_TICKS / 2)))
     await ui.unmount()
     ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
   }
@@ -114,7 +122,7 @@ test('showcase', async ($, on) => {
       await ui.unmount()
       ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
       console.log('SHOWCASE' + JSON.stringify(await ui.drawn()))
-      await clock.advance(140)
+      await clock.advance(FRAME_MS)
     }
   } else console.log('SHOWCASE' + JSON.stringify(await ui.drawn()))
   await ui.unmount()
@@ -139,6 +147,10 @@ with tempfile.TemporaryDirectory() as tmp:
     if not found:
         raise SystemExit(f"the mod drew nothing:\n{run.stdout}\n{run.stderr}")
     trees = [json.loads(f) for f in found]
+    timing = re.search(r"^FRAME_MS(\d+)$", run.stdout + run.stderr, re.M)
+    if timing is None:
+        raise SystemExit("the mod did not report FRAME_MS; cannot determine frame duration")
+    frame_ms = int(timing[1])
 
 
 INK = "#dedee5"
@@ -234,10 +246,12 @@ if args.gif:
     palette = sheet.quantize(colors=256)
     frames = [frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames]
     # The slimes at rest a moment, then the show at the slimes' own pace.
-    durations = [1200] + [140] * (len(frames) - 2) + [1200]
+    durations = [1200] + [frame_ms] * (len(frames) - 2) + [1200]
     output = HERE / "pixel-hud-king.gif"
+    # Disable per-frame palette optimization and supply the shared palette so
+    # Pillow keeps one global colour table instead of remapping each frame.
     frames[0].save(output, save_all=True, append_images=frames[1:], duration=durations,
-                   loop=0, optimize=True)
+                   loop=0, optimize=False, palette=palette.getpalette())
     width, height = frames[0].size
     print(f"Wrote {output} ({width} x {height}, {len(frames)} frames)")
     raise SystemExit

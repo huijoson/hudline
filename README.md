@@ -11,7 +11,8 @@ wrapped at 84 columns. Reset times in this image use UTC.*
 Fields without data disappear automatically. [Reproduce this image](docs/showcase/README.md).
 
 In Claude Code, the same line can also be drawn **above** the prompt as a mod,
-with the git branch in 8-bit pixel letters and a family of slimes hopping beside it.
+with the git branch in 8-bit pixel letters and a family of slimes breathing
+beside it.
 See [Claude Code: as a mod](#claude-code-as-a-mod).
 
 ![pixel-hud, the Claude Code mod: the branch name main in 8-bit pixel letters with four pixel-art slimes beside it, above the same neon line, with the same sample values.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
@@ -69,15 +70,28 @@ pixel letters on top. It needs no Node.js and no `statusLine` setting.
 ![pixel-hud: the branch main in 8-bit pixel letters, four pixel-art slimes beside it, above hudline's neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
 
 Beside the branch sits a slime family: a slime, a she-slime, a metal slime and a
-bubble slime. When a task of 20 seconds or more finishes, they leap toward each
-other in two hops, collide in mid-air and land as one, a crowned **King Slime**
-that reigns for a few seconds, then leap back home. Type `/slime-king` to see
-it any time.
+bubble slime. At session start they drop in one by one, then settle into their
+resting motion. When a task of 20 seconds or more finishes, they leap toward
+each other in two hops and collide in mid-air. They splat together, then a crowned
+**King Slime** drops in with a squash and rebound. It reigns for a few seconds,
+flickers in defeat, then bursts into the family, each arcing home in one leap
+and settling at rest. Type `/slime-king` to see the show any time.
 
-They sit still by default. To make them hop, each in its own time, turn on
-**Slimes hop** for pixel-hud in `/config` (the `slimesHop` option).
+A failed tool makes one slime flicker three times, rotating through the family.
+Interrupting a tool does not count, and failures within two seconds of a flicker
+do not start another. The King, a level-up and the encounter take priority.
 
-![pixel-hud after a long task: the slimes leap together, merge into a crowned King Slime beside the branch, then leap back home.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-king.gif)
+When the conversation compacts, by hand or automatically, the family levels up:
+they hop once all together, the only time they hop in step, and flash gold at
+the top of the hop. A level-up replaces the encounter or a flicker, and gives
+way to the King.
+
+They breathe and blink at rest. To make them hop instead, each in its own time,
+turn on **Slimes hop** for pixel-hud in `/config` (the `slimesHop` option). With
+hopping off, turn off **Slimes breathe** (`slimesIdle`) to keep them perfectly
+still.
+
+![pixel-hud after a long task: the slimes leap together, merge into a crowned King Slime beside the branch, then burst apart and arc home.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-king.gif)
 
 *Rendered from the mod's own drawing, one frame a tick, with the same sample
 values as the image above; [reproduce them](docs/showcase/README.md#the-mod-image).*

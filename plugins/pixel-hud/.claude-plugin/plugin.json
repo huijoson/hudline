@@ -1,6 +1,6 @@
 {
   "name": "pixel-hud",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "hudline as a Claude Code mod: the git branch in 8-bit pixel glyphs, with a slime family that can hop, above hudline's neon line (model, effort, context, 5h/7d quota left, cost, token flow)",
   "author": {
     "name": "yuhan"
@@ -8,10 +8,16 @@
   "types": "./types/index.d.ts",
   "homepage": "https://github.com/huijoson/hudline",
   "userConfig": {
+    "slimesIdle": {
+      "type": "boolean",
+      "title": "Slimes breathe",
+      "description": "Let the slimes squish and blink at rest. Off: they sit perfectly still until a moment moves them.",
+      "default": true
+    },
     "slimesHop": {
       "type": "boolean",
       "title": "Slimes hop",
-      "description": "Make the slime family beside the branch hop. Off: they sit still, and only the King Slime show moves them.",
+      "description": "Make the slime family beside the branch hop instead of breathing. Off: they follow Slimes breathe.",
       "default": false
     }
   }

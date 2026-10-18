@@ -48,17 +48,20 @@ or newer) besides Pillow and the font:
 ```
 
 The second draws `pixel-hud-king.png`: a task of a minute ends, and the image
-catches the King Slime mid-reign, 22 ticks of the slimes' clock later.
+catches the King Slime halfway through its reign, using the exported phase
+lengths.
 The third draws `pixel-hud-king.gif`, the README's demo: the same task, one
-frame for each tick of the slimes' 140 ms clock, from the slimes at rest through
-the whole show and home again. Pillow folds repeated frames into one.
+frame for each tick of the slimes' exported `FRAME_MS` clock, from the slimes
+at rest through the whole show and home again. Pillow folds repeated frames
+into one.
 
 The script copies the mod to a temporary folder, adds one test that hands it
 the sample figures through Claude Code's own plugin test host, and runs
 `claude plugin test`. The test prints the tree the mod drew, and the script
 paints that tree, the slimes' Raster cells included. The branch is `main` and
-clean. The plain image catches the slimes at rest; `--king` and `--gif` play
-the show after a long task.
+clean. The renderer waits for the session-start encounter to finish before
+taking its resting sample. The plain image catches the slimes at rest; `--king`
+and `--gif` play the show after a long task.
 
 The mod writes reset times in the machine's local zone, and the test host does
 not take `TZ`. The script shifts the sample instants by the local offset, so the
