@@ -11,7 +11,8 @@ wrapped at 84 columns. Reset times in this image use UTC.*
 Fields without data disappear automatically. [Reproduce this image](docs/showcase/README.md).
 
 In Claude Code, the same line can also be drawn **above** the prompt as a mod,
-with the git branch in 8-bit pixel letters and a family of slimes hopping beside it.
+with the git branch in 8-bit pixel letters and a family of slimes breathing
+beside it.
 See [Claude Code: as a mod](#claude-code-as-a-mod).
 
 ![pixel-hud, the Claude Code mod: the branch name main in 8-bit pixel letters with four pixel-art slimes beside it, above the same neon line, with the same sample values.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
@@ -74,8 +75,10 @@ other in two hops, collide in mid-air and land as one, a crowned **King Slime**
 that reigns for a few seconds, then leap back home. Type `/slime-king` to see
 it any time.
 
-They sit still by default. To make them hop, each in its own time, turn on
-**Slimes hop** for pixel-hud in `/config` (the `slimesHop` option).
+They breathe and blink at rest. To make them hop instead, each in its own time,
+turn on **Slimes hop** for pixel-hud in `/config` (the `slimesHop` option). With
+hopping off, turn off **Slimes breathe** (`slimesIdle`) to keep them perfectly
+still.
 
 ![pixel-hud after a long task: the slimes leap together, merge into a crowned King Slime beside the branch, then leap back home.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-king.gif)
 

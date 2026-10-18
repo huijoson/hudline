@@ -8,9 +8,10 @@ Accepted.
 
 ## Context
 
-Commit c266c88 made the mod's slimes sit still by default to avoid paying for
-continuous repaints. The Dragon Quest faces need a small resting squish and an
-occasional blink to read as living slimes, even when hopping is off.
+Commit c266c88 chose stillness as the default and made hopping opt-in to avoid
+paying for continuous repaints. The Dragon Quest faces need a small resting
+squish and an occasional blink to read as living slimes, even when hopping is
+off.
 
 ## Decision
 
@@ -28,6 +29,14 @@ status-line Narration: it is driven by the current Payload and reports state.
 The mod can keep state and receive engine events; its event-driven animations
 carry no Narration text. These are different surfaces and contracts, so mod
 moments do not change the status line's rule.
+
+## Alternatives
+
+- **Sit still by default:** avoids resting repaints, as c266c88 chose, but the
+  faces read as static sprites rather than living slimes. Keep it as an option.
+- **Hop by default:** makes the family lively, but sustained airborne motion
+  draws more attention and repaints more often than a short squish and blink.
+  Keep hopping opt-in.
 
 ## Consequences
 
