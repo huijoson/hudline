@@ -492,10 +492,13 @@ Windows, manual installation, verification, troubleshooting, and migrating from
 ## Develop
 
 ```sh
-npm test
+npm run check      # tests, mod validate + tests, mod typecheck
 echo '{"model":{"display_name":"Opus 5"}}' | node bin/hudline.js --no-color
-claude plugin test plugins/pixel-hud      # the Claude Code mod
 ```
+
+The typecheck needs `plugins/pixel-hud/.claude-plugin/types/`, which Claude
+Code generates when it loads the mod: run `claude --plugin-dir plugins/pixel-hud`
+once.
 
 `CONTEXT.md` is the glossary; `docs/adr/` records the decisions that are hard to
 reverse and would otherwise look arbitrary.

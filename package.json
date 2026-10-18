@@ -20,6 +20,8 @@
   },
   "scripts": {
     "test": "node --test",
+    "typecheck": "test -f plugins/pixel-hud/.claude-plugin/types/tsconfig.json || { echo 'typecheck: plugins/pixel-hud/.claude-plugin/types/ is missing (the engine generates it); load the mod once with `claude --plugin-dir plugins/pixel-hud`, or copy types/ from a checkout that has it' >&2; exit 1; } && npm exec --yes --package typescript@5.9.3 -- tsc -p plugins/pixel-hud/tsconfig.json",
+    "check": "npm test && claude plugin validate plugins/pixel-hud && claude plugin test plugins/pixel-hud && npm run typecheck",
     "prepublishOnly": "node --test"
   },
   "keywords": [
