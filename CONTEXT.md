@@ -278,30 +278,15 @@ and its own rhythm on it.
 
 ## Rest
 
-What the Slime family does when no Moment holds the stage. Exactly one applies,
-chosen by the user: **breathe** (the default: a small squish and an occasional
-blink), **hop** (each Kin hops on its own clock), or **still**. A Rest never
-moves the family in step.
-
-_Avoid_: idle, resting motion.
+What the Slime family does when no Moment holds the stage: **breathe** (the
+default: a small squish and an occasional blink), **hop**, or **still**.
 
 ## Moment
 
-A one-off animation that takes the whole stage from the Rest, set off by
-something that happened in the session, then hands the stage back. Only one
-Moment holds the stage at a time. A newcomer replaces it only by outranking it,
-and a Moment that loses is dropped, never queued. From highest:
+A one-off animation set off by something that happened in the session, which
+takes the whole stage from the Rest and then hands it back. One Moment holds
+the stage at a time. The kinds are the **King Slime show** (after a long task),
+the **level-up** (on compaction), the **encounter** (when a session starts) and
+the **damage** flicker (when a tool fails).
 
-- **King Slime show** — the family merges into a crowned King after a long
-  task, or on `/slime-king`. Needs room for the King.
-- **Level-up** — one hop in unison, gilded at the top, when the conversation
-  is compacted. The only time the family moves in step.
-- **Encounter** — the family drops in one Kin at a time when a session starts.
-- **Damage** — one Kin flickers when a tool fails; the target rotates through
-  the family.
-
-A Moment ends with every Kin on the ground: when hopping, a Kin waits there
-until its own hop clock reaches a rest or a crouch, so no Kin rejoins the Rest
-in mid-air.
-
-_Avoid_: event, animation (for this specific sense), show (except the King's).
+_Avoid_: event, animation

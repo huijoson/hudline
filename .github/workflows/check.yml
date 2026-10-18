@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  npm-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,5 +15,5 @@ jobs:
           node-version: 22
       # CI runs only `npm test`: the `claude` plugin checks need a claude login,
       # and the typecheck needs the engine-generated .claude-plugin/types/.
-      # Run `npm run check` locally for all four checks.
+      # Run `npm run check` locally for the rest.
       - run: npm test
