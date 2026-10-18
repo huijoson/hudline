@@ -67,6 +67,7 @@ function shape(pixels: (number | null)[][]): string {
 }
 
 const WHITE = 0xfcfcfc
+const GOLD = 0xfcbc3c
 const MOUTH = 0x981828
 // Ticket #8's per-kin breathing periods, in clock ticks.
 const BREATH_PERIODS = [36, 44, 50, 40]
@@ -1044,6 +1045,41 @@ describe('slime moments', () => {
     }
   })
 
+  test('level-up hops every kin in unison, gold and white at the top, and ends standing', () => {
+    const startTick = HOP_TICKS * 2 + 1
+    const hangTick = HOP_CROUCH_TICKS + HOP_LAUNCH_TICKS + HOP_RISE_TICKS
+    const settleTick = HOP_TICKS - HOP_SETTLE_TICKS
+    const floorRow = STAGE_ROWS * 2 - 1
+    // Blue's own hop from its first crouch is the shape every kin shares.
+    const hopShape = (frame: number) => shape(slimeFace(stage(1, frame, 'hop'), 0))
+    const blueHang = slimeFace(stage(1, hangTick, 'hop'), 0)
+    const bodyPixels = blueHang.flat().filter(p => p === FAMILY[0]?.body).length
+    for (const count of [1, 2, 3, 4]) {
+      const levelUp: Moment = { kind: 'level-up', startTick }
+      let isAllAirborne = false
+      for (let frame = 0; frame < HOP_TICKS; frame += 1) {
+        const pixels = slimePixels(slimeCells(count, startTick + frame, levelUp, 'still'))
+        const isGold = frame >= hangTick && frame < hangTick + HOP_HANG_TICKS
+        for (let i = 0; i < count; i += 1) {
+          const face = slimeFace(pixels, i)
+          const kin = FAMILY[i] as (typeof FAMILY)[number]
+          expect(shape(face)).toBe(hopShape(frame))
+          expect(face.flat().filter(p => p === GOLD).length).toBe(isGold ? bodyPixels : 0)
+          if (isGold) {
+            expect(face.flat()).not.toContain(kin.body)
+            if (kin.highlight !== WHITE) expect(face.flat()).not.toContain(kin.highlight)
+          }
+        }
+        if (pixels[floorRow]?.every(p => p === null)) isAllAirborne = true
+      }
+      expect(isAllAirborne).toBe(true)
+      const standing = slimeCells(count, 0, null, 'still')
+      expect(slimeCells(count, startTick + settleTick, levelUp, 'still')).toBe(standing)
+      expect(momentEndTick(levelUp, count, 'still')).toBe(startTick + HOP_TICKS)
+      expect(slimeCells(count, startTick + HOP_TICKS, levelUp, 'breathe')).toBe(slimeCells(count, startTick + HOP_TICKS, null, 'breathe'))
+    }
+  })
+
   test('the encounter starts empty and each kin first shows only its lower rows', () => {
     const encounter: Moment = { kind: 'encounter', startTick: 0 }
     for (const count of [2, 3, 4]) {
@@ -1087,6 +1123,35 @@ describe('slime moments', () => {
           expect(joined).toBe(true)
         }
         expect(momentEndTick(damage, count, 'hop')).toBe(allJoinedTick)
+      }
+    }
+  })
+
+  test('level-up expires after every kin rejoins hopping from rest or a fresh crouch', () => {
+    const settleTick = HOP_TICKS - HOP_SETTLE_TICKS
+    for (const count of [1, 2, 3, 4]) {
+      const standing = slimeCells(count, 0, null, 'still')
+      for (let startTick = 0; startTick < HOP_START_WINDOW_TICKS; startTick += 1) {
+        const levelUp: Moment = { kind: 'level-up', startTick }
+        const endpointTick = startTick + settleTick
+        let allJoinedTick = startTick + 1
+        for (let i = 0; i < count; i += 1) {
+          const stand = shape(slimeFace(stage(count, null), i))
+          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null), i))
+          let joined = false
+          for (let tick = endpointTick; tick <= endpointTick + HOP_TICKS; tick += 1) {
+            const global = shape(slimeFace(stage(count, tick, 'hop'), i))
+            const previous = shape(slimeFace(stage(count, tick - 1, 'hop'), i))
+            if (!joined && tick > endpointTick && (global === stand || global === crouch) && previous === stand) {
+              joined = true
+              allJoinedTick = Math.max(allJoinedTick, tick)
+            }
+            const expected = joined ? slimeCells(count, tick, null, 'hop') : standing
+            expect(slimeCellFace(slimeCells(count, tick, levelUp, 'hop'), count, i)).toEqual(slimeCellFace(expected, count, i))
+          }
+          expect(joined).toBe(true)
+        }
+        expect(momentEndTick(levelUp, count, 'hop')).toBe(allJoinedTick)
       }
     }
   })

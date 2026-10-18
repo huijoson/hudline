@@ -269,6 +269,11 @@ export const DAMAGE_TICKS = DAMAGE_FLICKERS * DAMAGE_FLICKER_TICKS
 // Two seconds between admitted failures: 25 ticks at the shared frame rate.
 export const DAMAGE_COOLDOWN_TICKS = Math.round(2_000 / FRAME_MS)
 
+// One hop in unison with no Rest; its Settle is already the exact resting frame.
+const LEVEL_UP_ENDPOINT = HOP_TICKS - HOP_SETTLE_TICKS
+// Gold body and white highlight for the Hang at the top of the hop.
+const LEVEL_UP_GOLD_START = HOP_RISE_START + HOP_RISE_TICKS
+
 export const ENCOUNTER_STAGGER_TICKS = 3
 export const ENCOUNTER_FALL_TICKS = 3
 export const ENCOUNTER_START_LIFT = 6
@@ -306,12 +311,14 @@ const MOMENT_MOTION: Record<Moment['kind'], MomentMotion> = {
     endpoint: () => DAMAGE_TICKS,
     stage: damageStage,
   },
-  // Placeholder: no expiry or moment stage until its own ticket lands.
-  'level-up': { endpoint: null, stage: null },
+  'level-up': {
+    endpoint: () => LEVEL_UP_ENDPOINT,
+    stage: levelUpStage,
+  },
 }
 
 // Exclusive expiry: keep the exact endpoint, then release as soon as every kin
-// can join Rest or a fresh Crouch. Unimplemented Moments have no expiry yet.
+// can join Rest or a fresh Crouch. A Moment without an endpoint never expires.
 export function momentEndTick(moment: Moment, count: number, rest: Rest): number {
   const { endpoint } = MOMENT_MOTION[moment.kind]
   if (!endpoint) return Infinity
@@ -431,6 +438,23 @@ function damageStage(moment: Moment, count: number, tick: number, rest: Rest): P
   for (let i = 0; i < count; i += 1) {
     if (moment.kind === 'damage' && i === moment.target && frame < DAMAGE_TICKS && frame % DAMAGE_FLICKER_TICKS === 0) continue
     paintRejoiningKin(pixels, i, tick, rest, endpointTick)
+  }
+  return pixels
+}
+
+// Every kin hops at once from home, flashing gold at the top, then rejoins resting motion.
+function levelUpStage(moment: Moment, count: number, tick: number, rest: Rest): Pixels {
+  const pixels = blank(count)
+  const frame = tick - moment.startTick
+  const endpointTick = moment.startTick + LEVEL_UP_ENDPOINT
+  const isGold = frame >= LEVEL_UP_GOLD_START && frame < HOP_FALL_START
+  for (let i = 0; i < count; i += 1) {
+    if (frame < LEVEL_UP_ENDPOINT) {
+      const p = HOP[frame] as Pose
+      paint(pixels, p.sprite, i * SLIME_WIDTH, p.lift, isGold ? { ...kinPalette(i), B: GOLD, H: WHITE } : kinPalette(i))
+    } else {
+      paintRejoiningKin(pixels, i, tick, rest, endpointTick)
+    }
   }
   return pixels
 }
