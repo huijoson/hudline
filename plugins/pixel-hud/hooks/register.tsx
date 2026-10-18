@@ -155,9 +155,9 @@ export const register: Register = (on, options) => {
   let stage: { requestId: string; slimes: number; cells: string } | null = null
   // Keep one active moment so competing triggers cannot fight over the stage.
   let moment: Moment | null = null
-  // Expire the King before rendering or deciding whether another show can start.
+  // Keep the endpoint seated for one exact resting frame before motion resumes.
   const currentMoment = () => {
-    if (moment?.kind === 'king' && tick - moment.startTick >= KING_SHOW_TICKS) moment = null
+    if (moment?.kind === 'king' && tick - moment.startTick > KING_SHOW_TICKS) moment = null
     return moment
   }
   // Starts the show unless one is playing or there is no room for the king.
@@ -193,16 +193,16 @@ export const register: Register = (on, options) => {
     await $.command
       .register({
         name: KING_COMMAND,
-        description: 'Merge the slimes beside the branch into a King Slime, then split them back',
+        description: 'Call the slimes together to form a King Slime',
       })
       .catch(() => undefined)
     return next(e)
   })
 
   const KING_SAYS = {
-    crowned: 'The slimes are merging...',
-    reigning: 'The King Slime already reigns.',
-    'no-room': 'No room for a King Slime here: widen the terminal.',
+    crowned: 'The slimes band together... A King Slime appears!',
+    reigning: 'The King Slime is already here!',
+    'no-room': 'But there was no room for a King Slime! Widen the terminal.',
   } as const
   on('command.run', { command: KING_COMMAND }, async () => ({ text: KING_SAYS[crown()] }))
 

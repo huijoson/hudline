@@ -149,6 +149,21 @@ const KING = [
   '.BBKMMMMMKBB.',
   'DDDDDDDDDDDDD',
 ]
+const KING_SQUASH = [
+  '.....Y.R.Y.....',
+  '...BBWHBHWBB...',
+  '...BBKBBBKBB...',
+  '..BBKMMMMMKBB..',
+  'DDDDDDDDDDDDDDD',
+]
+const KING_DROP: readonly Pose[] = [
+  { sprite: KING, lift: 4 },
+  { sprite: KING, lift: 2 },
+  { sprite: KING_SQUASH, lift: 0 },
+  { sprite: KING_SQUASH, lift: 0 },
+  { sprite: KING, lift: 1 },
+  { sprite: KING, lift: 0 },
+]
 const KING_BLINK = KING.map(row => row.replaceAll('W', 'B'))
 export const KING_WIDTH = 13
 // The slimes landing on one another: a splat, then a blob bouncing up.
@@ -170,19 +185,28 @@ const TWINKLES = [
   [[-2, 2], [14, 0], [15, 4]],
 ]
 
-// Each shipped King pose holds for two whole ticks.
+const SCATTER: readonly Pose[] = [
+  { sprite: STRETCH, lift: 1 },
+  { sprite: STAND, lift: 1 },
+  { sprite: STAND, lift: 1 },
+  { sprite: STRETCH, lift: 1 },
+  { sprite: SQUASH, lift: 0 },
+  { sprite: SQUASH, lift: 0 },
+]
+
+// Reign blinks and twinkles hold for two ticks.
 export const KING_POSE_TICKS = 2
-// One leap: crouch, rise, the top, fall, land.
-export const LEAP = 5 * KING_POSE_TICKS
-// Collide on the fall of the second leap, then leap out from that same spot.
-const COLLIDE = 0.5 + (0.5 * (LEAP - 2 * KING_POSE_TICKS)) / (LEAP - KING_POSE_TICKS)
-// Keep the shipped sequence; shorten the reign to keep the whole show near 7 s.
-export const KING_GATHER_TICKS = LEAP * 2 - KING_POSE_TICKS
-export const KING_MERGE_TICKS = MERGED.length * KING_POSE_TICKS
-export const KING_FLASH_TICKS = 2 * KING_POSE_TICKS
-export const KING_REIGN_TICKS = 34
-export const KING_SCATTER_TICKS = LEAP * 2 + KING_POSE_TICKS
-export const KING_SHOW_TICKS = KING_GATHER_TICKS + KING_MERGE_TICKS + KING_FLASH_TICKS + KING_REIGN_TICKS + KING_FLASH_TICKS + KING_SCATTER_TICKS
+export const LEAP = HOP_TICKS
+const COLLIDE = 0.875
+export const KING_GATHER_TICKS = 18
+export const KING_MERGE_TICKS = 6
+export const KING_DROP_TICKS = KING_DROP.length
+export const KING_FLASH_TICKS = 2
+export const KING_REIGN_TICKS = 40
+export const KING_DEFEAT_TICKS = 6
+export const KING_POOF_TICKS = 2
+export const KING_SCATTER_TICKS = SCATTER.length
+export const KING_SHOW_TICKS = KING_GATHER_TICKS + KING_MERGE_TICKS + KING_DROP_TICKS + KING_FLASH_TICKS + KING_REIGN_TICKS + KING_DEFEAT_TICKS + KING_POOF_TICKS + KING_SCATTER_TICKS
 
 // Two slimes' room is the least the king needs.
 export function canCrown(count: number): boolean {
@@ -201,20 +225,25 @@ export function nextMoment(active: Moment | null, incoming: Moment, count: numbe
   return active === null || PRIORITY[incoming.kind] > PRIORITY[active.kind] ? incoming : active
 }
 
-// Every slime `step` ticks into a leap that takes it `from` (0 home, 1 the
-// middle) `to` the next spot: it moves only while in the air. Each one rounds
-// away from the middle, so short of it they keep their order and all show.
-function leap(pixels: Pixels, count: number, from: number, to: number, step: number) {
+// Round away from the middle so every body shows when they press together.
+function familyAt(pixels: Pixels, count: number, progress: number, p: Pose) {
   const middle = Math.floor((slimeColumns(count) - SLIME_WIDTH) / 2)
-  const heldStep = step - step % KING_POSE_TICKS
-  const t = from + ((to - from) * heldStep) / (LEAP - KING_POSE_TICKS)
-  const lift = heldStep === 0 || heldStep === LEAP - KING_POSE_TICKS ? 0 : 1
-  const sprite = lift === 0 ? SQUASH : STAND
   for (let i = 0; i < count; i += 1) {
     const home = i * SLIME_WIDTH
-    const x = home + (middle - home) * t
-    paint(pixels, sprite, home < middle ? Math.floor(x) : Math.ceil(x), lift, kinPalette(i))
+    const x = home + (middle - home) * progress
+    paint(pixels, p.sprite, home < middle ? Math.floor(x) : Math.ceil(x), p.lift, kinPalette(i))
   }
+}
+
+function gather(pixels: Pixels, count: number, frame: number) {
+  const second = frame >= LEAP
+  const step = second ? frame - LEAP : frame
+  const progress = Math.min(1, Math.max(0, step - 2) / 3)
+  const p = HOP[step] as Pose
+  // Cut the second fall above the floor, just before the merged splat.
+  const collision = second && step === 6
+  familyAt(pixels, count, second ? 0.5 + progress * (COLLIDE - 0.5) : progress * 0.5,
+    collision ? { sprite: STRETCH, lift: 1 } : p)
 }
 
 function whiteOf(sprite: readonly string[]): Palette {
@@ -222,25 +251,31 @@ function whiteOf(sprite: readonly string[]): Palette {
 }
 
 // The stage `frame` ticks into the King Slime show; `tick` poses the slimes
-// once they are home again.
+// after the exact resting frame at the end of the show.
 export function kingStage(count: number, frame: number, tick: number | null, rest: Rest = 'breathe'): Pixels {
   const pixels = blank(count)
   const kingX = Math.floor((slimeColumns(count) - KING_WIDTH) / 2)
   const king: Palette = { ...kinPalette(0), Y: GOLD, R: JEWEL }
   let f = frame
   if (f < KING_GATHER_TICKS) {
-    if (f < LEAP) leap(pixels, count, 0, 0.5, f)
-    else leap(pixels, count, 0.5, 1, f - LEAP)
+    gather(pixels, count, f)
     return pixels
   }
   f -= KING_GATHER_TICKS
   if (f < KING_MERGE_TICKS) {
-    const blob = MERGED[f < KING_POSE_TICKS ? 0 : 1] as string[]
+    const blob = MERGED[f < KING_MERGE_TICKS / 2 ? 0 : 1] as string[]
     paint(pixels, blob, Math.floor((slimeColumns(count) - (blob[0] ?? '').length) / 2), 0, kinPalette(0))
     return pixels
   }
   f -= KING_MERGE_TICKS
-  if (f < KING_POSE_TICKS) {
+  if (f < KING_DROP_TICKS) {
+    const drop = KING_DROP[f] as Pose
+    const x = Math.floor((slimeColumns(count) - (drop.sprite[0] ?? '').length) / 2)
+    paint(pixels, drop.sprite, x, drop.lift, king)
+    return pixels
+  }
+  f -= KING_DROP_TICKS
+  if (f === 0) {
     paint(pixels, KING, kingX, 0, whiteOf(KING))
     return pixels
   }
@@ -260,18 +295,19 @@ export function kingStage(count: number, frame: number, tick: number | null, res
     return pixels
   }
   f -= KING_REIGN_TICKS
-  if (f < KING_POSE_TICKS) {
-    paint(pixels, KING, kingX, 0, whiteOf(KING))
+  if (f < KING_DEFEAT_TICKS) {
+    if (f % 2 === 1) paint(pixels, KING, kingX, 0, king)
     return pixels
   }
-  if (f < KING_FLASH_TICKS) {
+  f -= KING_DEFEAT_TICKS
+  if (f < KING_POOF_TICKS) {
     paint(pixels, POOF, kingX, 0, { W: WHITE })
     return pixels
   }
-  f -= KING_FLASH_TICKS
-  if (f < LEAP) leap(pixels, count, COLLIDE, 0.5, f)
-  else if (f < LEAP * 2) leap(pixels, count, 0.5, 0, f - LEAP)
-  else return stage(count, tick, rest)
+  f -= KING_POOF_TICKS
+  if (f >= SCATTER.length) return stage(count, frame === KING_SHOW_TICKS ? null : tick, rest)
+  const progress = Math.min(1, f / 3)
+  familyAt(pixels, count, COLLIDE * (1 - progress), SCATTER[f] as Pose)
   return pixels
 }
 
@@ -279,7 +315,7 @@ export function kingStage(count: number, frame: number, tick: number | null, res
 // Moments take the stage over resting motion; their start tick shares the clock.
 export function slimeCells(count: number, tick: number, moment: Moment | null = null, rest: Rest = 'breathe'): string {
   const frame = moment?.kind === 'king' ? tick - moment.startTick : null
-  const pixels = frame !== null && frame >= 0 && frame < KING_SHOW_TICKS && canCrown(count)
+  const pixels = frame !== null && frame >= 0 && frame <= KING_SHOW_TICKS && canCrown(count)
     ? kingStage(count, frame, tick, rest)
     : stage(count, tick, rest)
   const width = slimeColumns(count)
