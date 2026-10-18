@@ -152,10 +152,8 @@ export const register: Register = (on, options) => {
   let hop: Timer | undefined
   let tick = 0
   // The band the slimes were last drawn in, and how many: what a blit repaints.
-  let stage: { requestId: string; slimes: number } | null = null
+  let stage: { requestId: string; slimes: number; cells: string } | null = null
   let moment: Moment | null = null
-  // Whether the last blit was a show frame: at rest, one more repaints them home.
-  let wasShowing = false
   const currentMoment = () => {
     if (moment?.kind === 'king' && tick - moment.startTick >= KING_SHOW_TICKS) moment = null
     return moment
@@ -178,11 +176,11 @@ export const register: Register = (on, options) => {
       const drawn = stage
       if (!drawn) return
       const show = currentMoment()
-      const isStill = !isHopping && show === null && !wasShowing
-      wasShowing = show !== null
-      if (isStill) return
+      const cells = slimeCells(drawn.slimes, tick, show, isHopping)
+      if (cells === drawn.cells) return
+      drawn.cells = cells
       void $.ui
-        .blit({ requestId: drawn.requestId, key: SLIMES_KEY, cells: slimeCells(drawn.slimes, tick, show, isHopping) })
+        .blit({ requestId: drawn.requestId, key: SLIMES_KEY, cells })
         .then(r => {
           // Gone (band hidden, redrawn without them): rest until a render seats them again.
           if ('deny' in r && stage === drawn) stage = null
@@ -299,7 +297,8 @@ export const register: Register = (on, options) => {
     const slimes = fit?.slimes ?? 0
     // The terminal paints them in full color and can make them hop; elsewhere they rest.
     const Raster = e.surface === 'terminal' && slimes > 0 ? $.ui.resolve(e).Raster : null
-    stage = Raster ? { requestId: e.requestId, slimes } : null
+    const cells = Raster ? slimeCells(slimes, tick, currentMoment(), isHopping) : ''
+    stage = Raster ? { requestId: e.requestId, slimes, cells } : null
     const still = Raster === null && slimes > 0 ? slimeText(slimes) : null
     const dirty = pixelText('*')
     const chip =
@@ -432,7 +431,7 @@ export const register: Register = (on, options) => {
             </Box>
             {Raster ? <Text>{GAP}</Text> : null}
             {Raster ? (
-              <Raster key={SLIMES_KEY} columns={slimeColumns(slimes)} rows={STAGE_ROWS} cells={slimeCells(slimes, tick, currentMoment(), isHopping)} />
+              <Raster key={SLIMES_KEY} columns={slimeColumns(slimes)} rows={STAGE_ROWS} cells={cells} />
             ) : null}
           </Box>
         ) : null}

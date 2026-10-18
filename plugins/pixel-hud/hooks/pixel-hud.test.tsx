@@ -287,7 +287,7 @@ test('the slimes hop beside the branch on the terminal and rest on desktop', { o
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
   expect(raster?.props.columns).toBe(slimeColumns(4))
   expect(raster?.props.rows).toBe(3)
-  await clock.advance(FRAME_MS * 3)
+  await clock.advance(FRAME_MS * 6)
   expect(blits.length).toBeGreaterThan(0)
   expect(new Set(blits).size).toBeGreaterThan(1)
   await ui.unmount()
@@ -296,6 +296,51 @@ test('the slimes hop beside the branch on the terminal and rest on desktop', { o
   expect(await desk.find({ type: 'Raster' })).toBeUndefined()
   expect(await desk.find({ type: 'Text', text: ' █████ ' })).toBeDefined()
   await desk.unmount()
+})
+
+test('each blit changes the seated cells, during hops and the King show', { options: { slimesHop: true } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const cells: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) cells.push(e.cells)
+    return { value: {} }
+  })
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+  const raster = await ui.find({ type: 'Raster', key: 'slimes' })
+  cells.push(raster?.props.cells as string)
+  await clock.advance(FRAME_MS)
+  expect(cells.length).toBe(1)
+  await clock.advance(FRAME_MS * 20)
+  await $.command.run(KING)
+  await clock.advance(FRAME_MS * (KING_SHOW_TICKS + 2))
+  expect(cells.some(goldIn)).toBe(true)
+  for (let i = 1; i < cells.length; i += 1) expect(cells[i]).not.toBe(cells[i - 1])
+  await ui.unmount()
+})
+
+test('a denied blit unseats the stage until a render seats it again', { options: { slimesHop: true } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: { deny: 'The band is gone' } }
+  })
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+  await clock.advance(FRAME_MS * 10)
+  expect(blits.length).toBe(1)
+  expect((await $.command.run(KING)).text).toBe('No room for a King Slime here: widen the terminal.')
+  await ui.unmount()
+
+  const remount = await mount($, 'terminal', 10, 120)
+  const raster = await remount.find({ type: 'Raster', key: 'slimes' })
+  await clock.advance(FRAME_MS * 10)
+  expect(blits.length).toBe(2)
+  expect(blits[1]).not.toBe(raster?.props.cells)
+  await remount.unmount()
 })
 
 test('by default the slimes sit still, and the King Slime still plays', async ($, on) => {
