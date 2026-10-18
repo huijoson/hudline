@@ -8,7 +8,8 @@ The slime family beside the branch in the pixel-hud mod reads as generic pixel
 blobs, not Dragon Quest slimes, and it moves stiffly. A hop is ten 140 ms
 ticks drawn from only two poses (stand and squash) with a two-pixel lift, so it
 jerks rather than bounces. By default the slimes do not move at all, and the
-King Slime show slides them across the stage instead of letting them hop. The
+King Slime show's leaps (two in, a mid-air collision, two home) are drawn from
+the same two poses, and the show ends without a payoff. The
 faces have black dot eyes and no mouth, so the one thing that makes a slime
 recognisably a Dragon Quest slime (white eyes, a wide grin, the pointed tip)
 is missing.
@@ -84,14 +85,16 @@ The HUD's numbers stay first. Motion marks moments; it never narrates.
     the conversation is compacted, so that compaction reads as a level-up.
 21. As a developer, I want the King Slime show to keep playing after a long
     task, so that a finished long task is still celebrated.
-22. As a developer watching the King Slime show, I want the slimes to hop
-    toward the middle instead of sliding, so that the gathering looks alive.
+22. As a developer watching the King Slime show, I want the slimes to keep
+    leaping toward the middle and colliding in mid-air, now with the new hop's
+    squash and stretch, so that the gathering looks alive.
 23. As a developer, I want the King Slime to drop in from above and land with
     a heavy squash and rebound, so that its arrival has weight.
 24. As a developer, I want the king to keep its blink and gold/white twinkles
     while it reigns, so that the familiar show is still there.
 25. As a developer, I want the king to flicker as if defeated and then burst
-    back into four slimes that arc home, so that the show ends with a payoff.
+    back into its slimes, each arcing home from where it collided, so that the
+    show ends with a payoff and no slime pops out of nowhere.
 26. As a developer, I want the whole King Slime show to last about as long as
     it does today (6.5 to 7 seconds), so that the faster frame rate does not
     rush it.
@@ -245,18 +248,23 @@ slimes' worth of room):
 
 | Phase | Ticks (about) | What happens |
 |---|---|---|
-| Gather | 18 | The slimes hop-travel toward the middle in short arcs. Horizontal progress happens only while a slime is airborne. |
-| Merge | 6 | The two existing blob sizes, 3 ticks each. |
+| Gather | 18 | Two leaps toward the middle, as shipped in pixel-hud 0.6.1 but with the new hop's poses: the first lands halfway, the second is cut on its fall where the slimes collide in mid-air (`COLLIDE`, further in than halfway). Horizontal progress happens only while a slime is airborne. |
+| Merge | 6 | The existing merged frames, 3 ticks each: the splat on the floor, as wide as the king, then the blob bouncing up. |
 | Crown drop | 6 | The king falls in from above the stage, lands in a squash (one pixel shorter, one wider per side, clipped to the stage), then rebounds. |
 | Flash | 2 | All-white king, then the poof, as today. |
 | Reign | 40 | The existing blink and gold/white twinkles. |
 | Defeat | 6 | The king flickers hidden and shown, like the damage moment. |
 | Poof | 2 | The existing poof. |
-| Scatter | 6 | The four slimes burst out in arcs to their home positions, landing in SQUASH. |
+| Scatter | 6 | The slimes burst out in one arc each, from where they collided (`COLLIDE`) to their home positions, landing in SQUASH. This replaces 0.6.1's two hops home. |
 
 - The total is about 86 ticks (6.9 seconds) and stays exported as
   `KING_SHOW_TICKS`.
 - The show ends on the exact resting frame.
+- Keep pixel-hud 0.6.1's fix (PR #3): in every leap and in the Scatter arc,
+  each slime's position rounds away from the middle (floor left of it, ceil
+  right of it), so where they press together every slime still shows. With 2,
+  3 and 4 slimes, every body is drawn at the collide frame and the first
+  Scatter frame.
 
 ### Copy (Dragon Quest battle-message style)
 
@@ -304,6 +312,16 @@ slimes' worth of room):
   - Two slimes are never in the same pose at every tick of a cycle.
   - The King Slime show starts with the slimes at home, contains gold, and
     ends on the exact resting frame.
+  - Keep the 0.6.1 show tests, rescaled to the new ticks: the slimes move only
+    in the air; they collide airborne, further in than halfway, with every body
+    showing; the next frame is one grounded splat as wide as the king in the
+    first slime's colours; for 2, 3 and 4 slimes every body shows at the
+    collide frame and the first Scatter frame.
+  - Replace the 0.6.1 "leap home in two hops" test: Scatter starts where the
+    slimes collided, is airborne at some tick, and ends at home in SQUASH
+    before the resting frame.
+  - Replace the `KING_SHOW_TICKS` is 50 test with one that pins the total to
+    6.5 to 7 seconds at the frame constant.
   - Level-up contains gold and has every slime airborne on the same tick.
   - Damage hides the targeted slime on some tick and leaves the others drawn.
   - Encounter starts with the stage empty or clipped and ends on the resting
@@ -325,8 +343,13 @@ slimes' worth of room):
 - Update the tests that assert "sits still by default" to the new default.
 - `npm test` must pass, and the plugin must type-check against its bundled
   types.
-- Visual check: regenerate `docs/showcase/pixel-hud.png` and
-  `pixel-hud-king.png` with the showcase renderer and inspect both once.
+- Visual check: regenerate `docs/showcase/pixel-hud.png`,
+  `pixel-hud-king.png` and the README's `pixel-hud-king.gif` with the showcase
+  renderer (`render_mod.py`, `--king`, `--gif`) and inspect them once. The
+  renderer hard-codes 140 ms (the `--king` catch-up, the GIF's per-tick clock
+  advance and its frame durations); derive these from the new frame constant,
+  and keep `--king` catching the king mid-reign. Keep the GIF's single shared
+  palette.
 
 ## Out of Scope
 
