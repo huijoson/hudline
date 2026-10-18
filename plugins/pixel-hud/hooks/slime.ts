@@ -255,6 +255,9 @@ export type Moment =
   | { kind: 'king' | 'level-up' | 'encounter'; startTick: number }
   | { kind: 'damage'; startTick: number; target: number }
 
+export const DAMAGE_TICKS = 6
+const DAMAGE_FLICKER_TICKS = 2
+
 export const ENCOUNTER_STAGGER_TICKS = 3
 export const ENCOUNTER_FALL_TICKS = 3
 export const ENCOUNTER_START_LIFT = 6
@@ -288,8 +291,11 @@ const MOMENT_MOTION: Record<Moment['kind'], MomentMotion> = {
     endpoint: encounterEndpoint,
     stage: (moment, count, tick, rest) => encounterStage(count, tick - moment.startTick, tick, rest),
   },
-  // Placeholders: no expiry or moment stage until their own tickets land.
-  damage: { endpoint: null, stage: null },
+  damage: {
+    endpoint: () => DAMAGE_TICKS,
+    stage: damageStage,
+  },
+  // Placeholder: no expiry or moment stage until its own ticket lands.
   'level-up': { endpoint: null, stage: null },
 }
 
@@ -405,6 +411,19 @@ export function kingStage(count: number, frame: number, tick: number | null, res
   }
   const progress = Math.min(1, f / (KING_SCATTER_AIR_TICKS - 1))
   paintFamily(pixels, count, COLLIDE * (1 - progress), SCATTER[f] as Pose)
+  return pixels
+}
+
+function damageStage(moment: Moment, count: number, tick: number, rest: Rest): Pixels {
+  const pixels = blank(count)
+  const frame = tick - moment.startTick
+  for (let i = 0; i < count; i += 1) {
+    if ('target' in moment && i === moment.target && frame < DAMAGE_TICKS && frame % DAMAGE_FLICKER_TICKS === 0) continue
+    const endpointTick = moment.startTick + DAMAGE_TICKS
+    const held = frame <= DAMAGE_TICKS || (rest === 'hop' && tick < hopRejoinTick(i, endpointTick))
+    const p = pose(i, held ? null : tick, rest)
+    paint(pixels, p.sprite, i * SLIME_WIDTH, p.lift, kinPalette(i))
+  }
   return pixels
 }
 

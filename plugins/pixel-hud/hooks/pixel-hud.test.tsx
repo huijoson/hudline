@@ -18,6 +18,7 @@ import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
 import { POLL_MS } from './register'
 import {
   canCrown,
+  DAMAGE_TICKS,
   ENCOUNTER_ARRIVAL_TICKS,
   ENCOUNTER_FALL_TICKS,
   ENCOUNTER_STAGGER_TICKS,
@@ -819,6 +820,28 @@ const kingDropStarts = KING_GATHER_TICKS + KING_MERGE_TICKS
 const kingReignStarts = KING_GATHER_TICKS + KING_MERGE_TICKS + KING_DROP_TICKS + KING_FLASH_TICKS
 
 describe('slime moments', () => {
+  test('damage flickers only its target for three hidden/shown pairs, then stands', () => {
+    const flickerTicks = 6
+    const startTick = 12
+    for (const count of [1, 2, 3, 4]) {
+      const standing = stage(count, null)
+      for (let target = 0; target < count; target += 1) {
+        const damage: Moment = { kind: 'damage', startTick, target }
+        for (let frame = 0; frame < flickerTicks; frame += 1) {
+          const pixels = slimePixels(slimeCells(count, startTick + frame, damage, 'still'))
+          for (let i = 0; i < count; i += 1) {
+            const face = slimeFace(pixels, i)
+            if (i === target && frame % 2 === 0) expect(face.flat().every(pixel => pixel === null)).toBe(true)
+            else expect(face).toEqual(slimeFace(standing, i))
+          }
+        }
+        const endpointTick = startTick + flickerTicks
+        expect(slimeCells(count, endpointTick, damage, 'still')).toBe(slimeCells(count, endpointTick, null, 'still'))
+        expect(momentEndTick(damage, count, 'still')).toBe(endpointTick + 1)
+      }
+    }
+  })
+
   test('the encounter starts empty and each kin first shows only its lower rows', () => {
     const encounter: Moment = { kind: 'encounter', startTick: 0 }
     for (const count of [2, 3, 4]) {
@@ -834,6 +857,36 @@ describe('slime moments', () => {
           const expected = [...standing.slice(-visibleRows), ...Array(STAGE_ROWS * 2 - visibleRows).fill(emptyRow)]
           expect(actual).toEqual(expected)
         }
+      }
+    }
+  })
+
+  test('damage expires after every kin rejoins hopping from rest or a fresh crouch', () => {
+    const shape = (pixels: (number | null)[][]) => JSON.stringify(pixels.map(row => row.map(p => p !== null)))
+    const startWindowTicks = 100
+    for (const count of [1, 2, 3, 4]) {
+      const standing = slimeCells(count, 0, null, 'still')
+      for (let startTick = 0; startTick < startWindowTicks; startTick += 1) {
+        const damage: Moment = { kind: 'damage', startTick, target: count - 1 }
+        let allJoinedTick = startTick + 1
+        for (let i = 0; i < count; i += 1) {
+          const endpointTick = startTick + DAMAGE_TICKS
+          const stand = shape(slimeFace(stage(count, null), i))
+          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null), i))
+          let joined = false
+          for (let tick = endpointTick; tick <= endpointTick + HOP_TICKS; tick += 1) {
+            const global = shape(slimeFace(stage(count, tick, 'hop'), i))
+            const previous = shape(slimeFace(stage(count, tick - 1, 'hop'), i))
+            if (!joined && tick > endpointTick && (global === stand || global === crouch) && previous === stand) {
+              joined = true
+              allJoinedTick = Math.max(allJoinedTick, tick)
+            }
+            const expected = joined ? slimeCells(count, tick, null, 'hop') : standing
+            expect(slimeCellFace(slimeCells(count, tick, damage, 'hop'), count, i)).toEqual(slimeCellFace(expected, count, i))
+          }
+          expect(joined).toBe(true)
+        }
+        expect(momentEndTick(damage, count, 'hop')).toBe(allJoinedTick)
       }
     }
   })
