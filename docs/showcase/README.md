@@ -51,8 +51,9 @@ The second draws `pixel-hud-king.png`: a task of a minute ends, and the image
 catches the King Slime halfway through its reign, using the exported phase
 lengths.
 The third draws `pixel-hud-king.gif`, the README's demo: the same task, one
-frame for each tick of the slimes' exported `FRAME_MS` clock (80 ms), from the
-slimes at rest through the whole show and home again. Pillow folds repeated frames into one.
+frame for each tick of the slimes' exported `FRAME_MS` clock, from the slimes
+at rest through the whole show and home again. Pillow folds repeated frames
+into one.
 
 The script copies the mod to a temporary folder, adds one test that hands it
 the sample figures through Claude Code's own plugin test host, and runs

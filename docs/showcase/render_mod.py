@@ -102,6 +102,7 @@ test('showcase', async ($, on) => {
   if (KING) {
     // A task of a minute ends; catch the middle of the reign.
     await $.turn.complete({ answer: '', durationMs: 60_000, isAborted: false, turnId: 't', reason: 'answer' })
+    // Skip the transformation to show the crowned king halfway through its reign.
     await clock.advance(FRAME_MS * (KING_GATHER_TICKS + KING_MERGE_TICKS + KING_FLASH_TICKS + Math.floor(KING_REIGN_TICKS / 2)))
     await ui.unmount()
     ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
@@ -140,7 +141,10 @@ with tempfile.TemporaryDirectory() as tmp:
     if not found:
         raise SystemExit(f"the mod drew nothing:\n{run.stdout}\n{run.stderr}")
     trees = [json.loads(f) for f in found]
-    frame_ms = int(re.search(r"^FRAME_MS(\d+)$", run.stdout + run.stderr, re.M)[1])
+    timing = re.search(r"^FRAME_MS(\d+)$", run.stdout + run.stderr, re.M)
+    if timing is None:
+        raise SystemExit("the mod did not report FRAME_MS; cannot determine frame duration")
+    frame_ms = int(timing[1])
 
 
 INK = "#dedee5"
@@ -238,6 +242,8 @@ if args.gif:
     # The slimes at rest a moment, then the show at the slimes' own pace.
     durations = [1200] + [frame_ms] * (len(frames) - 2) + [1200]
     output = HERE / "pixel-hud-king.gif"
+    # Disable per-frame palette optimization and supply the shared palette so
+    # Pillow keeps one global colour table instead of remapping each frame.
     frames[0].save(output, save_all=True, append_images=frames[1:], duration=durations,
                    loop=0, optimize=False, palette=palette.getpalette())
     width, height = frames[0].size
