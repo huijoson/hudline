@@ -59,6 +59,8 @@ import {
 } from './slime'
 import type { Moment } from './slime'
 
+const failure = { tool_name: 'Bash', tool_input: {}, tool_use_id: 'failed-tool', error: 'failed' }
+
 const WHITE = 0xfcfcfc
 const MOUTH = 0x981828
 // Ticket #8's per-kin breathing periods, in clock ticks.
@@ -661,6 +663,94 @@ test('the encounter waits for a stage, plays once, and expires before resting ho
   await ui.unmount()
 })
 
+test('a failure without a seated stage spends neither cooldown nor target', { options: { slimesIdle: false } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('classic.PostToolUseFailure', async () => ({}) as never)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  let ui = await mount($, 'terminal', 10, 120)
+  const count = FAMILY.length
+  const tick = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
+  await clock.advance(FRAME_MS * tick)
+  await ui.unmount()
+  const desktop = await mount($, 'desktop', 10, 120)
+  const beforeFailure = blits.length
+  await $.classic.PostToolUseFailure(failure as never)
+  expect(blits.length).toBe(beforeFailure)
+  await desktop.unmount()
+  ui = await mount($, 'terminal', 10, 120)
+  await $.classic.PostToolUseFailure(failure as never)
+  const damage: Moment = { kind: 'damage', startTick: tick, target: 0 }
+  expect(blits.at(-1)).toBe(slimeCells(count, tick, damage, 'still'))
+  await ui.unmount()
+})
+
+test('session.start resets the damage cooldown and target rotation', { options: { slimesIdle: false } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('classic.PostToolUseFailure', async () => ({}) as never)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  const count = FAMILY.length
+  const encounterTicks = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  let ui = await mount($, 'terminal', 10, 120)
+  await clock.advance(FRAME_MS * encounterTicks)
+  await $.classic.PostToolUseFailure(failure as never)
+  expect(blits.at(-1)).toBe(slimeCells(count, encounterTicks, { kind: 'damage', startTick: encounterTicks, target: 0 }, 'still'))
+  await ui.unmount()
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  ui = await mount($, 'terminal', 10, 120)
+  await clock.advance(FRAME_MS * encounterTicks)
+  // The new encounter ends before the previous session's cooldown would.
+  const tick = encounterTicks * 2
+  await $.classic.PostToolUseFailure(failure as never)
+  expect(blits.at(-1)).toBe(slimeCells(count, tick, { kind: 'damage', startTick: tick, target: 0 }, 'still'))
+  await ui.unmount()
+})
+
+test('the next damage target stays in range after the terminal seats fewer kin', { options: { slimesIdle: false } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('classic.PostToolUseFailure', async () => ({}) as never)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  let ui = await mount($, 'terminal', 10, 120)
+  const count = FAMILY.length
+  expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns).toBe(slimeColumns(count))
+  let tick = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
+  await clock.advance(FRAME_MS * tick)
+  const cooldownTicks = 25
+  // Leave the next target at kin 3, outside the narrower family's range.
+  for (const target of [0, 1, 2]) {
+    await $.classic.PostToolUseFailure(failure as never)
+    expect(blits.at(-1)).toBe(slimeCells(count, tick, { kind: 'damage', startTick: tick, target }, 'still'))
+    await clock.advance(FRAME_MS * cooldownTicks)
+    tick += cooldownTicks
+  }
+  await ui.unmount()
+  const narrowerCount = 2
+  const narrowerColumns = (BRANCH_SPRITE[0] ?? '').length + 2 + pixelWidth('main'.length) + 2 + slimeColumns(narrowerCount)
+  ui = await mount($, 'terminal', 10, narrowerColumns)
+  expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns).toBe(slimeColumns(narrowerCount))
+  await $.classic.PostToolUseFailure(failure as never)
+  const damage: Moment = { kind: 'damage', startTick: tick, target: 1 }
+  expect(blits.at(-1)).toBe(slimeCells(narrowerCount, tick, damage, 'still'))
+  await ui.unmount()
+})
+
 test('failures flicker rotating kin after encounter expiry, with interrupt and cooldown filtering', { options: { slimesIdle: false } }, async ($, on) => {
   const clock = mock.clock(on)
   const blits: string[] = []
@@ -675,7 +765,6 @@ test('failures flicker rotating kin after encounter expiry, with interrupt and c
   const count = FAMILY.length
   const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
   await clock.advance(FRAME_MS * encounterEnds)
-  const failure = { tool_name: 'Bash', tool_input: {}, tool_use_id: 'failed-tool', error: 'failed' }
   const cooldownTicks = 25
   let tick = encounterEnds
   for (let failureIndex = 0; failureIndex <= count; failureIndex += 1) {
@@ -712,7 +801,6 @@ test('damage yields to encounter and King without consuming a target or cooldown
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await mount($, 'terminal', 10, 120)
   const count = FAMILY.length
-  const failure = { tool_name: 'Bash', tool_input: {}, tool_use_id: 'failed-tool', error: 'failed' }
   const encounter: Moment = { kind: 'encounter', startTick: 0 }
   const encounterEnds = momentEndTick(encounter, count, 'still')
   const lastEncounterTick = encounterEnds - 1
@@ -753,7 +841,6 @@ test('damage returns to grounded hopping, expires, and admits the next failure',
   const count = FAMILY.length
   const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'hop')
   await clock.advance(FRAME_MS * encounterEnds)
-  const failure = { tool_name: 'Bash', tool_input: {}, tool_use_id: 'failed-tool', error: 'failed' }
   await $.classic.PostToolUseFailure(failure as never)
   const damage: Moment = { kind: 'damage', startTick: encounterEnds, target: 0 }
   const endpointTick = encounterEnds + DAMAGE_TICKS
