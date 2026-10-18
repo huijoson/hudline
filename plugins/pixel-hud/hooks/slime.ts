@@ -292,8 +292,8 @@ function encounterEndpoint(i: number): number {
 }
 
 type MomentMotion = {
-  endpoint: ((i: number, count: number) => number) | null
-  stage: ((moment: Moment, count: number, tick: number, rest: Rest) => Pixels) | null
+  endpoint: (i: number, count: number) => number
+  stage: (moment: Moment, count: number, tick: number, rest: Rest) => Pixels
 }
 
 const MOMENT_MOTION: Record<Moment['kind'], MomentMotion> = {
@@ -318,10 +318,9 @@ const MOMENT_MOTION: Record<Moment['kind'], MomentMotion> = {
 }
 
 // Exclusive expiry: keep the exact endpoint, then release as soon as every kin
-// can join Rest or a fresh Crouch. A Moment without an endpoint never expires.
+// can join Rest or a fresh Crouch.
 export function momentEndTick(moment: Moment, count: number, rest: Rest): number {
   const { endpoint } = MOMENT_MOTION[moment.kind]
-  if (!endpoint) return Infinity
   const endpoints = Array.from({ length: count }, (_, i) => moment.startTick + endpoint(i, count))
   return Math.max(...endpoints.map((endpoint, i) => rest === 'hop' ? hopRejoinTick(i, endpoint) : endpoint + 1), moment.startTick + 1)
 }
@@ -481,7 +480,7 @@ export function slimeCells(count: number, tick: number, moment: Moment | null = 
   const frame = moment ? tick - moment.startTick : -1
   let pixels = stage(count, tick, rest)
   if (moment && frame >= 0 && tick < momentEndTick(moment, count, rest)) {
-    pixels = MOMENT_MOTION[moment.kind].stage?.(moment, count, tick, rest) ?? pixels
+    pixels = MOMENT_MOTION[moment.kind].stage(moment, count, tick, rest)
   }
   const width = slimeColumns(count)
   const words = new Uint32Array(width * STAGE_ROWS * 3)
