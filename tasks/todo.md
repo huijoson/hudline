@@ -6,7 +6,7 @@ pure Moment priority; existing art and motion retained; King lasts 6.5–7 s.
 - [x] Confirm branch ancestry and read ticket, spec, domain docs and ADRs.
 - [x] Locate TDD instructions and agreed seams (pure slime module and testing host).
 - [x] Rescale existing hop/show timing test-first.
-- [ ] Introduce and test pure Moment arbitration; route King through it.
+- [x] Introduce and test pure Moment arbitration; route King through it.
 - [ ] Test and implement repaint-on-change, including denial and remount.
 - [ ] Review diff and run npm test, plugin test, plugin validate.
 - [ ] Commit small slices, merge feature tip, and write downstream notes.
@@ -24,3 +24,8 @@ Later tickets own breath, new hop poses, new events and restaging the King.
 Timing slice: missing FRAME_MS export failed first; 42 plugin tests pass after
 rescaling. Show length is 87 frames / 6960 ms. Preserve the shipped pose cadence
 by sampling at elapsed milliseconds; later tickets replace these pose tables.
+
+Moment slice: missing nextMoment export failed first; 43 plugin tests passed.
+Moment is a discriminated union with kind/startTick and damage-only target.
+Equal priority keeps the active moment; no queue. Other moment art/events are
+intentionally deferred. King room checks happen before replacing the active value.

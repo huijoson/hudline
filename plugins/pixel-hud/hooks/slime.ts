@@ -145,6 +145,18 @@ export function canCrown(count: number): boolean {
   return slimeColumns(count) >= KING_WIDTH
 }
 
+export type Moment =
+  | { kind: 'king' | 'level-up' | 'encounter'; startTick: number }
+  | { kind: 'damage'; startTick: number; target: number }
+
+const PRIORITY = { damage: 1, encounter: 2, 'level-up': 3, king: 4 }
+
+// Dropped moments are never queued. Equal priority keeps the current moment.
+export function nextMoment(active: Moment | null, incoming: Moment, count: number): Moment | null {
+  if (incoming.kind === 'king' && !canCrown(count)) return active
+  return active === null || PRIORITY[incoming.kind] > PRIORITY[active.kind] ? incoming : active
+}
+
 // Every slime `step` ticks into a leap that takes it `from` (0 home, 1 the
 // middle) `to` the next spot: it moves only while in the air. Each one rounds
 // away from the middle, so short of it they keep their order and all show.
@@ -218,9 +230,13 @@ export function kingStage(count: number, frame: number, tick: number | null): Pi
 }
 
 // The stage as Raster cells: base64 of [codePoint, fg, bg] u32 triplets.
-// `tick` null draws them at rest; `show` is how many ticks into the King Slime show, or null when there is none.
-export function slimeCells(count: number, tick: number | null, show: number | null = null): string {
-  const pixels = show !== null && show < KING_SHOW_TICKS && canCrown(count) ? kingStage(count, show, tick) : stage(count, tick)
+// Moments take the stage over resting motion; their start tick shares the clock.
+export function slimeCells(count: number, tick: number, moment: Moment | null = null, isHopping = true): string {
+  const restTick = isHopping ? tick : null
+  const frame = moment?.kind === 'king' ? tick - moment.startTick : null
+  const pixels = frame !== null && frame >= 0 && frame < KING_SHOW_TICKS && canCrown(count)
+    ? kingStage(count, frame, restTick)
+    : stage(count, restTick)
   const width = slimeColumns(count)
   const words = new Uint32Array(width * STAGE_ROWS * 3)
   for (let row = 0; row < STAGE_ROWS; row += 1) {

@@ -21,7 +21,8 @@ import {
 } from './format'
 import type { Role } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { canCrown, FAMILY, FRAME_MS, KING_SHOW_TICKS, slimeCells, slimeColumns, slimeText, STAGE_ROWS } from './slime'
+import { canCrown, FAMILY, FRAME_MS, KING_SHOW_TICKS, slimeCells, slimeColumns, slimeText, STAGE_ROWS, nextMoment } from './slime'
+import type { Moment } from './slime'
 
 const branch = atom({ plugin: 'pixel-hud', key: 'branch' } as const, null)
 const usage = atom({ plugin: 'pixel-hud', key: 'usage' } as const, null)
@@ -152,22 +153,18 @@ export const register: Register = (on, options) => {
   let tick = 0
   // The band the slimes were last drawn in, and how many: what a blit repaints.
   let stage: { requestId: string; slimes: number } | null = null
-  // The tick the King Slime show began on, while it plays.
-  let crowned: number | null = null
+  let moment: Moment | null = null
   // Whether the last blit was a show frame: at rest, one more repaints them home.
   let wasShowing = false
-  const showFrame = () => {
-    if (crowned === null) return null
-    const frame = tick - crowned
-    if (frame >= KING_SHOW_TICKS) crowned = null
-    return crowned === null ? null : frame
+  const currentMoment = () => {
+    if (moment?.kind === 'king' && tick - moment.startTick >= KING_SHOW_TICKS) moment = null
+    return moment
   }
-  const hopTick = () => (isHopping ? tick : null)
   // Starts the show unless one is playing or there is no room for the king.
   const crown = (): 'crowned' | 'reigning' | 'no-room' => {
-    if (crowned !== null) return 'reigning'
+    if (currentMoment()?.kind === 'king') return 'reigning'
     if (!stage || !canCrown(stage.slimes)) return 'no-room'
-    crowned = tick
+    moment = nextMoment(moment, { kind: 'king', startTick: tick }, stage.slimes)
     return 'crowned'
   }
 
@@ -180,12 +177,12 @@ export const register: Register = (on, options) => {
       tick += 1
       const drawn = stage
       if (!drawn) return
-      const show = showFrame()
+      const show = currentMoment()
       const isStill = !isHopping && show === null && !wasShowing
       wasShowing = show !== null
       if (isStill) return
       void $.ui
-        .blit({ requestId: drawn.requestId, key: SLIMES_KEY, cells: slimeCells(drawn.slimes, hopTick(), show) })
+        .blit({ requestId: drawn.requestId, key: SLIMES_KEY, cells: slimeCells(drawn.slimes, tick, show, isHopping) })
         .then(r => {
           // Gone (band hidden, redrawn without them): rest until a render seats them again.
           if ('deny' in r && stage === drawn) stage = null
@@ -435,7 +432,7 @@ export const register: Register = (on, options) => {
             </Box>
             {Raster ? <Text>{GAP}</Text> : null}
             {Raster ? (
-              <Raster key={SLIMES_KEY} columns={slimeColumns(slimes)} rows={STAGE_ROWS} cells={slimeCells(slimes, hopTick(), showFrame())} />
+              <Raster key={SLIMES_KEY} columns={slimeColumns(slimes)} rows={STAGE_ROWS} cells={slimeCells(slimes, tick, currentMoment(), isHopping)} />
             ) : null}
           </Box>
         ) : null}

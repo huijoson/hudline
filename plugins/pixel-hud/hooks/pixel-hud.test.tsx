@@ -15,7 +15,8 @@ import {
   usd,
 } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { canCrown, FAMILY, FRAME_MS, KING_SHOW_TICKS, KING_WIDTH, kingStage, slimeCells, slimeColumns, slimeText, stage } from './slime'
+import { canCrown, FAMILY, FRAME_MS, KING_SHOW_TICKS, KING_WIDTH, kingStage, slimeCells, slimeColumns, slimeText, stage, nextMoment } from './slime'
+import type { Moment } from './slime'
 
 const SPRITE_ROW = pack(BRANCH_SPRITE)[0]
 
@@ -309,14 +310,14 @@ test('by default the slimes sit still, and the King Slime still plays', async ($
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await mount($, 'terminal', 10, 120)
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
-  expect(raster?.props.cells).toBe(slimeCells(4, null))
+  expect(raster?.props.cells).toBe(slimeCells(4, 0, null, false))
   await clock.advance(FRAME_MS * 10)
   expect(blits.length).toBe(0)
 
   await $.turn.complete({ answer: 'ok', durationMs: 60_000, isAborted: false, turnId: 't1', reason: 'answer' })
   await clock.advance(FRAME_MS * (KING_SHOW_TICKS + 2))
   expect(blits.some(goldIn)).toBe(true)
-  expect(blits.at(-1)).toBe(slimeCells(4, null))
+  expect(blits.at(-1)).toBe(slimeCells(4, 0, null, false))
 
   blits.length = 0
   await clock.advance(FRAME_MS * 10)
@@ -334,6 +335,38 @@ test('slimes give up their room before the branch name does', async ($, on) => {
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
   expect((raster?.props.columns as number | undefined) ?? 0).toBeLessThan(slimeColumns(4))
   await ui.unmount()
+})
+
+describe('slime moments', () => {
+  test('King replaces another moment only when there is room, and renders from its start tick', async () => {
+    const damage: Moment = { kind: 'damage', startTick: 1, target: 0 }
+    const king: Moment = { kind: 'king', startTick: 100 }
+    expect(nextMoment(damage, king, 1)).toEqual(damage)
+    expect(nextMoment(null, king, 1)).toBe(null)
+    const active = nextMoment(damage, king, 2)
+    expect(active).toEqual(king)
+    expect(goldIn(slimeCells(2, 100, active, false))).toBe(false)
+    expect(goldIn(slimeCells(2, 100 + Math.ceil(2800 / FRAME_MS), active, false))).toBe(true)
+    expect(slimeCells(2, 100 + KING_SHOW_TICKS, active, false)).toBe(slimeCells(2, 0, null, false))
+  })
+
+  test('only a higher-priority moment takes the stage, and dropped moments never return', async () => {
+    const moments: Moment[] = [
+      { kind: 'damage', startTick: 1, target: 2 },
+      { kind: 'encounter', startTick: 2 },
+      { kind: 'level-up', startTick: 3 },
+      { kind: 'king', startTick: 4 },
+    ]
+    for (const [i, incoming] of moments.entries()) {
+      expect(nextMoment(null, incoming, 4)).toEqual(incoming)
+      for (const [j, active] of moments.entries()) {
+        expect(nextMoment(active, incoming, 4)).toEqual(i > j ? incoming : active)
+      }
+    }
+    const king = moments[3] as Moment
+    const active = nextMoment(king, { kind: 'damage', startTick: 5, target: 0 }, 4)
+    expect(slimeCells(4, king.startTick + KING_SHOW_TICKS, active, false)).toBe(slimeCells(4, 0, null, false))
+  })
 })
 
 describe('King Slime', () => {
