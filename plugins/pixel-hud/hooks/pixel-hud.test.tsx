@@ -15,7 +15,27 @@ import {
   usd,
 } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { canCrown, FAMILY, FRAME_MS, KING_SHOW_TICKS, KING_WIDTH, kingStage, slimeCells, slimeColumns, slimeText, stage, nextMoment } from './slime'
+import {
+  canCrown,
+  FAMILY,
+  FRAME_MS,
+  HOP_POSE_TICKS,
+  HOP_TICKS,
+  KING_FLASH_TICKS,
+  KING_GATHER_TICKS,
+  KING_MERGE_TICKS,
+  KING_POSE_TICKS,
+  KING_REIGN_TICKS,
+  KING_SHOW_TICKS,
+  KING_WIDTH,
+  kingStage,
+  LEAP,
+  nextMoment,
+  slimeCells,
+  slimeColumns,
+  slimeText,
+  stage,
+} from './slime'
 import type { Moment } from './slime'
 
 const SPRITE_ROW = pack(BRANCH_SPRITE)[0]
@@ -242,13 +262,26 @@ test('picks up a branch switched outside Claude Code on the next poll', async ($
 })
 
 describe('slime family', () => {
+  test('holds each hop pose for two ticks without cadence stutter', async () => {
+    const runs: number[] = []
+    let previous = ''
+    for (let tick = 0; tick < HOP_TICKS; tick += 1) {
+      const cells = slimeCells(1, tick)
+      if (cells === previous) runs[runs.length - 1] = (runs[runs.length - 1] ?? 0) + 1
+      else runs.push(1)
+      previous = cells
+    }
+    // Stand, crouch, rise, two top poses, fall, land, three resting poses.
+    expect(runs).toEqual([2, 2, 2, 4, 2, 2, 6])
+  })
+
   test('stands on the floor at rest and leaves it mid-hop', async () => {
     const floor = (tick: number) => stage(1, tick)[5]?.some(p => p !== null)
     expect(floor(0)).toBe(true)
-    expect(Array.from({ length: Math.ceil(1400 / FRAME_MS) }, (_, tick) => floor(tick))).toContain(false)
-    expect(floor(Math.ceil(1400 / FRAME_MS))).toBe(true)
-    // The original hop takes about 1.4 seconds, rather than speeding up with the clock.
-    expect(floor(Math.ceil(420 / FRAME_MS))).toBe(false)
+    expect(Array.from({ length: HOP_TICKS }, (_, tick) => floor(tick))).toContain(false)
+    expect(floor(HOP_TICKS)).toBe(true)
+    // The top of the hop stays airborne, and the full cycle returns home.
+    expect(floor(3 * HOP_POSE_TICKS)).toBe(false)
   })
 
   test('at rest every slime sits on the floor', async () => {
@@ -382,6 +415,8 @@ test('slimes give up their room before the branch name does', async ($, on) => {
   await ui.unmount()
 })
 
+const kingReignStarts = KING_GATHER_TICKS + KING_MERGE_TICKS + KING_FLASH_TICKS
+
 describe('slime moments', () => {
   test('King replaces another moment only when there is room, and renders from its start tick', async () => {
     const damage: Moment = { kind: 'damage', startTick: 1, target: 0 }
@@ -390,9 +425,9 @@ describe('slime moments', () => {
     expect(nextMoment(null, king, 1)).toBe(null)
     const active = nextMoment(damage, king, 2)
     expect(active).toEqual(king)
-    expect(goldIn(slimeCells(2, 100, active, false))).toBe(false)
-    expect(goldIn(slimeCells(2, 100 + Math.ceil(2800 / FRAME_MS), active, false))).toBe(true)
-    expect(slimeCells(2, 100 + KING_SHOW_TICKS, active, false)).toBe(slimeCells(2, 0, null, false))
+    expect(goldIn(slimeCells(2, king.startTick, active, false))).toBe(false)
+    expect(goldIn(slimeCells(2, king.startTick + kingReignStarts, active, false))).toBe(true)
+    expect(slimeCells(2, king.startTick + KING_SHOW_TICKS, active, false)).toBe(slimeCells(2, 0, null, false))
   })
 
   test('only a higher-priority moment takes the stage, and dropped moments never return', async () => {
@@ -415,6 +450,23 @@ describe('slime moments', () => {
 })
 
 describe('King Slime', () => {
+  test('holds each King pose for two ticks without cadence stutter', async () => {
+    const runs: number[] = []
+    let previous = ''
+    for (let frame = 0; frame < kingReignStarts; frame += 1) {
+      const pixels = JSON.stringify(kingStage(4, frame, null))
+      if (pixels === previous) runs[runs.length - 1] = (runs[runs.length - 1] ?? 0) + 1
+      else runs.push(1)
+      previous = pixels
+    }
+    // The first landing and second crouch share one silhouette.
+    expect(runs).toEqual([2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2])
+    // Reign, flashes and both leaps home also hold for complete pairs of ticks.
+    for (let frame = 0; frame < KING_SHOW_TICKS; frame += 2) {
+      expect(kingStage(4, frame + 1, null)).toEqual(kingStage(4, frame, null))
+    }
+  })
+
   const GOLD = 0xfcbc3c
   const hasGold = (pixels: (number | null)[][]) => pixels.some(row => row.includes(GOLD))
 
@@ -425,8 +477,8 @@ describe('King Slime', () => {
 
   test('the slimes gather, the king reigns crowned, and they end back home', async () => {
     expect(hasGold(kingStage(4, 0, 0))).toBe(false)
-    expect(hasGold(kingStage(4, Math.ceil(2800 / FRAME_MS), 20))).toBe(true)
-    expect(kingStage(4, KING_SHOW_TICKS - 1, 7)).toEqual(stage(4, 7))
+    expect(hasGold(kingStage(4, kingReignStarts, HOP_TICKS))).toBe(true)
+    expect(kingStage(4, KING_SHOW_TICKS - 1, HOP_TICKS)).toEqual(stage(4, HOP_TICKS))
   })
 
   type Pixels = (number | null)[][]
@@ -436,30 +488,38 @@ describe('King Slime', () => {
   const right = (pixels: Pixels) => Math.max(...pixels.map(row => row.findLastIndex(c => c !== null)))
   const at = (frame: number, count = 4) => kingStage(count, frame, null)
   const bodies = (pixels: Pixels) => FAMILY.filter(kin => pixels.some(row => row.includes(kin.body))).length
-  // The frame the slimes collide in mid-air, and the first of their leap out.
-  const collide = 14
-  const out = 69
+  const rise = KING_POSE_TICKS
+  const top = 2 * KING_POSE_TICKS
+  const fall = 3 * KING_POSE_TICKS
+  const firstLanding = LEAP - KING_POSE_TICKS
+  const secondCrouch = LEAP
+  const collide = KING_GATHER_TICKS - KING_POSE_TICKS
+  const splatStarts = KING_GATHER_TICKS
+  const out = kingReignStarts + KING_REIGN_TICKS + KING_FLASH_TICKS
+  const halfwayHome = out + firstLanding
+  const lastCrouch = out + LEAP
+  const homeLanding = out + 2 * LEAP - KING_POSE_TICKS
 
   test('the slimes leap toward the middle, moving only in the air', async () => {
     // Crouched at home, up through the top of the leap, and landed halfway.
     expect(grounded(at(0))).toBe(true)
     expect(left(at(0))).toBe(0)
-    expect([2, 4, 6].map(f => grounded(at(f)))).toEqual([false, false, false])
-    expect(atTop(at(4))).toBe(true)
-    expect(grounded(at(7))).toBe(true)
-    expect(left(at(7))).toBeGreaterThan(0)
+    expect([rise, top, fall].map(f => grounded(at(f)))).toEqual([false, false, false])
+    expect(atTop(at(top))).toBe(true)
+    expect(grounded(at(firstLanding))).toBe(true)
+    expect(left(at(firstLanding))).toBeGreaterThan(0)
     // The second leap takes off from where the first landed.
-    expect(at(9)).toEqual(at(7))
+    expect(at(secondCrouch)).toEqual(at(firstLanding))
   })
 
   test('the slimes collide in mid-air, further in than halfway, and land merged', async () => {
     expect(grounded(at(collide))).toBe(false)
-    expect(left(at(collide))).toBeGreaterThan(left(at(7)))
+    expect(left(at(collide))).toBeGreaterThan(left(at(firstLanding)))
     // Pressed together, every one of them still shows.
     expect(bodies(at(collide))).toBe(4)
-    // The next tick they are one splat on the floor, as wide as the king, in
+    // The next pose they are one splat on the floor, as wide as the king, in
     // the first slime's colours: not the four landed on one spot.
-    const splat = at(16)
+    const splat = at(splatStarts)
     expect(grounded(splat)).toBe(true)
     expect(right(splat) - left(splat) + 1).toBe(KING_WIDTH)
     expect(bodies(splat)).toBe(1)
@@ -472,13 +532,13 @@ describe('King Slime', () => {
     expect([left(at(out)), right(at(out))]).toEqual([left(at(collide)) - 1, right(at(collide)) + 1])
     expect(bodies(at(out))).toBe(4)
     expect(grounded(at(out))).toBe(true)
-    expect(atTop(at(out + 3))).toBe(true)
-    expect(grounded(at(out + 7))).toBe(true)
-    expect(left(at(out + 7))).toBeLessThan(left(at(out)))
-    expect(left(at(out + 7))).toBeGreaterThan(0)
-    expect(at(out + 9)).toEqual(at(out + 7))
-    expect(atTop(at(out + 12))).toBe(true)
-    expect(left(at(out + 15))).toBe(0)
+    expect(atTop(at(out + top))).toBe(true)
+    expect(grounded(at(halfwayHome))).toBe(true)
+    expect(left(at(halfwayHome))).toBeLessThan(left(at(out)))
+    expect(left(at(halfwayHome))).toBeGreaterThan(0)
+    expect(at(lastCrouch)).toEqual(at(halfwayHome))
+    expect(atTop(at(lastCrouch + top))).toBe(true)
+    expect(left(at(homeLanding))).toBe(0)
   })
 
   test('however many slimes, every one shows where they collide and leap out', async () => {

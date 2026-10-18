@@ -8,8 +8,8 @@ const STAND = ['...B...', '..BHB..', '.BKBKB.', '.BBBBB.']
 const SQUASH = ['..BHB..', '.BKBKB.', 'BBBBBBB']
 
 export const FRAME_MS = 80
-// Preserve the shipped poses and their pace until the new motion tables land.
-const POSE_MS = 140
+// Two clock ticks (160 ms) is the nearest whole-tick hold to the shipped poses.
+export const HOP_POSE_TICKS = 2
 
 export const SLIME_WIDTH = 7
 export const STAGE_ROWS = 3
@@ -18,7 +18,7 @@ const STAGE_PIXELS = STAGE_ROWS * 2
 type Pose = { sprite: readonly string[]; lift: number }
 
 // One hop: rest, crouch, spring up two pixels, hang, land, rest a while.
-export const HOP: readonly Pose[] = [
+export const HOP: readonly Pose[] = ([
   { sprite: STAND, lift: 0 },
   { sprite: SQUASH, lift: 0 },
   { sprite: STAND, lift: 1 },
@@ -29,7 +29,8 @@ export const HOP: readonly Pose[] = [
   { sprite: STAND, lift: 0 },
   { sprite: STAND, lift: 0 },
   { sprite: STAND, lift: 0 },
-]
+] satisfies Pose[]).flatMap(pose => Array<Pose>(HOP_POSE_TICKS).fill(pose))
+export const HOP_TICKS = HOP.length
 
 type Kin = { body: number; highlight: number; eye: number }
 
@@ -83,7 +84,7 @@ function kinPalette(i: number): Palette {
 // A null `tick` is the slimes at rest: all of them sitting on the floor.
 function pose(i: number, tick: number | null): Pose {
   if (tick === null) return HOP[0] as Pose
-  return HOP[(Math.floor(tick * FRAME_MS / POSE_MS) + (PHASE[i % PHASE.length] ?? 0)) % HOP.length] as Pose
+  return HOP[(tick + (PHASE[i % PHASE.length] ?? 0) * HOP_POSE_TICKS) % HOP.length] as Pose
 }
 
 // The stage's pixels for `count` slimes at `tick`: a color per pixel, or null.
@@ -127,18 +128,19 @@ const TWINKLES = [
   [[-2, 2], [14, 0], [15, 4]],
 ]
 
-// One leap, in ticks: crouch, rise, the top, fall, land.
-export const LEAP = 5
-// Where the slimes collide, on the fall of the second leap in: they leap out
-// of the king from there too, so none of them pops out of nowhere.
-const COLLIDE = 0.5 + (0.5 * (LEAP - 2)) / (LEAP - 1)
-// The show, in ticks: leap to halfway, leap together and collide in the air,
-// land merged, flash, the king's reign, flash, leap out twice, and rest.
-const GATHER = LEAP + LEAP - 1
-const MERGE = MERGED.length
-const REIGN = 24
-const SCATTER = LEAP * 2 + 1
-export const KING_SHOW_TICKS = Math.floor((GATHER + MERGE + 2 + REIGN + 2 + SCATTER) * POSE_MS / FRAME_MS)
+// Each shipped King pose holds for two whole ticks, just like the hop.
+export const KING_POSE_TICKS = 2
+// One leap: crouch, rise, the top, fall, land.
+export const LEAP = 5 * KING_POSE_TICKS
+// Collide on the fall of the second leap, then leap out from that same spot.
+const COLLIDE = 0.5 + (0.5 * (LEAP - 2 * KING_POSE_TICKS)) / (LEAP - KING_POSE_TICKS)
+// Keep the shipped sequence; shorten the reign to keep the whole show near 7 s.
+export const KING_GATHER_TICKS = LEAP * 2 - KING_POSE_TICKS
+export const KING_MERGE_TICKS = MERGED.length * KING_POSE_TICKS
+export const KING_FLASH_TICKS = 2 * KING_POSE_TICKS
+export const KING_REIGN_TICKS = 34
+export const KING_SCATTER_TICKS = LEAP * 2 + KING_POSE_TICKS
+export const KING_SHOW_TICKS = KING_GATHER_TICKS + KING_MERGE_TICKS + KING_FLASH_TICKS + KING_REIGN_TICKS + KING_FLASH_TICKS + KING_SCATTER_TICKS
 
 // Two slimes' room is the least the king needs.
 export function canCrown(count: number): boolean {
@@ -162,8 +164,9 @@ export function nextMoment(active: Moment | null, incoming: Moment, count: numbe
 // away from the middle, so short of it they keep their order and all show.
 function leap(pixels: Pixels, count: number, from: number, to: number, step: number) {
   const middle = Math.floor((slimeColumns(count) - SLIME_WIDTH) / 2)
-  const t = from + ((to - from) * step) / (LEAP - 1)
-  const lift = step === 0 || step === LEAP - 1 ? 0 : step === 2 ? 2 : 1
+  const heldStep = step - step % KING_POSE_TICKS
+  const t = from + ((to - from) * heldStep) / (LEAP - KING_POSE_TICKS)
+  const lift = heldStep === 0 || heldStep === LEAP - KING_POSE_TICKS ? 0 : heldStep === 2 * KING_POSE_TICKS ? 2 : 1
   const sprite = lift === 0 ? SQUASH : STAND
   for (let i = 0; i < count; i += 1) {
     const home = i * SLIME_WIDTH
@@ -182,47 +185,48 @@ export function kingStage(count: number, frame: number, tick: number | null): Pi
   const pixels = blank(count)
   const kingX = Math.floor((slimeColumns(count) - KING_WIDTH) / 2)
   const king: Palette = { ...kinPalette(0), Y: GOLD, R: JEWEL }
-  let f = Math.floor(frame * FRAME_MS / POSE_MS)
-  if (f < GATHER) {
+  let f = frame
+  if (f < KING_GATHER_TICKS) {
     if (f < LEAP) leap(pixels, count, 0, 0.5, f)
     else leap(pixels, count, 0.5, 1, f - LEAP)
     return pixels
   }
-  f -= GATHER
-  if (f < MERGE) {
-    const blob = MERGED[f] as string[]
+  f -= KING_GATHER_TICKS
+  if (f < KING_MERGE_TICKS) {
+    const blob = MERGED[f < KING_POSE_TICKS ? 0 : 1] as string[]
     paint(pixels, blob, Math.floor((slimeColumns(count) - (blob[0] ?? '').length) / 2), 0, kinPalette(0))
     return pixels
   }
-  f -= MERGE
-  if (f === 0) {
+  f -= KING_MERGE_TICKS
+  if (f < KING_POSE_TICKS) {
     paint(pixels, KING, kingX, 0, whiteOf(KING))
     return pixels
   }
-  if (f === 1) {
+  if (f < KING_FLASH_TICKS) {
     paint(pixels, POOF, kingX, 0, { W: WHITE })
     return pixels
   }
-  f -= 2
-  if (f < REIGN) {
-    paint(pixels, f % 8 === 5 ? KING_BLINK : KING, kingX, 0, king)
-    for (const [dx, row] of TWINKLES[Math.floor(f / 3) % 2] ?? []) {
+  f -= KING_FLASH_TICKS
+  if (f < KING_REIGN_TICKS) {
+    const reignPose = (f - f % KING_POSE_TICKS) / KING_POSE_TICKS
+    paint(pixels, reignPose % 8 === 5 ? KING_BLINK : KING, kingX, 0, king)
+    for (const [dx, row] of TWINKLES[Math.floor(reignPose / 3) % 2] ?? []) {
       const line = pixels[row ?? 0]
       const x = kingX + (dx ?? 0)
-      if (line && x >= 0 && x < line.length) line[x] = f % 2 === 0 ? GOLD : WHITE
+      if (line && x >= 0 && x < line.length) line[x] = reignPose % 2 === 0 ? GOLD : WHITE
     }
     return pixels
   }
-  f -= REIGN
-  if (f === 0) {
+  f -= KING_REIGN_TICKS
+  if (f < KING_POSE_TICKS) {
     paint(pixels, KING, kingX, 0, whiteOf(KING))
     return pixels
   }
-  if (f === 1) {
+  if (f < KING_FLASH_TICKS) {
     paint(pixels, POOF, kingX, 0, { W: WHITE })
     return pixels
   }
-  f -= 2
+  f -= KING_FLASH_TICKS
   if (f < LEAP) leap(pixels, count, COLLIDE, 0.5, f)
   else if (f < LEAP * 2) leap(pixels, count, 0.5, 0, f - LEAP)
   else return stage(count, tick)
