@@ -18,6 +18,8 @@ export const SLIME_WIDTH = 7
 export const STAGE_ROWS = 3
 const STAGE_PIXELS = STAGE_ROWS * 2
 
+export type Rest = 'hop' | 'breathe' | 'still'
+
 type Pose = { sprite: readonly string[]; lift: number }
 
 // One hop: rest, crouch, spring up one pixel, hang, land, rest a while.
@@ -47,13 +49,17 @@ export const FAMILY: readonly Kin[] = [
 // Each one starts its hop at a different moment, so they never move in step.
 const PHASE = [0, 4, 7, 2]
 
+const BLINK_EVERY_CYCLES = 3
+const BREATH_SQUISH_TICKS = 2
+type Breath = { period: number; blink: number }
+
 // A short squish at the end of each kin's own breathing cycle.
 const BREATH = [
   { period: 36, blink: 12 },
   { period: 44, blink: 18 },
   { period: 50, blink: 24 },
   { period: 40, blink: 30 },
-]
+] satisfies Breath[]
 
 const DEFAULT = 0x01000000
 const TOP_HALF = 0x2580
@@ -94,21 +100,23 @@ function kinPalette(i: number): Palette {
 }
 
 // A null `tick` is the slimes at rest: all of them sitting on the floor.
-function pose(i: number, tick: number | null, isBreathing: boolean): Pose {
-  if (tick === null) return HOP[0] as Pose
-  if (isBreathing) {
-    const breath = BREATH[i % BREATH.length] as { period: number; blink: number }
-    const isBlinking = tick % (breath.period * 3) === breath.period * 2 + breath.blink
-    return { sprite: isBlinking ? BLINK : tick % breath.period >= breath.period - 2 ? WIDE : STAND, lift: 0 }
+function pose(i: number, tick: number | null, rest: Rest): Pose {
+  if (tick === null || rest === 'still') return { sprite: STAND, lift: 0 }
+  if (rest === 'breathe') {
+    const breath = BREATH[i % BREATH.length] as Breath
+    const isBlinking = tick % (breath.period * BLINK_EVERY_CYCLES) === breath.period * (BLINK_EVERY_CYCLES - 1) + breath.blink
+    if (isBlinking) return { sprite: BLINK, lift: 0 }
+    const isSquishing = tick % breath.period >= breath.period - BREATH_SQUISH_TICKS
+    return { sprite: isSquishing ? WIDE : STAND, lift: 0 }
   }
   return HOP[(tick + (PHASE[i % PHASE.length] ?? 0) * HOP_POSE_TICKS) % HOP.length] as Pose
 }
 
 // The stage's pixels for `count` slimes at `tick`: a color per pixel, or null.
-export function stage(count: number, tick: number | null, isBreathing = false): Pixels {
+export function stage(count: number, tick: number | null, rest: Rest = 'breathe'): Pixels {
   const pixels = blank(count)
   for (let i = 0; i < count; i += 1) {
-    const p = pose(i, tick, isBreathing)
+    const p = pose(i, tick, rest)
     paint(pixels, p.sprite, i * SLIME_WIDTH, p.lift, kinPalette(i))
   }
   return pixels
@@ -199,7 +207,7 @@ function whiteOf(sprite: readonly string[]): Palette {
 
 // The stage `frame` ticks into the King Slime show; `tick` poses the slimes
 // once they are home again.
-export function kingStage(count: number, frame: number, tick: number | null, isBreathing = false): Pixels {
+export function kingStage(count: number, frame: number, tick: number | null, rest: Rest = 'breathe'): Pixels {
   const pixels = blank(count)
   const kingX = Math.floor((slimeColumns(count) - KING_WIDTH) / 2)
   const king: Palette = { ...kinPalette(0), Y: GOLD, R: JEWEL }
@@ -247,18 +255,17 @@ export function kingStage(count: number, frame: number, tick: number | null, isB
   f -= KING_FLASH_TICKS
   if (f < LEAP) leap(pixels, count, COLLIDE, 0.5, f)
   else if (f < LEAP * 2) leap(pixels, count, 0.5, 0, f - LEAP)
-  else return stage(count, tick, isBreathing)
+  else return stage(count, tick, rest)
   return pixels
 }
 
 // The stage as Raster cells: base64 of [codePoint, fg, bg] u32 triplets.
 // Moments take the stage over resting motion; their start tick shares the clock.
-export function slimeCells(count: number, tick: number, moment: Moment | null = null, isHopping = true, isBreathing = false): string {
-  const restTick = isHopping || isBreathing ? tick : null
+export function slimeCells(count: number, tick: number, moment: Moment | null = null, rest: Rest = 'breathe'): string {
   const frame = moment?.kind === 'king' ? tick - moment.startTick : null
   const pixels = frame !== null && frame >= 0 && frame < KING_SHOW_TICKS && canCrown(count)
-    ? kingStage(count, frame, restTick, !isHopping && isBreathing)
-    : stage(count, restTick, !isHopping && isBreathing)
+    ? kingStage(count, frame, tick, rest)
+    : stage(count, tick, rest)
   const width = slimeColumns(count)
   const words = new Uint32Array(width * STAGE_ROWS * 3)
   for (let row = 0; row < STAGE_ROWS; row += 1) {

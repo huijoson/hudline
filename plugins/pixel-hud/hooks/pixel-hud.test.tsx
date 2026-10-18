@@ -34,45 +34,60 @@ import {
   slimeCells,
   slimeColumns,
   slimeText,
+  SLIME_WIDTH,
   stage,
 } from './slime'
 import type { Moment } from './slime'
 
 const WHITE = 0xfcfcfc
 const MOUTH = 0x981828
+// Ticket #8's per-kin breathing periods, in clock ticks.
+const BREATH_PERIODS = [36, 44, 50, 40]
+const BLINK_EVERY_CYCLES = 3
+const LONGEST_BREATH_PERIOD = Math.max(...BREATH_PERIODS)
+const BLINK_OBSERVATION_TICKS = BLINK_EVERY_CYCLES * LONGEST_BREATH_PERIOD
+const TIP_ROW = 1
+const TIP_COLUMN = 3
+const EYE_ROW = 3
+const LEFT_EYE_COLUMN = 2
+const RIGHT_EYE_COLUMN = 4
+
+function slimeFace(pixels: (number | null)[][], i: number) {
+  return pixels.map(row => row.slice(i * SLIME_WIDTH, (i + 1) * SLIME_WIDTH))
+}
 
 const SPRITE_ROW = pack(BRANCH_SPRITE)[0]
 
 describe('pixel font', () => {
-  test('packs a glyph into three half-block rows', async () => {
+  test('packs a glyph into three half-block rows', () => {
     expect(pixelText('a')).toEqual(['▄▀▄', '█▀█', '▀ ▀'])
   })
 
-  test('spaces glyphs one column apart', async () => {
+  test('spaces glyphs one column apart', () => {
     expect(pixelText('ii')[0]?.length).toBe(pixelWidth(2))
   })
 })
 
 describe('format, as hudline writes it', () => {
-  test('fills five cells by percent', async () => {
+  test('fills five cells by percent', () => {
     expect(bar(42)).toBe('▰▰▱▱▱')
     expect(bar(83)).toBe('▰▰▰▰▱')
     expect(bar(0)).toBe('▱▱▱▱▱')
     expect(bar(140)).toBe('▰▰▰▰▰')
   })
 
-  test('shortens token counts', async () => {
+  test('shortens token counts', () => {
     expect(tokens(1_234_567)).toBe('1.2M')
     expect(tokens(21_100)).toBe('21.1k')
     expect(tokens(512)).toBe('512')
   })
 
-  test('writes cost the way /cost does', async () => {
+  test('writes cost the way /cost does', () => {
     expect(usd(1.234)).toBe('$1.23')
     expect(usd(0.2304)).toBe('$0.2304')
   })
 
-  test('names the model with its version', async () => {
+  test('names the model with its version', () => {
     expect(modelName('claude-opus-5-5')).toBe('Opus 5.5')
     expect(modelName('claude-sonnet-5')).toBe('Sonnet 5')
     expect(modelName('claude-haiku-4-5-20251001')).toBe('Haiku 4.5')
@@ -80,18 +95,18 @@ describe('format, as hudline writes it', () => {
     expect(modelName('mystery')).toBe('mystery')
   })
 
-  test('ignores a missing reset time', async () => {
+  test('ignores a missing reset time', () => {
     expect(resetClock(undefined)).toBe(null)
     expect(resetDate('not a date')).toBe(null)
   })
 
-  test('writes a reset as the local clock time or the local date', async () => {
+  test('writes a reset as the local clock time or the local date', () => {
     const at = new Date(2026, 9, 9, 7, 5).toISOString()
     expect(resetClock(at)).toBe('07:05')
     expect(resetDate(at)).toBe('10/09')
   })
 
-  test('reads fullness and remaining on opposite ramps', async () => {
+  test('reads fullness and remaining on opposite ramps', () => {
     expect(fullnessRole(42)).toBe('ok')
     expect(fullnessRole(75)).toBe('warn')
     expect(fullnessRole(82)).toBe('danger')
@@ -100,14 +115,14 @@ describe('format, as hudline writes it', () => {
     expect(remainingRole(19)).toBe('danger')
   })
 
-  test('narrates the alarm that stops you soonest', async () => {
+  test('narrates the alarm that stops you soonest', () => {
     expect(say(88, 6, 12)).toBe('ctx_full')
     expect(say(30, 6, 12)).toBe('five_hour_low')
     expect(say(30, 90, 12)).toBe('weekly_low')
     expect(say(30, 90, 95)).toBe(null)
   })
 
-  test('sums a transcript once per message, thinking as a share of out', async () => {
+  test('sums a transcript once per message, thinking as a share of out', () => {
     const row = (id: string, out: number, thinking: number) =>
       JSON.stringify({
         type: 'assistant',
@@ -265,10 +280,15 @@ test('picks up a branch switched outside Claude Code on the next poll', async ($
 })
 
 describe('slime family', () => {
-  test('each kin has white eyes, dark pupils, a red grin and a shaded lower edge', async () => {
+  test('the default Raster breathes at rest', () => {
+    const firstSquishTick = 34
+    expect(slimeCells(4, firstSquishTick)).toBe(slimeCells(4, firstSquishTick, null, 'breathe'))
+  })
+
+  test('each kin has white eyes, dark pupils, a red grin and a shaded lower edge', () => {
     const rest = stage(4, null)
     for (const [i, kin] of FAMILY.entries()) {
-      const face = rest.map(row => row.slice(i * 7, (i + 1) * 7))
+      const face = slimeFace(rest, i)
       expect(face[0]?.every(p => p === null)).toBe(true)
       expect(face[1]?.filter(p => p !== null)).toEqual([kin.body])
       expect(face[3]?.filter(p => p === WHITE).length).toBe(2)
@@ -283,69 +303,63 @@ describe('slime family', () => {
     }
   })
 
-  test('breath widens for two ticks and returns to stand at each kin’s own pace', async () => {
+  test('breath widens for two ticks and returns to stand at each kin’s own pace', () => {
     const firstCycleTick = 0
-    const breathPeriods = [36, 44, 50, 40]
     const rest = stage(4, null)
     const poses: string[][] = []
-    for (const [i, period] of breathPeriods.entries()) {
+    for (const [i, period] of BREATH_PERIODS.entries()) {
       const frames: string[] = []
       for (let tick = firstCycleTick; tick <= period; tick += 1) {
-        const pixels = stage(4, tick, true)
-        const face = pixels.map(row => row.slice(i * 7, (i + 1) * 7))
+        const pixels = stage(4, tick, 'breathe')
+        const face = slimeFace(pixels, i)
         expect(face[5]?.some(p => p !== null)).toBe(true)
         frames.push(JSON.stringify(face))
       }
-      const standing = JSON.stringify(rest.map(row => row.slice(i * 7, (i + 1) * 7)))
+      const standing = JSON.stringify(slimeFace(rest, i))
       expect(frames.filter(frame => frame !== standing).length).toBe(2)
       expect(frames.at(-1)).toBe(standing)
       poses.push(frames.map(frame => frame === standing ? 'stand' : 'wide'))
     }
     for (let left = 0; left < poses.length; left += 1) {
       for (let right = left + 1; right < poses.length; right += 1) {
-        const sharedTicks = Math.min(breathPeriods[left] ?? 0, breathPeriods[right] ?? 0)
+        const sharedTicks = Math.min(BREATH_PERIODS[left] ?? 0, BREATH_PERIODS[right] ?? 0)
         expect(poses[left]?.slice(0, sharedTicks)).not.toEqual(poses[right]?.slice(0, sharedTicks))
       }
     }
   })
 
-  test('each kin blinks once every third breath at its own offset', async () => {
-    const breathPeriods = [36, 44, 50, 40]
+  test('each kin blinks once every third breath at its own offset', () => {
     const blinkTicks: number[] = []
-    for (const [i, period] of breathPeriods.entries()) {
-      const blinkCycleTicks = period * 3
+    for (const [i, period] of BREATH_PERIODS.entries()) {
+      const blinkCycleTicks = period * BLINK_EVERY_CYCLES
       const blinks: number[] = []
       for (let tick = 0; tick < blinkCycleTicks; tick += 1) {
-        const face = stage(4, tick, true).map(row => row.slice(i * 7, (i + 1) * 7))
-        if (face[1]?.[3] !== null && face[3]?.[2] !== WHITE && face[3]?.[4] !== WHITE) blinks.push(tick)
+        const face = slimeFace(stage(4, tick, 'breathe'), i)
+        if (face[TIP_ROW]?.[TIP_COLUMN] !== null && face[EYE_ROW]?.[LEFT_EYE_COLUMN] !== WHITE && face[EYE_ROW]?.[RIGHT_EYE_COLUMN] !== WHITE) blinks.push(tick)
       }
       expect(blinks.length).toBe(1)
       const blinkTick = blinks[0] ?? 0
       blinkTicks.push(blinkTick)
-      const nextBlink = stage(4, blinkTick + blinkCycleTicks, true).map(row => row.slice(i * 7, (i + 1) * 7))
-      const firstBlink = stage(4, blinkTick, true).map(row => row.slice(i * 7, (i + 1) * 7))
+      const nextBlink = slimeFace(stage(4, blinkTick + blinkCycleTicks, 'breathe'), i)
+      const firstBlink = slimeFace(stage(4, blinkTick, 'breathe'), i)
       expect(nextBlink).toEqual(firstBlink)
     }
     expect(new Set(blinkTicks).size).toBe(FAMILY.length)
   })
 
-  test('hopping supersedes breath and the King returns to breathing', async () => {
-    const blinkCycleTicks = 3 * 50
-    for (let tick = 0; tick < blinkCycleTicks; tick += 1) {
-      expect(slimeCells(4, tick, null, true, true)).toBe(slimeCells(4, tick, null, true, false))
-    }
+  test('the King returns to breathing', () => {
     const king: Moment = { kind: 'king', startTick: 0 }
     const kingSettles = KING_SHOW_TICKS - 1
     const kingEnds = KING_SHOW_TICKS
-    expect(slimeCells(4, kingSettles, king, false, true)).toBe(slimeCells(4, kingSettles, null, false, true))
-    expect(slimeCells(4, kingEnds, king, false, true)).toBe(slimeCells(4, kingEnds, null, false, true))
+    expect(slimeCells(4, kingSettles, king, 'breathe')).toBe(slimeCells(4, kingSettles, null, 'breathe'))
+    expect(slimeCells(4, kingEnds, king, 'breathe')).toBe(slimeCells(4, kingEnds, null, 'breathe'))
   })
 
-  test('holds each hop pose for two ticks without cadence stutter', async () => {
+  test('holds each hop pose for two ticks without cadence stutter', () => {
     const runs: number[] = []
     let previous = ''
     for (let tick = 0; tick < HOP_TICKS; tick += 1) {
-      const cells = slimeCells(1, tick)
+      const cells = slimeCells(1, tick, null, 'hop')
       if (cells === previous) runs[runs.length - 1] = (runs[runs.length - 1] ?? 0) + 1
       else runs.push(1)
       previous = cells
@@ -354,10 +368,10 @@ describe('slime family', () => {
     expect(runs).toEqual([2, 2, 8, 2, 6])
   })
 
-  test('the pointed tip stays visible throughout a hop in the six-pixel stage', async () => {
+  test('the pointed tip stays visible throughout a hop in the six-pixel stage', () => {
     let airborneTicks = 0
     for (let tick = 0; tick < HOP_TICKS; tick += 1) {
-      const pixels = stage(1, tick)
+      const pixels = stage(1, tick, 'hop')
       const top = pixels.find(row => row.some(p => p !== null))
       if (!pixels[5]?.some(p => p !== null)) {
         airborneTicks += 1
@@ -368,8 +382,8 @@ describe('slime family', () => {
     expect(airborneTicks).toBeGreaterThan(0)
   })
 
-  test('stands on the floor at rest and leaves it mid-hop', async () => {
-    const floor = (tick: number) => stage(1, tick)[5]?.some(p => p !== null)
+  test('stands on the floor at rest and leaves it mid-hop', () => {
+    const floor = (tick: number) => stage(1, tick, 'hop')[5]?.some(p => p !== null)
     expect(floor(0)).toBe(true)
     expect(Array.from({ length: HOP_TICKS }, (_, tick) => floor(tick))).toContain(false)
     expect(floor(HOP_TICKS)).toBe(true)
@@ -377,27 +391,27 @@ describe('slime family', () => {
     expect(floor(3 * HOP_POSE_TICKS)).toBe(false)
   })
 
-  test('at rest every slime sits on the floor', async () => {
+  test('at rest every slime sits on the floor', () => {
     const rest = stage(4, null)
     for (let i = 0; i < 4; i += 1) {
-      expect(rest[5]?.slice(i * slimeColumns(1), (i + 1) * slimeColumns(1)).some(p => p !== null)).toBe(true)
+      expect(slimeFace(rest, i)[5]?.some(p => p !== null)).toBe(true)
     }
     expect(rest[0]?.some(p => p !== null)).toBe(false)
   })
 
-  test('the crouch keeps the white eyes and grin in a lower silhouette', async () => {
-    const crouch = stage(1, 2)
+  test('the crouch keeps the white eyes and grin in a lower silhouette', () => {
+    const crouch = stage(1, 2, 'hop')
     expect(crouch.slice(0, 2).flat().every(p => p === null)).toBe(true)
     expect(crouch.flat().filter(p => p === WHITE).length).toBe(2)
     expect(crouch[5]?.includes(MOUTH)).toBe(true)
   })
 
-  test('packs a frame into three rows of Raster cells', async () => {
+  test('packs a frame into three rows of Raster cells', () => {
     const bytes = atob(slimeCells(3, 0)).length
     expect(bytes).toBe(slimeColumns(3) * 3 * 3 * 4)
   })
 
-  test('draws a resting frame as text where there is no Raster', async () => {
+  test('draws a resting frame as text where there is no Raster', () => {
     const rows = slimeText(4)
     expect(rows.length).toBe(3)
     for (let i = 0; i < 4; i += 1) {
@@ -407,32 +421,34 @@ describe('slime family', () => {
   })
 })
 
-test('the slimes hop beside the branch on the terminal and rest on desktop', { options: { slimesHop: true } }, async ($, on) => {
-  const clock = mock.clock(on)
-  const blits: string[] = []
-  on('ui.blit', async (_$, e) => {
-    if ('cells' in e) blits.push(e.cells)
-    return { value: {} }
+for (const slimesIdle of [true, false]) {
+  test(`the slimes hop on terminal and rest on desktop with slimesIdle=${slimesIdle}`, { options: { slimesHop: true, slimesIdle } }, async ($, on) => {
+    const clock = mock.clock(on)
+    const blits: string[] = []
+    on('ui.blit', async (_$, e) => {
+      if ('cells' in e) blits.push(e.cells)
+      return { value: {} }
+    })
+    answers(on, { name: 'main', porcelain: '', isRepo: true })
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+
+    const ui = await mount($, 'terminal', 10, 120)
+    const raster = await ui.find({ type: 'Raster', key: 'slimes' })
+    expect(raster?.props.columns).toBe(slimeColumns(4))
+    expect(raster?.props.rows).toBe(3)
+    const hopAirborneTick = 6
+    await clock.advance(FRAME_MS * hopAirborneTick)
+    expect(blits.at(-1)).toBe(slimeCells(4, hopAirborneTick, null, 'hop'))
+    expect(blits.length).toBeGreaterThan(0)
+    expect(new Set(blits).size).toBeGreaterThan(1)
+    await ui.unmount()
+
+    const desk = await mount($, 'desktop', 10, 120)
+    expect(await desk.find({ type: 'Raster' })).toBeUndefined()
+    expect(await desk.find({ type: 'Text', text: '███████' })).toBeDefined()
+    await desk.unmount()
   })
-  answers(on, { name: 'main', porcelain: '', isRepo: true })
-  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-
-  const ui = await mount($, 'terminal', 10, 120)
-  const raster = await ui.find({ type: 'Raster', key: 'slimes' })
-  expect(raster?.props.columns).toBe(slimeColumns(4))
-  expect(raster?.props.rows).toBe(3)
-  const hopAirborneTick = 6
-  await clock.advance(FRAME_MS * hopAirborneTick)
-  expect(blits.at(-1)).toBe(slimeCells(4, hopAirborneTick))
-  expect(blits.length).toBeGreaterThan(0)
-  expect(new Set(blits).size).toBeGreaterThan(1)
-  await ui.unmount()
-
-  const desk = await mount($, 'desktop', 10, 120)
-  expect(await desk.find({ type: 'Raster' })).toBeUndefined()
-  expect(await desk.find({ type: 'Text', text: '███████' })).toBeDefined()
-  await desk.unmount()
-})
+}
 
 test('each blit changes the seated cells, during hops and the King show', { options: { slimesHop: true } }, async ($, on) => {
   const clock = mock.clock(on)
@@ -517,15 +533,15 @@ test('with breath off the slimes sit still, and the King Slime still plays', { o
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await mount($, 'terminal', 10, 120)
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
-  expect(raster?.props.cells).toBe(slimeCells(4, 0, null, false))
-  const blinkCycleTicks = 3 * 50
+  expect(raster?.props.cells).toBe(slimeCells(4, 0, null, 'still'))
+  const blinkCycleTicks = BLINK_OBSERVATION_TICKS
   await clock.advance(FRAME_MS * blinkCycleTicks)
   expect(blits.length).toBe(0)
 
   await $.turn.complete({ answer: 'ok', durationMs: 60_000, isAborted: false, turnId: 't1', reason: 'answer' })
   await clock.advance(FRAME_MS * (KING_SHOW_TICKS + 2))
   expect(blits.some(goldIn)).toBe(true)
-  expect(blits.at(-1)).toBe(slimeCells(4, 0, null, false))
+  expect(blits.at(-1)).toBe(slimeCells(4, 0, null, 'still'))
 
   blits.length = 0
   await clock.advance(FRAME_MS * 10)
@@ -548,19 +564,19 @@ test('slimes give up their room before the branch name does', async ($, on) => {
 const kingReignStarts = KING_GATHER_TICKS + KING_MERGE_TICKS + KING_FLASH_TICKS
 
 describe('slime moments', () => {
-  test('King replaces another moment only when there is room, and renders from its start tick', async () => {
+  test('King replaces another moment only when there is room, and renders from its start tick', () => {
     const damage: Moment = { kind: 'damage', startTick: 1, target: 0 }
     const king: Moment = { kind: 'king', startTick: 100 }
     expect(nextMoment(damage, king, 1)).toEqual(damage)
     expect(nextMoment(null, king, 1)).toBe(null)
     const active = nextMoment(damage, king, 2)
     expect(active).toEqual(king)
-    expect(goldIn(slimeCells(2, king.startTick, active, false))).toBe(false)
-    expect(goldIn(slimeCells(2, king.startTick + kingReignStarts, active, false))).toBe(true)
-    expect(slimeCells(2, king.startTick + KING_SHOW_TICKS, active, false)).toBe(slimeCells(2, 0, null, false))
+    expect(goldIn(slimeCells(2, king.startTick, active, 'still'))).toBe(false)
+    expect(goldIn(slimeCells(2, king.startTick + kingReignStarts, active, 'still'))).toBe(true)
+    expect(slimeCells(2, king.startTick + KING_SHOW_TICKS, active, 'still')).toBe(slimeCells(2, 0, null, 'still'))
   })
 
-  test('only a higher-priority moment takes the stage, and dropped moments never return', async () => {
+  test('only a higher-priority moment takes the stage, and dropped moments never return', () => {
     const moments: Moment[] = [
       { kind: 'damage', startTick: 1, target: 2 },
       { kind: 'encounter', startTick: 2 },
@@ -575,12 +591,12 @@ describe('slime moments', () => {
     }
     const king = moments[3] as Moment
     const active = nextMoment(king, { kind: 'damage', startTick: 5, target: 0 }, 4)
-    expect(slimeCells(4, king.startTick + KING_SHOW_TICKS, active, false)).toBe(slimeCells(4, 0, null, false))
+    expect(slimeCells(4, king.startTick + KING_SHOW_TICKS, active, 'still')).toBe(slimeCells(4, 0, null, 'still'))
   })
 })
 
 describe('King Slime', () => {
-  test('holds each King pose for two ticks without cadence stutter', async () => {
+  test('holds each King pose for two ticks without cadence stutter', () => {
     const runs: number[] = []
     let previous = ''
     for (let frame = 0; frame < kingReignStarts; frame += 1) {
@@ -600,7 +616,7 @@ describe('King Slime', () => {
   const GOLD = 0xfcbc3c
   const hasGold = (pixels: (number | null)[][]) => pixels.some(row => row.includes(GOLD))
 
-  test('the king keeps its crown and jewel above white eyes and a wide red grin', async () => {
+  test('the king keeps its crown and jewel above white eyes and a wide red grin', () => {
     const pixels = kingStage(2, kingReignStarts, null)
     expect(pixels.length).toBe(6)
     expect(pixels[0]?.includes(0xf83800)).toBe(true)
@@ -613,7 +629,7 @@ describe('King Slime', () => {
     expect(kingStage(2, kingReignStarts + 10, null)[2]?.includes(WHITE)).toBe(false)
   })
 
-  test('both merged poses keep white eyes, pupils, a red grin and lower shading at their original sizes', async () => {
+  test('both merged poses keep white eyes, pupils, a red grin and lower shading at their original sizes', () => {
     for (const [offset, width, height] of [[0, 13, 3], [KING_POSE_TICKS, 11, 5]] as const) {
       const pixels = kingStage(2, KING_GATHER_TICKS + offset, null)
       const occupied = pixels.filter(row => row.some(p => p !== null))
@@ -627,12 +643,12 @@ describe('King Slime', () => {
     }
   })
 
-  test('needs two slimes of room', async () => {
+  test('needs two slimes of room', () => {
     expect(canCrown(1)).toBe(false)
     expect(canCrown(2)).toBe(true)
   })
 
-  test('the slimes gather, the king reigns crowned, and they end back home', async () => {
+  test('the slimes gather, the king reigns crowned, and they end back home', () => {
     expect(hasGold(kingStage(4, 0, 0))).toBe(false)
     expect(hasGold(kingStage(4, kingReignStarts, HOP_TICKS))).toBe(true)
     expect(kingStage(4, KING_SHOW_TICKS - 1, HOP_TICKS)).toEqual(stage(4, HOP_TICKS))
@@ -657,7 +673,7 @@ describe('King Slime', () => {
   const lastCrouch = out + LEAP
   const homeLanding = out + 2 * LEAP - KING_POSE_TICKS
 
-  test('the slimes leap toward the middle, moving only in the air', async () => {
+  test('the slimes leap toward the middle, moving only in the air', () => {
     // Crouched at home, up through the top of the leap, and landed halfway.
     expect(grounded(at(0))).toBe(true)
     expect(left(at(0))).toBe(0)
@@ -669,7 +685,7 @@ describe('King Slime', () => {
     expect(at(secondCrouch)).toEqual(at(firstLanding))
   })
 
-  test('the slimes collide in mid-air, further in than halfway, and land merged', async () => {
+  test('the slimes collide in mid-air, further in than halfway, and land merged', () => {
     expect(grounded(at(collide))).toBe(false)
     expect(left(at(collide))).toBeGreaterThan(left(at(firstLanding)))
     // Pressed together, every one of them still shows.
@@ -683,7 +699,7 @@ describe('King Slime', () => {
     expect(splat.some(row => row.includes(FAMILY[0]?.body ?? -1))).toBe(true)
   })
 
-  test('the slimes leap home in two hops, from where they collided', async () => {
+  test('the slimes leap home in two hops, from where they collided', () => {
     // Out of the king where they met, so every slime that went in comes out;
     // both the crouch and the standing face span seven pixels.
     expect([left(at(out)), right(at(out))]).toEqual([left(at(collide)), right(at(collide))])
@@ -698,13 +714,13 @@ describe('King Slime', () => {
     expect(left(at(homeLanding))).toBe(0)
   })
 
-  test('however many slimes, every one shows where they collide and leap out', async () => {
+  test('however many slimes, every one shows where they collide and leap out', () => {
     for (const count of [2, 3, 4]) {
       expect([count, bodies(at(collide, count)), bodies(at(out, count))]).toEqual([count, count, count])
     }
   })
 
-  test('the show lasts 6.5 to 7 seconds at 80 ms per frame', async () => {
+  test('the show lasts 6.5 to 7 seconds at 80 ms per frame', () => {
     expect(FRAME_MS).toBe(80)
     expect(KING_SHOW_TICKS * FRAME_MS).toBeGreaterThanOrEqual(6500)
     expect(KING_SHOW_TICKS * FRAME_MS).toBeLessThanOrEqual(7000)

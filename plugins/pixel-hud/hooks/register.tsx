@@ -22,7 +22,7 @@ import {
 import type { Role } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
 import { canCrown, FAMILY, FRAME_MS, KING_SHOW_TICKS, nextMoment, slimeCells, slimeColumns, slimeText, STAGE_ROWS } from './slime'
-import type { Moment } from './slime'
+import type { Moment, Rest } from './slime'
 
 const branch = atom({ plugin: 'pixel-hud', key: 'branch' } as const, null)
 const usage = atom({ plugin: 'pixel-hud', key: 'usage' } as const, null)
@@ -147,8 +147,7 @@ function fitBranch(name: string, isDirty: boolean, columns: number): { name: str
 
 export const register: Register = (on, options) => {
   // Hopping supersedes breath; moments take the stage over either.
-  const isHopping = options.slimesHop === true
-  const isBreathing = options.slimesIdle !== false
+  const rest: Rest = options.slimesHop === true ? 'hop' : options.slimesIdle !== false ? 'breathe' : 'still'
   let poll: Timer | undefined
   let hop: Timer | undefined
   let tick = 0
@@ -179,7 +178,7 @@ export const register: Register = (on, options) => {
       const drawn = stage
       if (!drawn) return
       const activeMoment = currentMoment()
-      const cells = slimeCells(drawn.slimes, tick, activeMoment, isHopping, isBreathing)
+      const cells = slimeCells(drawn.slimes, tick, activeMoment, rest)
       if (cells === drawn.cells) return
       drawn.cells = cells
       void $.ui
@@ -300,7 +299,7 @@ export const register: Register = (on, options) => {
     const slimes = fit?.slimes ?? 0
     // The terminal paints them in full color and can make them hop; elsewhere they rest.
     const Raster = e.surface === 'terminal' && slimes > 0 ? $.ui.resolve(e).Raster : null
-    const cells = Raster ? slimeCells(slimes, tick, currentMoment(), isHopping, isBreathing) : ''
+    const cells = Raster ? slimeCells(slimes, tick, currentMoment(), rest) : ''
     stage = Raster ? { requestId: e.requestId, slimes, cells } : null
     const still = Raster === null && slimes > 0 ? slimeText(slimes) : null
     const dirty = pixelText('*')
