@@ -1130,19 +1130,18 @@ describe('slime moments', () => {
 
   test('level-up hops every kin in unison, gold and white at the top, and ends standing', () => {
     const startTick = HOP_TICKS * 2 + 1
-    const hangTick = HOP_CROUCH_TICKS + HOP_LAUNCH_TICKS + HOP_RISE_TICKS
     const settleTick = HOP_TICKS - HOP_SETTLE_TICKS
     const floorRow = STAGE_ROWS * 2 - 1
     // Blue's own hop from its first crouch is the shape every kin shares.
     const hopShape = (frame: number) => shape(slimeFace(stage(1, frame, 'hop'), 0))
-    const blueHang = slimeFace(stage(1, hangTick, 'hop'), 0)
+    const blueHang = slimeFace(stage(1, hopTop, 'hop'), 0)
     const bodyPixels = blueHang.flat().filter(p => p === FAMILY[0]?.body).length
     for (const count of [1, 2, 3, 4]) {
       const levelUp: Moment = { kind: 'level-up', startTick }
       let isAllAirborne = false
       for (let frame = 0; frame < HOP_TICKS; frame += 1) {
         const pixels = slimePixels(slimeCells(count, startTick + frame, levelUp, 'still'))
-        const isGold = frame >= hangTick && frame < hangTick + HOP_HANG_TICKS
+        const isGold = frame >= hopTop && frame < hopFall
         for (let i = 0; i < count; i += 1) {
           const face = slimeFace(pixels, i)
           const kin = FAMILY[i] as (typeof FAMILY)[number]

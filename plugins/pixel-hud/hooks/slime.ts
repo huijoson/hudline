@@ -33,6 +33,7 @@ export const HOP_LAND_TICKS = 2
 export const HOP_REBOUND_TICKS = 1
 export const HOP_SETTLE_TICKS = 1
 const HOP_RISE_START = HOP_CROUCH_TICKS + HOP_LAUNCH_TICKS
+const HOP_HANG_START = HOP_RISE_START + HOP_RISE_TICKS
 const HOP_AIR_TICKS = HOP_RISE_TICKS + HOP_HANG_TICKS
 const HOP_FALL_START = HOP_RISE_START + HOP_AIR_TICKS
 
@@ -271,8 +272,6 @@ export const DAMAGE_COOLDOWN_TICKS = Math.round(2_000 / FRAME_MS)
 
 // One hop in unison with no Rest; its Settle is already the exact resting frame.
 const LEVEL_UP_ENDPOINT = HOP_TICKS - HOP_SETTLE_TICKS
-// Gold body and white highlight for the Hang at the top of the hop.
-const LEVEL_UP_GOLD_START = HOP_RISE_START + HOP_RISE_TICKS
 
 export const ENCOUNTER_STAGGER_TICKS = 3
 export const ENCOUNTER_FALL_TICKS = 3
@@ -446,7 +445,8 @@ function levelUpStage(moment: Moment, count: number, tick: number, rest: Rest): 
   const pixels = blank(count)
   const frame = tick - moment.startTick
   const endpointTick = moment.startTick + LEVEL_UP_ENDPOINT
-  const isGold = frame >= LEVEL_UP_GOLD_START && frame < HOP_FALL_START
+  // Gold body and white highlight for the Hang at the top of the hop.
+  const isGold = frame >= HOP_HANG_START && frame < HOP_FALL_START
   for (let i = 0; i < count; i += 1) {
     if (frame < LEVEL_UP_ENDPOINT) {
       const p = HOP[frame] as Pose
