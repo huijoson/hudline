@@ -661,6 +661,118 @@ test('the encounter waits for a stage, plays once, and expires before resting ho
   await ui.unmount()
 })
 
+test('failures flicker rotating kin after encounter expiry, with interrupt and cooldown filtering', { options: { slimesIdle: false } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('classic.PostToolUseFailure', async () => ({}) as never)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+  const count = FAMILY.length
+  const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
+  await clock.advance(FRAME_MS * encounterEnds)
+  const failure = { tool_name: 'Bash', tool_input: {}, tool_use_id: 'failed-tool', error: 'failed' }
+  const cooldownTicks = 25
+  let tick = encounterEnds
+  for (let failureIndex = 0; failureIndex <= count; failureIndex += 1) {
+    const beforeInterrupt = blits.length
+    await $.classic.PostToolUseFailure({ ...failure, is_interrupt: true } as never)
+    expect(blits.length).toBe(beforeInterrupt)
+    await $.classic.PostToolUseFailure(failure as never)
+    const damage: Moment = { kind: 'damage', startTick: tick, target: failureIndex % count }
+    expect(blits.at(-1)).toBe(slimeCells(count, tick, damage, 'still'))
+    for (let frame = 1; frame <= DAMAGE_TICKS + 1; frame += 1) {
+      await clock.advance(FRAME_MS)
+      expect(blits.at(-1)).toBe(slimeCells(count, tick + frame, damage, 'still'))
+    }
+    const beforeCooldown = blits.length
+    const justBeforeCooldown = cooldownTicks - 1
+    await clock.advance(FRAME_MS * (justBeforeCooldown - DAMAGE_TICKS - 1))
+    await $.classic.PostToolUseFailure(failure as never)
+    await clock.advance(FRAME_MS)
+    expect(blits.length).toBe(beforeCooldown)
+    tick += cooldownTicks
+  }
+  await ui.unmount()
+})
+
+test('damage yields to encounter and King without consuming a target or cooldown', { options: { slimesIdle: false } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('classic.PostToolUseFailure', async () => ({}) as never)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+  const count = FAMILY.length
+  const failure = { tool_name: 'Bash', tool_input: {}, tool_use_id: 'failed-tool', error: 'failed' }
+  const encounter: Moment = { kind: 'encounter', startTick: 0 }
+  const encounterEnds = momentEndTick(encounter, count, 'still')
+  const lastEncounterTick = encounterEnds - 1
+  await clock.advance(FRAME_MS * lastEncounterTick)
+  const beforeFailure = blits.length
+  await $.classic.PostToolUseFailure(failure as never)
+  expect(blits.length).toBe(beforeFailure)
+  await clock.advance(FRAME_MS)
+  await $.classic.PostToolUseFailure(failure as never)
+  const firstDamage: Moment = { kind: 'damage', startTick: encounterEnds, target: 0 }
+  expect(blits.at(-1)).toBe(slimeCells(count, encounterEnds, firstDamage, 'still'))
+  await $.command.run(KING)
+  const king: Moment = { kind: 'king', startTick: encounterEnds }
+  const kingEnds = momentEndTick(king, count, 'still')
+  const lastKingTick = kingEnds - 1
+  await clock.advance(FRAME_MS * (lastKingTick - encounterEnds))
+  const beforeKingFailure = blits.length
+  await $.classic.PostToolUseFailure(failure as never)
+  expect(blits.length).toBe(beforeKingFailure)
+  await clock.advance(FRAME_MS)
+  await $.classic.PostToolUseFailure(failure as never)
+  const nextDamage: Moment = { kind: 'damage', startTick: kingEnds, target: 1 }
+  expect(blits.at(-1)).toBe(slimeCells(count, kingEnds, nextDamage, 'still'))
+  await ui.unmount()
+})
+
+test('damage returns to grounded hopping, expires, and admits the next failure', { options: { slimesHop: true } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('classic.PostToolUseFailure', async () => ({}) as never)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+  const count = FAMILY.length
+  const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'hop')
+  await clock.advance(FRAME_MS * encounterEnds)
+  const failure = { tool_name: 'Bash', tool_input: {}, tool_use_id: 'failed-tool', error: 'failed' }
+  await $.classic.PostToolUseFailure(failure as never)
+  const damage: Moment = { kind: 'damage', startTick: encounterEnds, target: 0 }
+  const endpointTick = encounterEnds + DAMAGE_TICKS
+  const expiryTick = momentEndTick(damage, count, 'hop')
+  expect(Number.isFinite(expiryTick)).toBe(true)
+  const cooldownTicks = 25
+  const nextFailureTick = encounterEnds + cooldownTicks
+  for (let tick = encounterEnds + 1; tick <= nextFailureTick; tick += 1) {
+    await clock.advance(FRAME_MS)
+    expect(blits.at(-1)).toBe(slimeCells(count, tick, damage, 'hop'))
+    if (tick === endpointTick) expect(blits.at(-1)).toBe(slimeCells(count, tick, null, 'still'))
+    if (tick >= expiryTick) expect(blits.at(-1)).toBe(slimeCells(count, tick, null, 'hop'))
+  }
+  await $.classic.PostToolUseFailure(failure as never)
+  const nextDamage: Moment = { kind: 'damage', startTick: nextFailureTick, target: 1 }
+  expect(blits.at(-1)).toBe(slimeCells(count, nextFailureTick, nextDamage, 'hop'))
+  await ui.unmount()
+})
+
 test('clear, polls and remounts do not replay an encounter displaced by the King', { options: { slimesIdle: false } }, async ($, on) => {
   const clock = mock.clock(on)
   const blits: string[] = []

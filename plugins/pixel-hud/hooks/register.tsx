@@ -51,6 +51,7 @@ const SLIMES_KEY = 'slimes'
 // A task long enough to earn the King Slime: the slimes merge, reign, and split.
 const KING_AFTER_MS = 20_000
 const KING_COMMAND = 'slime-king'
+const DAMAGE_COOLDOWN_TICKS = 25
 // $.fs.read refuses files over 4 MiB.
 const READ_LIMIT = 4 * 1024 * 1024
 
@@ -145,6 +146,22 @@ function fitBranch(name: string, isDirty: boolean, columns: number): { name: str
   return { name: name.length <= room ? name : `${name.slice(0, room - 2)}..`, slimes: 0 }
 }
 
+type SlimeStage = { requestId: string; slimes: number; cells: string }
+
+async function repaint($: EngineInterface, drawn: SlimeStage | null, tick: number, moment: Moment | null, rest: Rest): Promise<SlimeStage | null> {
+  if (!drawn) return null
+  const cells = slimeCells(drawn.slimes, tick, moment, rest)
+  if (cells === drawn.cells) return null
+  drawn.cells = cells
+  try {
+    const result = await $.ui.blit({ requestId: drawn.requestId, key: SLIMES_KEY, cells })
+    // Gone (band hidden, redrawn without them): rest until a render seats them again.
+    return 'deny' in result ? drawn : null
+  } catch {
+    return null
+  }
+}
+
 export const register: Register = (on, options) => {
   // Hopping supersedes breath; moments take the stage over either.
   const rest: Rest = options.slimesHop === true ? 'hop' : options.slimesIdle !== false ? 'breathe' : 'still'
@@ -152,15 +169,20 @@ export const register: Register = (on, options) => {
   let hop: Timer | undefined
   let tick = 0
   // The band the slimes were last drawn in, and how many: what a blit repaints.
-  let stage: { requestId: string; slimes: number; cells: string } | null = null
+  let stage: SlimeStage | null = null
   // Keep one active moment so competing triggers cannot fight over the stage.
   let moment: Moment | null = null
   // Armed once per session; consumed by the first eligible Raster stage.
   let encounterPending = false
+  let lastDamageTick = -Infinity
+  let damageTarget = 0
   // Rendering and expiry share the same endpoint and grounded rejoin rule.
   const currentMoment = () => {
     if (moment && tick >= momentEndTick(moment, stage?.slimes ?? FAMILY.length, rest)) moment = null
     return moment
+  }
+  const unseat = (denied: SlimeStage | null) => {
+    if (denied && stage === denied) stage = null
   }
   // Starts the show unless one is playing or there is no room for the king.
   const crown = (): 'crowned' | 'reigning' | 'no-room' => {
@@ -172,6 +194,8 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     encounterPending = true
+    lastDamageTick = -Infinity
+    damageTarget = 0
     // Discard the previous session: session.start never fires on /clear,
     // so neither this reset nor the pending encounter can replay there.
     moment = null
@@ -182,19 +206,7 @@ export const register: Register = (on, options) => {
     hop?.cancel()
     hop = $.clock.every(FRAME_MS, () => {
       tick += 1
-      const drawn = stage
-      if (!drawn) return
-      const activeMoment = currentMoment()
-      const cells = slimeCells(drawn.slimes, tick, activeMoment, rest)
-      if (cells === drawn.cells) return
-      drawn.cells = cells
-      void $.ui
-        .blit({ requestId: drawn.requestId, key: SLIMES_KEY, cells })
-        .then(r => {
-          // Gone (band hidden, redrawn without them): rest until a render seats them again.
-          if ('deny' in r && stage === drawn) stage = null
-        })
-        .catch(() => undefined)
+      void repaint($, stage, tick, currentMoment(), rest).then(unseat)
     })
     // Last, so a refused command never keeps the slimes from hopping.
     await $.command
@@ -248,6 +260,21 @@ export const register: Register = (on, options) => {
   on('session.measure', async ($, e, next) => {
     const model = await $.session.model()
     await update($, usage, () => toUsage(model, e))
+    return next(e)
+  })
+
+  on('classic.PostToolUseFailure', async ($, e, next) => {
+    const active = currentMoment()
+    if (stage && e.is_interrupt !== true && tick - lastDamageTick >= DAMAGE_COOLDOWN_TICKS) {
+      const incoming: Moment = { kind: 'damage', startTick: tick, target: damageTarget % stage.slimes }
+      const admitted = nextMoment(active, incoming, stage.slimes)
+      if (admitted === incoming) {
+        moment = admitted
+        lastDamageTick = tick
+        damageTarget = (incoming.target + 1) % stage.slimes
+        void repaint($, stage, tick, currentMoment(), rest).then(unseat)
+      }
+    }
     return next(e)
   })
 

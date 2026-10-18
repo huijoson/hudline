@@ -77,6 +77,10 @@ each other in two hops and collide in mid-air. They splat together, then a crown
 flickers in defeat, then bursts into the family, each arcing home in one leap
 and settling at rest. Type `/slime-king` to see the show any time.
 
+A failed tool makes one slime flicker three times, rotating through the family.
+Interrupting a tool does not count, and failures within two seconds of a flicker
+do not start another. The King and encounter take priority.
+
 They breathe and blink at rest. To make them hop instead, each in its own time,
 turn on **Slimes hop** for pixel-hud in `/config` (the `slimesHop` option). With
 hopping off, turn off **Slimes breathe** (`slimesIdle`) to keep them perfectly
