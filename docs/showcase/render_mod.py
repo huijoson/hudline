@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the real pixel-hud mod's drawing as a documentation PNG, or GIF."""
+"""Render the real pixel-hud mod's drawing as a PNG, GIF, or contact sheet."""
 
 import argparse
 import base64
@@ -19,10 +19,13 @@ ROOT = HERE.parent.parent
 MOD = ROOT / "plugins" / "pixel-hud"
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--font", default="/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
-parser.add_argument("--king", action="store_true",
+mode = parser.add_mutually_exclusive_group()
+mode.add_argument("--king", action="store_true",
                     help="draw the King Slime show after a long task (pixel-hud-king.png)")
-parser.add_argument("--gif", action="store_true",
+mode.add_argument("--gif", action="store_true",
                     help="animate the whole King Slime show, one frame a tick (pixel-hud-king.gif)")
+mode.add_argument("--sheet", action="store_true",
+                    help="draw the King Slime frames in a grid (pixel-hud-king-sheet.png in the system temp dir)")
 args = parser.parse_args()
 # Text is laid out with libraqm, as the committed images were: Pillow's basic
 # layout advances each cell 14 px instead of 14.45 and draws narrower images.
@@ -139,7 +142,7 @@ with tempfile.TemporaryDirectory() as tmp:
               .replace("TRANSCRIPT", json.dumps(transcript))
               .replace("COLUMNS", str(COLUMNS))
               .replace("if (KING)", "if (true)" if args.king else "if (false)")
-              .replace("FRAMES", "KING_SHOW_TICKS + 6" if args.gif else "0"))
+              .replace("FRAMES", "KING_SHOW_TICKS + 6" if args.gif or args.sheet else "0"))
     (copy / "hooks" / "showcase.test.tsx").write_text(source)
     run = subprocess.run(["claude", "plugin", "test", str(copy)], text=True,
                          capture_output=True)
@@ -236,7 +239,7 @@ def paint(tree):
     return canvas, rows
 
 
-if args.gif:
+def king_frames(trees):
     frames = [paint(tree)[0] for tree in trees]
     # One palette for every frame, so the text that stays put does not flicker
     # as each frame would otherwise pick its own colours.
@@ -245,6 +248,44 @@ if args.gif:
         sheet.paste(frame, (0, i * frame.height))
     palette = sheet.quantize(colors=256)
     frames = [frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames]
+    return frames, palette
+
+
+if args.sheet:
+    frames, _ = king_frames(trees)
+    runs = []
+    previous = None
+    for tick, frame in enumerate(frames):
+        pixels = frame.tobytes()
+        if pixels == previous:
+            runs[-1][2] = tick
+        else:
+            runs.append([frame, tick, tick])
+        previous = pixels
+
+    # Compare before shrinking, so small changes still get their own cell.
+    columns = 4
+    gap = 16
+    label_height = 32
+    width, height = (n // 2 for n in frames[0].size)
+    rows = (len(runs) + columns - 1) // columns
+    sheet = Image.new("RGB", (columns * (width + gap) + gap,
+                              rows * (height + label_height + gap) + gap), "#101116")
+    draw = ImageDraw.Draw(sheet)
+    for i, (frame, start, end) in enumerate(runs):
+        x = gap + (i % columns) * (width + gap)
+        y = gap + (i // columns) * (height + label_height + gap)
+        label = f"t{start}" if start == end else f"t{start}–t{end}"
+        draw.text((x, y), label, font=small, fill=INK)
+        sheet.paste(frame.resize((width, height), Image.Resampling.NEAREST),
+                    (x, y + label_height))
+    output = Path(tempfile.gettempdir()) / "pixel-hud-king-sheet.png"
+    sheet.save(output)
+    print(f"Wrote {output} ({sheet.width} x {sheet.height}, {len(runs)} cells)")
+    raise SystemExit
+
+if args.gif:
+    frames, palette = king_frames(trees)
     # The slimes at rest a moment, then the show at the slimes' own pace.
     durations = [1200] + [frame_ms] * (len(frames) - 2) + [1200]
     output = HERE / "pixel-hud-king.gif"

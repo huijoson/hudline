@@ -45,6 +45,7 @@ or newer) besides Pillow and the font:
 /tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py
 /tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --king
 /tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --gif
+/tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --sheet
 ```
 
 The second draws `pixel-hud-king.png`: a task of a minute ends, and the image
@@ -54,6 +55,11 @@ The third draws `pixel-hud-king.gif`, the README's demo: the same task, one
 frame for each tick of the slimes' exported `FRAME_MS` clock, from the slimes
 at rest through the whole show and home again. Pillow folds repeated frames
 into one.
+The fourth draws a contact sheet of the same frames, four across at half size
+with crisp pixels. Each cell has its tick number, or a tick range for repeated
+frames; `t0` is the opening resting sample. It writes `pixel-hud-king-sheet.png`
+in the system temp directory and prints the path, for review without changing
+the committed images.
 
 The script copies the mod to a temporary folder, adds one test that hands it
 the sample figures through Claude Code's own plugin test host, and runs
@@ -61,7 +67,7 @@ the sample figures through Claude Code's own plugin test host, and runs
 paints that tree, the slimes' Raster cells included. The branch is `main` and
 clean. The renderer waits for the session-start encounter to finish before
 taking its resting sample. The plain image catches the slimes at rest; `--king`
-and `--gif` play the show after a long task.
+and `--gif` (or `--sheet`) play the show after a long task.
 
 The mod writes reset times in the machine's local zone, and the test host does
 not take `TZ`. The script shifts the sample instants by the local offset, so the
