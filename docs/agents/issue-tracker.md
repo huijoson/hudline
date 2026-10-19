@@ -11,6 +11,7 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 - **Comment on an issue**: `gh issue comment <number> --body "..."`
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --comment "..."`
+- **Close from a PR**: one closing keyword per issue in the PR body: `Closes #6`, `Closes #14`, each on its own line. GitHub reads `Closes #6, #14` as closing #6 only.
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 

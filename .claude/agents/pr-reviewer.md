@@ -41,14 +41,12 @@ Quote the promise for each finding.
 
 ## 3. Standards: does it follow this repo's rules?
 
-The repo's standards are `CONTEXT.md` (the glossary: terms must be used as
-defined there), every `docs/adr/*.md` (decisions the change must not quietly
-reverse), any `CLAUDE.md`, and the idiom of the surrounding code (comment
-density and voice, naming). Release rules in this repo:
+The repo's standards are `CODING_STANDARDS.md` (review-time judgement
+rules), `CONTEXT.md` (the glossary: terms must be used as defined there), every
+`docs/adr/*.md` (decisions the change must not quietly reverse), any
+`CLAUDE.md`, and the idiom of the surrounding code (comment density and voice,
+naming). Release rules are in `docs/RELEASING.md`. Also:
 
-- A change to `plugins/pixel-hud/` bumps `plugins/pixel-hud/.claude-plugin/plugin.json`.
-- Each npm release bumps `package.json` and gets a `vX.Y.Z` tag and GitHub
-  Release, even when only the README changed.
 - Images in `docs/showcase/` must be reproducible with the scripts beside them,
   and `docs/showcase/README.md` must say how.
 - The README's description of a behaviour must match the code.
