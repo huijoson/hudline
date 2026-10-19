@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the real pixel-hud mod's drawing as a documentation PNG, or GIF."""
+"""Render the real pixel-hud mod's drawing as a PNG, GIF, or contact sheet."""
 
 import argparse
 import base64
@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 from datetime import datetime, timezone
 
-from PIL import Image, ImageDraw, ImageFont, features
+from PIL import Image, ImageChops, ImageDraw, ImageFont, features
 
 
 HERE = Path(__file__).resolve().parent
@@ -19,10 +19,13 @@ ROOT = HERE.parent.parent
 MOD = ROOT / "plugins" / "pixel-hud"
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--font", default="/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
-parser.add_argument("--king", action="store_true",
+mode = parser.add_mutually_exclusive_group()
+mode.add_argument("--king", action="store_true",
                     help="draw the King Slime show after a long task (pixel-hud-king.png)")
-parser.add_argument("--gif", action="store_true",
+mode.add_argument("--gif", action="store_true",
                     help="animate the whole King Slime show, one frame a tick (pixel-hud-king.gif)")
+mode.add_argument("--sheet", action="store_true",
+                    help="draw the King Slime frames in a grid (pixel-hud-king-sheet.png in the system temp dir)")
 args = parser.parse_args()
 # Text is laid out with libraqm, as the committed images were: Pillow's basic
 # layout advances each cell 14 px instead of 14.45 and draws narrower images.
@@ -139,7 +142,7 @@ with tempfile.TemporaryDirectory() as tmp:
               .replace("TRANSCRIPT", json.dumps(transcript))
               .replace("COLUMNS", str(COLUMNS))
               .replace("if (KING)", "if (true)" if args.king else "if (false)")
-              .replace("FRAMES", "KING_SHOW_TICKS + 6" if args.gif else "0"))
+              .replace("FRAMES", "KING_SHOW_TICKS + 6" if args.gif or args.sheet else "0"))
     (copy / "hooks" / "showcase.test.tsx").write_text(source)
     run = subprocess.run(["claude", "plugin", "test", str(copy)], text=True,
                          capture_output=True)
@@ -236,15 +239,69 @@ def paint(tree):
     return canvas, rows
 
 
-if args.gif:
+def king_frames(trees):
     frames = [paint(tree)[0] for tree in trees]
     # One palette for every frame, so the text that stays put does not flicker
     # as each frame would otherwise pick its own colours.
-    sheet = Image.new("RGB", (frames[0].width, frames[0].height * len(frames)))
+    palette_strip = Image.new("RGB", (frames[0].width, frames[0].height * len(frames)))
     for i, frame in enumerate(frames):
-        sheet.paste(frame, (0, i * frame.height))
-    palette = sheet.quantize(colors=256)
+        palette_strip.paste(frame, (0, i * frame.height))
+    palette = palette_strip.quantize(colors=256)
     frames = [frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames]
+    return frames, palette
+
+
+if args.sheet:
+    frames = [paint(tree)[0] for tree in trees]
+    runs = [(frames[0], None, None)]
+    previous = None
+    # Compare full frames before cropping, so every pixel change gets a cell.
+    # Keep the resting sample separate from the show's tick numbers.
+    for tick, frame in enumerate(frames[1:]):
+        pixels = frame.tobytes()
+        if pixels == previous:
+            first, start, _ = runs[-1]
+            runs[-1] = (first, start, tick)
+        else:
+            runs.append((frame, tick, tick))
+        previous = pixels
+
+    changes = Image.new("RGB", frames[0].size)
+    for frame in frames[1:]:
+        changes = ImageChops.lighter(changes, ImageChops.difference(frame, frames[0]))
+    bounds = changes.getbbox()
+    if bounds is None:
+        crop = (0, 0, frames[0].width, frames[0].height)
+    else:
+        left, top, right, bottom = bounds
+        pad_x, pad_y = round(2 * font.getlength("M")), 36
+        crop = (max(0, left - pad_x), max(0, top - pad_y),
+                min(frames[0].width, right + pad_x), min(frames[0].height, bottom + pad_y))
+
+    columns = 4
+    gap = 16
+    label_height = 32
+    width, height = crop[2] - crop[0], crop[3] - crop[1]
+    rows = (len(runs) + columns - 1) // columns
+    sheet = Image.new("RGB", (columns * (width + gap) + gap,
+                              rows * (height + label_height + gap) + gap), "#101116")
+    draw = ImageDraw.Draw(sheet)
+    for i, (frame, start, end) in enumerate(runs):
+        x = gap + (i % columns) * (width + gap)
+        y = gap + (i // columns) * (height + label_height + gap)
+        if start is None:
+            label = "rest"
+        else:
+            label = f"t{start}" if start == end else f"t{start}–t{end}"
+        draw.text((x, y), label, font=small, fill=INK)
+        sheet.paste(frame.crop(crop), (x, y + label_height))
+    output = Path(tempfile.gettempdir()) / "pixel-hud-king-sheet.png"
+    sheet.save(output)
+    print(f"Wrote {output} ({sheet.width} x {sheet.height}, {len(runs)} cells)")
+    raise SystemExit
+
+if args.gif:
+    frames, palette = king_frames(trees)
     # The slimes at rest a moment, then the show at the slimes' own pace.
     durations = [1200] + [frame_ms] * (len(frames) - 2) + [1200]
     output = HERE / "pixel-hud-king.gif"
