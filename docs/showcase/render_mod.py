@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 from datetime import datetime, timezone
 
-from PIL import Image, ImageDraw, ImageFont, features
+from PIL import Image, ImageChops, ImageDraw, ImageFont, features
 
 
 HERE = Path(__file__).resolve().parent
@@ -243,31 +243,45 @@ def king_frames(trees):
     frames = [paint(tree)[0] for tree in trees]
     # One palette for every frame, so the text that stays put does not flicker
     # as each frame would otherwise pick its own colours.
-    sheet = Image.new("RGB", (frames[0].width, frames[0].height * len(frames)))
+    palette_strip = Image.new("RGB", (frames[0].width, frames[0].height * len(frames)))
     for i, frame in enumerate(frames):
-        sheet.paste(frame, (0, i * frame.height))
-    palette = sheet.quantize(colors=256)
+        palette_strip.paste(frame, (0, i * frame.height))
+    palette = palette_strip.quantize(colors=256)
     frames = [frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames]
     return frames, palette
 
 
 if args.sheet:
-    frames, _ = king_frames(trees)
-    runs = []
+    frames = [paint(tree)[0] for tree in trees]
+    runs = [(frames[0], None, None)]
     previous = None
-    for tick, frame in enumerate(frames):
+    # Compare full frames before cropping, so every pixel change gets a cell.
+    # Keep the resting sample separate from the show's tick numbers.
+    for tick, frame in enumerate(frames[1:]):
         pixels = frame.tobytes()
         if pixels == previous:
-            runs[-1][2] = tick
+            first, start, _ = runs[-1]
+            runs[-1] = (first, start, tick)
         else:
-            runs.append([frame, tick, tick])
+            runs.append((frame, tick, tick))
         previous = pixels
 
-    # Compare before shrinking, so small changes still get their own cell.
+    changes = Image.new("RGB", frames[0].size)
+    for frame in frames[1:]:
+        changes = ImageChops.lighter(changes, ImageChops.difference(frame, frames[0]))
+    bounds = changes.getbbox()
+    if bounds is None:
+        crop = (0, 0, frames[0].width, frames[0].height)
+    else:
+        left, top, right, bottom = bounds
+        pad_x, pad_y = round(2 * font.getlength("M")), 36
+        crop = (max(0, left - pad_x), max(0, top - pad_y),
+                min(frames[0].width, right + pad_x), min(frames[0].height, bottom + pad_y))
+
     columns = 4
     gap = 16
     label_height = 32
-    width, height = (n // 2 for n in frames[0].size)
+    width, height = crop[2] - crop[0], crop[3] - crop[1]
     rows = (len(runs) + columns - 1) // columns
     sheet = Image.new("RGB", (columns * (width + gap) + gap,
                               rows * (height + label_height + gap) + gap), "#101116")
@@ -275,10 +289,12 @@ if args.sheet:
     for i, (frame, start, end) in enumerate(runs):
         x = gap + (i % columns) * (width + gap)
         y = gap + (i // columns) * (height + label_height + gap)
-        label = f"t{start}" if start == end else f"t{start}–t{end}"
+        if start is None:
+            label = "rest"
+        else:
+            label = f"t{start}" if start == end else f"t{start}–t{end}"
         draw.text((x, y), label, font=small, fill=INK)
-        sheet.paste(frame.resize((width, height), Image.Resampling.NEAREST),
-                    (x, y + label_height))
+        sheet.paste(frame.crop(crop), (x, y + label_height))
     output = Path(tempfile.gettempdir()) / "pixel-hud-king-sheet.png"
     sheet.save(output)
     print(f"Wrote {output} ({sheet.width} x {sheet.height}, {len(runs)} cells)")
