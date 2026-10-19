@@ -13,3 +13,7 @@ The five default triage labels (needs-triage, needs-info, ready-for-agent, ready
 ### Domain docs
 
 Single-context: the glossary is `CONTEXT.md` at the repo root, and ADRs are in `docs/adr/`. See `docs/agents/domain.md`.
+
+## Releasing
+
+Version bumps, tags, GitHub Releases and npm publish: see `docs/RELEASING.md`.
