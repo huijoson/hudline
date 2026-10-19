@@ -21,19 +21,19 @@ A number that follows from another number is written as the derivation.
 
 ## One table per Moment kind
 
-Per-kind behaviour of a Moment (see `CONTEXT.md`, ADR 0013) lives in the
-`MOMENT_MOTION` entry in `plugins/pixel-hud/hooks/slime.ts`. Flag a new
-`if (moment.kind === …)` or `switch` on the kind outside that table; the fix
-is a field on `MomentMotion`.
+Per-kind behaviour of a Moment (see `CONTEXT.md`) belongs in its
+`MOMENT_MOTION` entry in `plugins/pixel-hud/hooks/slime.ts`. Flag a `kind`
+check the diff adds outside that table; the fix is a field on `MomentMotion`.
+Older checks (the crown test in `nextMoment`, the damage flicker in the cell
+renderer, `'reigning'` in `register.tsx`) predate the rule.
 
-Adding a kind today touches `Moment`, `MOMENT_MOTION`, `PRIORITY` and the
-trigger in `register.tsx`. Flag a change that adds a fifth place; a change that
-folds one of these into the table (e.g. `PRIORITY` as a field) is welcome.
+ADR 0013 lists the places a new kind touches. Flag a change that adds one more;
+a change that folds one into the table (e.g. `PRIORITY` as a field) is welcome.
 
 ## Assertions that can fail
 
-Every assertion must be able to go red when the code under test is wrong.
-Flag a value compared with itself (`assert.equal(f(x), f(x))`), an expected
-value computed by the same function as the actual one, and a check that holds
-for any input. The fix is an independent expectation: a literal picture, a
+Flag an assertion that cannot go red when the code under test is wrong: a
+value compared with itself (`assert.equal(f(x), f(x))`), an expected value
+computed by the same function as the actual one, or a check that holds for any
+input. The fix is an independent expectation: a literal picture, a
 constant from the spec, or a different code path.

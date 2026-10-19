@@ -16,4 +16,4 @@ Single-context: the glossary is `CONTEXT.md` at the repo root, and ADRs are in `
 
 ## Releasing
 
-Version bumps, tags, GitHub Releases and npm publish: see `docs/RELEASING.md` before cutting a release.
+Version bumps, tags, GitHub Releases and npm publish: see `docs/RELEASING.md`.
