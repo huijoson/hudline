@@ -8,6 +8,13 @@
   "types": "./types/index.d.ts",
   "homepage": "https://github.com/huijoson/hudline",
   "userConfig": {
+    "stage": {
+      "type": "string",
+      "title": "Stage theme",
+      "options": ["slimes", "quest"],
+      "default": "slimes",
+      "description": "What walks beside the branch: the slime family, or a hero who fights a monster each time a task finishes."
+    },
     "slimesIdle": {
       "type": "boolean",
       "title": "Slimes breathe",
