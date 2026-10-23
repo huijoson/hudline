@@ -278,7 +278,7 @@ and its own rhythm on it. Each Kin has its own palette and sprite set: the
 slime, she-slime and metal slime share an onion shape, the bubble slime a puddle,
 and the liquid metal slime a flowing silver mound. These five Kin are each 11
 pixels wide, separated by 2 empty columns, in the 16-pixel-tall stage; the
-merged blob is 17 wide and Kings 22.
+merged blob is 17 wide and 14 pixels tall, and Kings are 22 wide.
 
 ## Rest
 
@@ -292,7 +292,6 @@ takes the whole stage from the Rest and then hands it back. One Moment holds
 the stage at a time. The kinds are the **King Slime show** (after a long task),
 the **level-up** (on compaction), the **encounter** (when a session starts) and
 the **damage** flicker (when a tool fails). The King Slime show crowns one of
-three Kings, picked at random: the King Slime, the Gold King Slime or the
-Metal King Slime.
+two Kings, picked at random: the King Slime or the Metal King Slime.
 
 _Avoid_: event, animation
