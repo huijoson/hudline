@@ -73,3 +73,21 @@ taking its resting sample. The plain image catches the slimes at rest; `--king`,
 The mod writes reset times in the machine's local zone, and the test host does
 not take `TZ`. The script shifts the sample instants by the local offset, so the
 image shows the same UTC times as `hudline.png`.
+
+Choose the quest hero for a resting PNG with `--stage quest`. Use
+`--output /path/to/image.png` to inspect a scratch image without changing the
+committed showcases. The renderer selects the real Stage and waits for that
+theme's encounter to finish before drawing the sample.
+
+Add `--sheet` for a contact sheet with one battle per skill: slash against a
+slime, fireball against a bat, and thunder against a skeleton. The test host
+uses fixed picks and checks every battle frame against the selected Stage.
+Add `--gif` instead for `pixel-hud-quest.gif`: one slash battle, from the walk
+through the monster's arrival, hit and burst, and back to walking. Like the
+King GIF, every frame shares one palette so the stationary text stays steady.
+
+```sh
+/tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --stage quest
+/tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --stage quest --sheet
+/tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --stage quest --gif
+```

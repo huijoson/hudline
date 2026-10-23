@@ -1,3 +1,9 @@
+import { nextMoment as admitMoment, STAGE_ROWS } from './stage'
+import type { Moment, Rest, Stage } from './stage'
+
+export { DAMAGE_COOLDOWN_TICKS, FRAME_MS, STAGE_ROWS } from './stage'
+export type { Moment, Rest } from './stage'
+
 // The slime family that hops beside the branch: 8-bit sprites drawn into a
 // Raster, two pixels to a cell ('▀' paints the top pixel in the foreground and
 // the bottom one in the background).
@@ -10,13 +16,8 @@ export const WIDE = ['..BHB..', 'BWBBBWB', 'BKBBBKB', 'DDMMMDD']
 export const STRETCH = ['...B...', '..BHB..', '.BWBWB.', '.BKBKB.', '.BMMMB.', '..DDD..']
 export const BLINK = STAND.map(row => row.replaceAll('W', 'B'))
 
-export const FRAME_MS = 80
-
 export const SLIME_WIDTH = 7
-export const STAGE_ROWS = 3
 const STAGE_PIXELS = STAGE_ROWS * 2
-
-export type Rest = 'hop' | 'breathe' | 'still'
 
 type Pose = { sprite: readonly string[]; lift: number }
 type Beat = Pose & { ticks: number }
@@ -89,8 +90,8 @@ export function slimeColumns(count: number): number {
   return count * SLIME_WIDTH
 }
 
-type Pixels = (number | null)[][]
-type Palette = Partial<Record<string, number>>
+export type Pixels = (number | null)[][]
+export type Palette = Partial<Record<string, number>>
 
 const WHITE = 0xfcfcfc
 const MOUTH = 0x981828
@@ -102,7 +103,7 @@ function blank(count: number): Pixels {
 }
 
 // Paints `sprite` with its left edge at `x`, its bottom `lift` pixels off the floor.
-function paint(pixels: Pixels, sprite: readonly string[], x: number, lift: number, palette: Palette) {
+export function paint(pixels: Pixels, sprite: readonly string[], x: number, lift: number, palette: Palette) {
   const top = STAGE_PIXELS - sprite.length - lift
   sprite.forEach((line, r) => {
     ;[...line].forEach((ch, c) => {
@@ -206,7 +207,7 @@ const MERGED = [
   ['...BWHBHWB...', '.BBBKBBBKBBB.', 'DDDDDMMMDDDDD'],
   ['....BHB....', '..BBBBBBB..', '.BBBWBWBBB.', '.BBBKBKBBB.', 'DDDDMMMDDDD'],
 ]
-const POOF = [
+export const POOF = [
   '..W...W..W...',
   'W...W....W..W',
   '...W..W.W....',
@@ -259,16 +260,10 @@ export function canCrown(count: number): boolean {
   return slimeColumns(count) >= KING_WIDTH
 }
 
-export type Moment =
-  | { kind: 'king' | 'level-up' | 'encounter'; startTick: number }
-  | { kind: 'damage'; startTick: number; target: number }
-
 // Three hidden/shown pairs; the whole family holds still through the endpoint.
 const DAMAGE_FLICKERS = 3
 const DAMAGE_FLICKER_TICKS = 2
 export const DAMAGE_TICKS = DAMAGE_FLICKERS * DAMAGE_FLICKER_TICKS
-// Two seconds between admitted failures: 25 ticks at the shared frame rate.
-export const DAMAGE_COOLDOWN_TICKS = Math.round(2_000 / FRAME_MS)
 
 // One hop in unison with no Rest; its Settle is already the exact resting frame.
 const LEVEL_UP_ENDPOINT = HOP_TICKS - HOP_SETTLE_TICKS
@@ -291,26 +286,36 @@ function encounterEndpoint(i: number): number {
 }
 
 type MomentMotion = {
+  priority: number
+  minColumns: number
   endpoint: (i: number, count: number) => number
   stage: (moment: Moment, count: number, tick: number, rest: Rest) => Pixels
 }
 
-const MOMENT_MOTION: Record<Moment['kind'], MomentMotion> = {
+const MOMENT_MOTION: Partial<Record<Moment['kind'], MomentMotion>> = {
   king: {
+    priority: 5,
+    minColumns: KING_WIDTH,
     endpoint: () => KING_SHOW_TICKS,
     stage: (moment, count, tick, rest) => canCrown(count)
       ? kingStage(count, tick - moment.startTick, tick, rest)
       : stage(count, tick, rest),
   },
   encounter: {
+    priority: 2,
+    minColumns: 0,
     endpoint: encounterEndpoint,
     stage: (moment, count, tick, rest) => encounterStage(count, tick - moment.startTick, tick, rest),
   },
   damage: {
+    priority: 1,
+    minColumns: 0,
     endpoint: () => DAMAGE_TICKS,
     stage: damageStage,
   },
   'level-up': {
+    priority: 4,
+    minColumns: 0,
     endpoint: () => LEVEL_UP_ENDPOINT,
     stage: levelUpStage,
   },
@@ -319,17 +324,16 @@ const MOMENT_MOTION: Record<Moment['kind'], MomentMotion> = {
 // Exclusive expiry: keep the exact endpoint, then release as soon as every kin
 // can join Rest or a fresh Crouch.
 export function momentEndTick(moment: Moment, count: number, rest: Rest): number {
-  const { endpoint } = MOMENT_MOTION[moment.kind]
+  const motion = MOMENT_MOTION[moment.kind]
+  if (!motion) return moment.startTick
+  const { endpoint } = motion
   const endpoints = Array.from({ length: count }, (_, i) => moment.startTick + endpoint(i, count))
   return Math.max(...endpoints.map((endpoint, i) => rest === 'hop' ? hopRejoinTick(i, endpoint) : endpoint + 1), moment.startTick + 1)
 }
 
-const PRIORITY = { damage: 1, encounter: 2, 'level-up': 3, king: 4 }
-
 // Dropped moments are never queued. Equal priority keeps the current moment.
 export function nextMoment(active: Moment | null, incoming: Moment, count: number): Moment | null {
-  if (incoming.kind === 'king' && !canCrown(count)) return active
-  return active === null || PRIORITY[incoming.kind] > PRIORITY[active.kind] ? incoming : active
+  return admitMoment(SLIME_STAGE, active, incoming, count)
 }
 
 // Round away from the middle so every body shows when they press together.
@@ -480,9 +484,13 @@ export function slimeCells(count: number, tick: number, moment: Moment | null = 
   const frame = moment ? tick - moment.startTick : -1
   let pixels = stage(count, tick, rest)
   if (moment && frame >= 0 && tick < momentEndTick(moment, count, rest)) {
-    pixels = MOMENT_MOTION[moment.kind].stage(moment, count, tick, rest)
+    pixels = MOMENT_MOTION[moment.kind]?.stage(moment, count, tick, rest) ?? pixels
   }
-  const width = slimeColumns(count)
+  return pixelCells(pixels)
+}
+
+export function pixelCells(pixels: Pixels): string {
+  const width = pixels[0]?.length ?? 0
   const words = new Uint32Array(width * STAGE_ROWS * 3)
   for (let row = 0; row < STAGE_ROWS; row += 1) {
     for (let col = 0; col < width; col += 1) {
@@ -503,19 +511,37 @@ export function slimeCells(count: number, tick: number, moment: Moment | null = 
   return btoa(binary)
 }
 
+// Half blocks keep the silhouette when a surface cannot draw Raster cells.
+export function halfBlockText(pixels: Pixels, row: number, start = 0, end = pixels[0]?.length ?? 0): string {
+  let text = ''
+  for (let col = start; col < end; col += 1) {
+    const top = (pixels[row * 2]?.[col] ?? null) !== null
+    const bottom = (pixels[row * 2 + 1]?.[col] ?? null) !== null
+    text += top && bottom ? '█' : top ? '▀' : bottom ? '▄' : ' '
+  }
+  return text
+}
+
 // Where there is no Raster: one resting frame, each slime one color, as text.
 export function slimeText(count: number): { text: string; color: string }[][] {
   const pixels = stage(count, null)
   return Array.from({ length: STAGE_ROWS }, (_, row) =>
     Array.from({ length: count }, (_, i) => {
-      let text = ''
-      for (let c = i * SLIME_WIDTH; c < (i + 1) * SLIME_WIDTH; c += 1) {
-        const t = (pixels[row * 2]?.[c] ?? null) !== null
-        const b = (pixels[row * 2 + 1]?.[c] ?? null) !== null
-        text += t && b ? '█' : t ? '▀' : b ? '▄' : ' '
-      }
+      const text = halfBlockText(pixels, row, i * SLIME_WIDTH, (i + 1) * SLIME_WIDTH)
       const kin = FAMILY[i % FAMILY.length] as Kin
       return { text, color: `#${kin.body.toString(16).padStart(6, '0')}` }
     }),
   )
+}
+
+export const SLIME_STAGE: Stage = {
+  taskMoment: () => null,
+  maxRoom: FAMILY.length,
+  rest: (idle, hop) => hop ? 'hop' : idle ? 'breathe' : 'still',
+  columns: slimeColumns,
+  cells: slimeCells,
+  text: slimeText,
+  momentEndTick,
+  accepts: (kind, room) => MOMENT_MOTION[kind] !== undefined && slimeColumns(room) >= MOMENT_MOTION[kind].minColumns,
+  priority: kind => MOMENT_MOTION[kind]?.priority ?? 0,
 }

@@ -21,8 +21,9 @@ import {
 } from './format'
 import type { Role } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { canCrown, DAMAGE_COOLDOWN_TICKS, FAMILY, FRAME_MS, momentEndTick, nextMoment, slimeCells, slimeColumns, slimeText, STAGE_ROWS } from './slime'
-import type { Moment, Rest } from './slime'
+import { DAMAGE_COOLDOWN_TICKS, FRAME_MS, nextMoment, STAGE_ROWS } from './stage'
+import type { Moment, Rest, Stage } from './stage'
+import { selectStage } from './stages'
 
 const branch = atom({ plugin: 'pixel-hud', key: 'branch' } as const, null)
 const usage = atom({ plugin: 'pixel-hud', key: 'usage' } as const, null)
@@ -127,13 +128,14 @@ function add(a: Flow, b: Flow): Flow {
 
 // How many glyphs of the name fit beside the sprite, the dirty mark and the
 // slimes. The whole name comes first: slimes leave, one by one, to make room.
-function fitBranch(name: string, isDirty: boolean, columns: number): { name: string; slimes: number } | null {
+function fitBranch(theme: Stage, name: string, isDirty: boolean, columns: number): { name: string; slimes: number } | null {
   const fixed = (BRANCH_SPRITE[0] ?? '').length + GAP.length + (isDirty ? GAP.length + pixelWidth(1) : 0)
   const roomFor = (slimes: number) => {
-    const used = fixed + (slimes > 0 ? GAP.length + slimeColumns(slimes) : 0)
+    const width = theme.columns(slimes)
+    const used = fixed + (width > 0 ? GAP.length + width : 0)
     return Math.floor((columns - used + 1) / 4)
   }
-  for (let slimes = FAMILY.length; slimes > 0; slimes -= 1) {
+  for (let slimes = theme.maxRoom; slimes > 0; slimes -= 1) {
     if (name.length <= roomFor(slimes)) {
       return { name, slimes }
     }
@@ -145,12 +147,12 @@ function fitBranch(name: string, isDirty: boolean, columns: number): { name: str
   return { name: name.length <= room ? name : `${name.slice(0, room - 2)}..`, slimes: 0 }
 }
 
-type SlimeStage = { requestId: string; slimes: number; cells: string }
+type DrawnStage = { requestId: string; slimes: number; cells: string }
 
 // Repaint changed cells; return the denied stage so only that stage is unseated.
-async function repaint($: EngineInterface, drawn: SlimeStage | null, tick: number, moment: Moment | null, rest: Rest): Promise<SlimeStage | null> {
+async function repaint(theme: Stage, $: EngineInterface, drawn: DrawnStage | null, tick: number, moment: Moment | null, rest: Rest): Promise<DrawnStage | null> {
   if (!drawn) return null
-  const cells = slimeCells(drawn.slimes, tick, moment, rest)
+  const cells = theme.cells(drawn.slimes, tick, moment, rest)
   if (cells === drawn.cells) return null
   drawn.cells = cells
   try {
@@ -162,14 +164,15 @@ async function repaint($: EngineInterface, drawn: SlimeStage | null, tick: numbe
   }
 }
 
-export const register: Register = (on, options) => {
-  // Hopping supersedes breath; moments take the stage over either.
-  const rest: Rest = options.slimesHop === true ? 'hop' : options.slimesIdle !== false ? 'breathe' : 'still'
+// The battle picker is injectable; the slime stage does not consume it.
+export const register = (on: Parameters<Register>[0], options: Parameters<Register>[1], random: () => number = Math.random) => {
+  const theme = selectStage(options.stage)
+  const rest = theme.rest(options.slimesIdle !== false, options.slimesHop === true)
   let poll: Timer | undefined
   let hop: Timer | undefined
   let tick = 0
   // The band the slimes were last drawn in, and how many: what a blit repaints.
-  let stage: SlimeStage | null = null
+  let stage: DrawnStage | null = null
   // Keep one active moment so competing triggers cannot fight over the stage.
   let moment: Moment | null = null
   // Armed once per session; consumed by the first eligible Raster stage.
@@ -180,17 +183,17 @@ export const register: Register = (on, options) => {
   let damageTarget = 0
   // Rendering and expiry share the same endpoint and grounded rejoin rule.
   const currentMoment = () => {
-    if (moment && tick >= momentEndTick(moment, stage?.slimes ?? FAMILY.length, rest)) moment = null
+    if (moment && tick >= theme.momentEndTick(moment, stage?.slimes ?? theme.maxRoom, rest)) moment = null
     return moment
   }
-  const unseat = (denied: SlimeStage | null) => {
+  const unseat = (denied: DrawnStage | null) => {
     if (denied && stage === denied) stage = null
   }
   // Starts the show unless one is playing or there is no room for the king.
   const crown = (): 'crowned' | 'reigning' | 'no-room' => {
     if (currentMoment()?.kind === 'king') return 'reigning'
-    if (!stage || !canCrown(stage.slimes)) return 'no-room'
-    moment = nextMoment(moment, { kind: 'king', startTick: tick }, stage.slimes)
+    if (!stage || !theme.accepts('king', stage.slimes)) return 'no-room'
+    moment = nextMoment(theme, moment, { kind: 'king', startTick: tick }, stage.slimes)
     return 'crowned'
   }
 
@@ -208,7 +211,7 @@ export const register: Register = (on, options) => {
     hop?.cancel()
     hop = $.clock.every(FRAME_MS, () => {
       tick += 1
-      void repaint($, stage, tick, currentMoment(), rest).then(unseat)
+      void repaint(theme, $, stage, tick, currentMoment(), rest).then(unseat)
     })
     // Last, so a refused command never keeps the slimes from hopping.
     await $.command
@@ -225,11 +228,25 @@ export const register: Register = (on, options) => {
     reigning: 'The King Slime is already here!',
     'no-room': 'But there was no room for a King Slime! Widen the terminal.',
   } as const
-  on('command.run', { command: KING_COMMAND }, async () => ({ text: KING_SAYS[crown()] }))
+  on('command.run', { command: KING_COMMAND }, async () => ({
+    text: theme.accepts('king', theme.maxRoom)
+      ? KING_SAYS[crown()]
+      : 'But there are no slimes here. The hero walks on.',
+  }))
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
-    if (!e.agentId && e.reason === 'answer' && e.durationMs >= KING_AFTER_MS) crown()
+    if (!e.agentId && e.reason === 'answer') {
+      const active = currentMoment()
+      if (stage && theme.accepts('battle', stage.slimes) && (!active || theme.priority('battle') > theme.priority(active.kind))) {
+        const incoming = theme.taskMoment(tick, random)
+        if (incoming) {
+          moment = nextMoment(theme, active, incoming, stage.slimes)
+          void repaint(theme, $, stage, tick, moment, rest).then(unseat)
+        }
+      }
+      if (e.durationMs >= KING_AFTER_MS) crown()
+    }
     return result
   }).catch(($, e, next) => next(e))
 
@@ -270,12 +287,12 @@ export const register: Register = (on, options) => {
     const active = currentMoment()
     if (stage && e.is_interrupt !== true && tick - lastDamageTick >= DAMAGE_COOLDOWN_TICKS) {
       const incoming: Moment = { kind: 'damage', startTick: tick, target: damageTarget % stage.slimes }
-      const admitted = nextMoment(active, incoming, stage.slimes)
+      const admitted = nextMoment(theme, active, incoming, stage.slimes)
       if (admitted === incoming) {
         moment = admitted
         lastDamageTick = tick
         damageTarget = (incoming.target + 1) % stage.slimes
-        void repaint($, stage, tick, currentMoment(), rest).then(unseat)
+        void repaint(theme, $, stage, tick, currentMoment(), rest).then(unseat)
       }
     }
     return next(e)
@@ -286,8 +303,8 @@ export const register: Register = (on, options) => {
   on('classic.PostCompact', async ($, e, next) => {
     if (stage) {
       const incoming: Moment = { kind: 'level-up', startTick: tick }
-      moment = nextMoment(currentMoment(), incoming, stage.slimes)
-      if (moment === incoming) void repaint($, stage, tick, moment, rest).then(unseat)
+      moment = nextMoment(theme, currentMoment(), incoming, stage.slimes)
+      if (moment === incoming) void repaint(theme, $, stage, tick, moment, rest).then(unseat)
     }
     return next(e)
   })
@@ -342,18 +359,18 @@ export const register: Register = (on, options) => {
     const { Box, Text } = $.ui.resolve(e)
 
     // Branch: big glyphs when there is room, else a chunky chip.
-    const fit = git && e.props.maxRows >= FULL_ROWS ? fitBranch(git.name, git.isDirty, e.props.bodyColumns) : null
+    const fit = git && e.props.maxRows >= FULL_ROWS ? fitBranch(theme, git.name, git.isDirty, e.props.bodyColumns) : null
     const glyphs = fit === null ? null : pixelText(fit.name)
-    const slimes = fit?.slimes ?? 0
+    const slimes = fit && theme.columns(fit.slimes) > 0 ? fit.slimes : 0
     // The terminal paints them in full color and can make them hop; elsewhere they rest.
     const Raster = e.surface === 'terminal' && slimes > 0 ? $.ui.resolve(e).Raster : null
     if (Raster && encounterPending) {
-      moment = nextMoment(currentMoment(), { kind: 'encounter', startTick: tick }, slimes)
+      moment = nextMoment(theme, currentMoment(), { kind: 'encounter', startTick: tick }, slimes)
       encounterPending = false
     }
-    const cells = Raster ? slimeCells(slimes, tick, currentMoment(), rest) : ''
+    const cells = Raster ? theme.cells(slimes, tick, currentMoment(), rest) : ''
     stage = Raster ? { requestId: e.requestId, slimes, cells } : null
-    const still = Raster === null && slimes > 0 ? slimeText(slimes) : null
+    const still = Raster === null && slimes > 0 ? theme.text(slimes) : null
     const dirty = pixelText('*')
     const chip =
       git && glyphs === null
@@ -485,7 +502,7 @@ export const register: Register = (on, options) => {
             </Box>
             {Raster ? <Text>{GAP}</Text> : null}
             {Raster ? (
-              <Raster key={SLIMES_KEY} columns={slimeColumns(slimes)} rows={STAGE_ROWS} cells={cells} />
+              <Raster key={SLIMES_KEY} columns={theme.columns(slimes)} rows={STAGE_ROWS} cells={cells} />
             ) : null}
           </Box>
         ) : null}

@@ -1,13 +1,20 @@
 {
   "name": "pixel-hud",
-  "version": "0.7.0",
-  "description": "hudline as a Claude Code mod: the git branch in 8-bit pixel glyphs, with a slime family that can hop, above hudline's neon line (model, effort, context, 5h/7d quota left, cost, token flow)",
+  "version": "0.8.0",
+  "description": "hudline as a Claude Code mod: the git branch in 8-bit pixel glyphs, with a slime family or a questing hero who battles after each task, above hudline's neon line (model, effort, context, 5h/7d quota left, cost, token flow)",
   "author": {
     "name": "yuhan"
   },
   "types": "./types/index.d.ts",
   "homepage": "https://github.com/huijoson/hudline",
   "userConfig": {
+    "stage": {
+      "type": "string",
+      "title": "Stage theme",
+      "options": ["slimes", "quest"],
+      "default": "slimes",
+      "description": "What walks beside the branch: the slime family, or a hero who fights a monster each time a task finishes."
+    },
     "slimesIdle": {
       "type": "boolean",
       "title": "Slimes breathe",
