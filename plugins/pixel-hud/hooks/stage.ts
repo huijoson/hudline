@@ -13,6 +13,7 @@ export type Moment =
 
 // Room is the number of seven-column slots granted beside the branch.
 export interface Stage {
+  taskMoment: (tick: number, random: () => number) => Moment | null
   maxRoom: number
   rest: (idle: boolean, hop: boolean) => Rest
   columns: (room: number) => number

@@ -1,5 +1,7 @@
-type Pixels = (number | null)[][]
-type Palette = Partial<Record<string, number>>
+import { paint } from './slime'
+import type { Palette, Pixels } from './slime'
+import { STAGE_ROWS } from './stage'
+
 type Pose = { sprite: readonly string[]; lift: number }
 
 const INK = 0x0b0a0d
@@ -29,17 +31,6 @@ export const MONSTERS = {
 
 export type Monster = keyof typeof MONSTERS
 
-function paint(pixels: Pixels, sprite: readonly string[], x: number, lift: number, palette: Palette) {
-  const top = 6 - sprite.length - lift
-  sprite.forEach((line, r) => {
-    ;[...line].forEach((ch, c) => {
-      const color = palette[ch]
-      const row = pixels[top + r]
-      if (color !== undefined && row && x + c >= 0 && x + c < row.length) row[x + c] = color
-    })
-  })
-}
-
 // Frame is a pose index; the caller owns the animation clock.
 export function paintMonster(pixels: Pixels, monster: Monster, x: number, frame: number) {
   const art = MONSTERS[monster]
@@ -53,7 +44,7 @@ export const SKILLS = {
   slash: {
     heroStep: 1,
     origin: 'monster',
-    originOffset: -3,
+    originOffset: 0,
     palette: { W: 0xfcfcfc },
     frames: Array<EffectPose>(2).fill({ sprite: ['....W', '...W.', '..W..', '.W...', 'W....'], lift: 0, offset: 0 }),
   },
@@ -69,7 +60,7 @@ export const SKILLS = {
     origin: 'monster',
     originOffset: 0,
     palette: { Y: 0xf8d878 },
-    frames: Array<EffectPose>(3).fill({ sprite: ['..Y', '.Y.', 'YYY', '..Y', '.Y.', 'Y..'], lift: 0, offset: 0 }),
+    frames: [2, 4, STAGE_ROWS * 2].map(rows => ({ sprite: ['..Y', '.Y.', 'YYY', '..Y', '.Y.', 'Y..'].slice(0, rows), lift: STAGE_ROWS * 2 - rows, offset: 0 })),
   },
 } satisfies Record<string, { heroStep: number; origin: 'monster' | 'sword'; originOffset: number; palette: Palette; frames: readonly EffectPose[] }>
 

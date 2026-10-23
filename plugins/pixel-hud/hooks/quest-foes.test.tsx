@@ -1,9 +1,10 @@
 import { expect, test } from 'claude-code/testing'
 
 import { FIREBALL_TICKS, paintMonster, paintSkill, SLASH_TICKS, THUNDER_TICKS } from './quest-foes'
+import { STAGE_ROWS } from './stage'
 
 function blank(columns = 12): (number | null)[][] {
-  return Array.from({ length: 6 }, () => Array<number | null>(columns).fill(null))
+  return Array.from({ length: STAGE_ROWS * 2 }, () => Array<number | null>(columns).fill(null))
 }
 
 test('the quest slime is a green, grounded silhouette with eyes', () => {
@@ -26,7 +27,7 @@ for (const monster of ['bat', 'skeleton', 'ghost'] as const) {
     const pixels = blank()
     paintMonster(pixels, monster, 2, 0)
     expect(pixels.flat().some(p => p !== null)).toBe(true)
-    expect(pixels.length).toBe(6)
+    expect(pixels.length).toBe(STAGE_ROWS * 2)
     expect(pixels.every(row => row.length === 12)).toBe(true)
     expect(pixels.every(row => row.slice(0, 2).every(p => p === null) && row.slice(9).every(p => p === null))).toBe(true)
     const body = { bat: 0x9878f8, skeleton: 0xfcfcfc, ghost: 0xbcf0fc }[monster]
@@ -52,7 +53,7 @@ for (const monster of ['bat', 'ghost'] as const) {
 }
 
 test('slash leaves a white diagonal over the foe for two ticks', () => {
-  for (const frame of [0, 1]) {
+  for (let frame = 0; frame < SLASH_TICKS; frame += 1) {
     const pixels = blank()
     paintSkill(pixels, 'slash', 2, frame)
     expect(pixels.map(row => row.map(p => p === null ? '.' : '#').join(''))).toEqual([
@@ -88,17 +89,20 @@ test('fireball travels right one pixel per tick as an orange two-by-two ball, th
 })
 
 test('thunder drops a yellow zigzag from the top for three ticks', () => {
-  for (const frame of [0, 1, 2]) {
+  for (let frame = 0; frame < THUNDER_TICKS; frame += 1) {
     const pixels = blank()
     paintSkill(pixels, 'thunder', 2, frame)
-    expect(pixels.map(row => row.map(p => p === null ? '.' : '#').join(''))).toEqual([
+    const expected = [
       '....#.......',
       '...#........',
       '..###.......',
       '....#.......',
       '...#........',
       '..#.........',
-    ])
+    ]
+    expect(pixels.map(row => row.map(p => p === null ? '.' : '#').join(''))).toEqual(
+      expected.map((row, y) => y < (frame + 1) * 2 ? row : '............'),
+    )
     expect(pixels.flat().filter(p => p !== null).every(p => p === 0xf8d878)).toBe(true)
   }
   const ended = blank()
@@ -121,7 +125,7 @@ test('painting clips at either edge and preserves transparent pixels and other r
   expect(background[0]).toEqual(Array(12).fill(0x123456))
   expect(background[2]?.[2]).toBe(0x123456)
   expect(background[2]?.[4]).toBe(0xb8f818)
-  paintSkill(background, 'thunder', 11, 0)
+  paintSkill(background, 'thunder', 11, THUNDER_TICKS - 1)
   expect(background[2]?.[11]).toBe(0xf8d878)
   expect(background.every(row => row.length === 12)).toBe(true)
 })

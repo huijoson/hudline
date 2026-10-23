@@ -42,13 +42,19 @@ title = ImageFont.truetype(args.font, 30)
 
 
 def foes_sheet(output):
-    source = """
-import { MONSTERS, SKILLS, paintMonster, paintSkill } from MODULE
+    source = r"""
+import { registerHooks } from 'node:module'
+// The mod's own-file imports omit extensions; Node's TS loader needs them.
+registerHooks({ resolve(specifier, context, nextResolve) {
+  return nextResolve(specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier) ? `${specifier}.ts` : specifier, context)
+} })
+const { MONSTERS, SKILLS, paintMonster, paintSkill } = await import(MODULE)
+const { STAGE_ROWS } = await import(STAGE_MODULE)
 const groups = []
 for (const [table, painter] of [[MONSTERS, paintMonster], [SKILLS, paintSkill]]) {
   for (const [name, art] of Object.entries(table)) {
     const frames = art.frames.map((_, frame) => {
-      const pixels = Array.from({ length: 6 }, () => Array(14).fill(null))
+      const pixels = Array.from({ length: STAGE_ROWS * 2 }, () => Array(14).fill(null))
       painter(pixels, name, 2, frame)
       return pixels
     })
@@ -56,12 +62,12 @@ for (const [table, painter] of [[MONSTERS, paintMonster], [SKILLS, paintSkill]])
   }
 }
 console.log(JSON.stringify(groups))
-""".replace("MODULE", json.dumps((MOD / "hooks" / "quest-foes.ts").as_uri()))
+""".replace("STAGE_MODULE", json.dumps((MOD / "hooks" / "stage.ts").as_uri())).replace("MODULE", json.dumps((MOD / "hooks" / "quest-foes.ts").as_uri()))
     run = subprocess.run(["node", "--experimental-strip-types", "--input-type=module", "-e", source],
                          text=True, capture_output=True, check=True)
     groups = json.loads(run.stdout)
     scale, gap, label_height = 10, 20, 32
-    tile_width, tile_height = 14 * scale, 6 * scale
+    tile_width, tile_height = 14 * scale, len(groups[0]["frames"][0]) * scale
     columns = max(len(group["frames"]) for group in groups)
     sheet = Image.new("RGB", (gap + columns * (tile_width + gap),
                               gap + len(groups) * (tile_height + label_height + gap)), "#101116")

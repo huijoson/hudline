@@ -2,12 +2,14 @@ import { expect, test } from 'claude-code/testing'
 
 import {
   BATTLE_APPROACH_TICKS,
-  BATTLE_FACE_OFF_TICKS,
+  BATTLE_SKILL_START,
   BATTLE_HIT_TICKS,
   BATTLE_MONSTER_X,
   BATTLE_RESUME_TICKS,
-  ATTACK,
+  HERO_SWORD_END,
   HERO_X,
+  QUEST_MIN_COLUMNS,
+  HERO_PALETTE,
   BATTLE_SKILL_TICKS,
   GROUND_STEP_TICKS,
   LEVEL_UP_FLASH_TICKS,
@@ -49,7 +51,7 @@ for (const monster of Object.keys(MONSTERS) as Monster[]) {
       const frame = (elapsed: number) => pixels(quest.cells(3, moment.startTick + elapsed, moment, 'breathe'))
       const foe = (elapsed: number) => frame(elapsed).slice(0, -1).flatMap(row => row.slice(BATTLE_MONSTER_X))
       expect(foe(BATTLE_APPROACH_TICKS).includes(MONSTERS[monster].palette.B)).toBe(true)
-      const skillStart = BATTLE_APPROACH_TICKS + BATTLE_FACE_OFF_TICKS
+      const skillStart = BATTLE_SKILL_START
       const skillFrames = Array.from({ length: BATTLE_SKILL_TICKS[skill] }, (_, i) => frame(skillStart + i))
       expect(skillFrames.some(picture => picture.flat().includes(Object.values(SKILLS[skill].palette)[0]))).toBe(true)
       const hitStart = skillStart + BATTLE_SKILL_TICKS[skill]
@@ -68,6 +70,7 @@ test('the quest hero stands near the left over a dotted ground with a matching t
   const frame = pixels(quest.cells(4, 0, null, 'still'))
   expect(frame[1]?.slice(2, 8)).toEqual([null, 0x0058f8, 0x0058f8, 0x0058f8, null, 0xfcfcfc])
   expect(frame[5]?.slice(8, 16)).toEqual([0x686878, null, 0x686878, null, 0x686878, null, 0x686878, null])
+  expect(quest.text(4).flat().map(span => span.color)).toEqual(Array(STAGE_ROWS).fill(`#${HERO_PALETTE.B.toString(16).padStart(6, '0')}`))
   expect(quest.text(4).map(row => row.map(span => span.text).join(''))).toEqual([
     '   ▄▄▄ █                    ',
     '  ▄███▄█                    ',
@@ -90,7 +93,7 @@ test('walking alternates legs and scrolls the ground, then repeats its cycle', (
 
 test('the quest stage disappears below seventeen columns and admits no moments there', () => {
   const quest = selectStage('quest')
-  for (const room of [0, 1, 2]) {
+  for (let room = 0; slimeColumns(room) < QUEST_MIN_COLUMNS; room += 1) {
     expect(quest.columns(room)).toBe(0)
     expect(quest.cells(room, 0, null, 'breathe')).toBe('')
     expect(quest.text(room)).toEqual([])
@@ -167,17 +170,17 @@ test('quest admission rejects the King and only lets a higher-priority moment ta
 test('skills reach from the attacking sword into the monster without overlapping the hero', () => {
   const quest = selectStage('quest')
   const startTick = 0
-  const skillStart = BATTLE_APPROACH_TICKS + BATTLE_FACE_OFF_TICKS
+  const skillStart = BATTLE_SKILL_START
   for (const skill of Object.keys(SKILLS) as Skill[]) {
     const battle = { kind: 'battle', startTick, monster: 'bat', skill } as const
     const effectStart = skillStart + BATTLE_SKILL_TICKS[skill] - SKILLS[skill].frames.length
     const frame = (elapsed: number) => pixels(quest.cells(3, elapsed, battle, 'still'))
-    const attackTip = HERO_X + ATTACK[0]!.length - 1
+    const attackTip = HERO_SWORD_END - 1
     if (skill === 'slash') {
-      // The diagonal meets the stepped-forward blade, then crosses the foe.
+      // The streak crosses five columns of the monster.
       expect(frame(effectStart)[3]?.[attackTip + 1]).toBe(0xfcfcfc)
-      expect(frame(effectStart)[3]?.[attackTip + 2]).toBe(0xfcfcfc)
-      expect(frame(effectStart)[1]?.[BATTLE_MONSTER_X + 1]).toBe(0xfcfcfc)
+      expect(frame(effectStart)[5]?.[BATTLE_MONSTER_X]).toBe(0xfcfcfc)
+      expect(frame(effectStart)[1]?.[BATTLE_MONSTER_X + 4]).toBe(0xfcfcfc)
     } else if (skill === 'fireball') {
       for (let tick = 0; tick < SKILLS.fireball.frames.length; tick += 1) {
         expect(frame(effectStart + tick)[2]?.slice(attackTip + tick, attackTip + tick + 2)).toEqual([0xfca044, 0xfca044])
@@ -185,7 +188,7 @@ test('skills reach from the attacking sword into the monster without overlapping
       expect(frame(effectStart + SKILLS.fireball.frames.length - 1)[3]?.[BATTLE_MONSTER_X + 2]).toBe(0xfca044)
     } else {
       expect(frame(effectStart)[0]?.[BATTLE_MONSTER_X + 2]).toBe(0xf8d878)
-      expect(frame(effectStart)[5]?.[BATTLE_MONSTER_X]).toBe(0xf8d878)
+      expect(frame(effectStart + SKILLS.thunder.frames.length - 1)[5]?.[BATTLE_MONSTER_X]).toBe(0xf8d878)
     }
   }
 })
@@ -206,5 +209,22 @@ test('battle freezes the ground during combat and rejoins its scroll cycle for e
         expect(ground(tick)).toEqual(pixels(quest.cells(3, tick, null, 'breathe'))[5]?.slice(0, 2))
       }
     }
+  }
+})
+
+test('still rest keeps standing legs during encounter and battle travel while breathe walks', () => {
+  const quest = selectStage('quest')
+  const battle = { kind: 'battle', startTick: 0, monster: 'slime', skill: 'slash' } as const
+  const end = quest.momentEndTick(battle, quest.maxRoom, 'still')
+  const encounter = { kind: 'encounter', startTick: 0 } as const
+  const samples = [
+    { moment: encounter, tick: QUEST_ENCOUNTER_TICKS - 1 },
+    { moment: battle, tick: BATTLE_APPROACH_TICKS - 1 },
+    { moment: battle, tick: end - BATTLE_RESUME_TICKS },
+  ]
+  for (const { moment, tick } of samples) {
+    const legs = (rest: 'still' | 'breathe') => pixels(quest.cells(quest.maxRoom, tick, moment, rest))[STAGE_ROWS * 2 - 1]?.slice(HERO_X, HERO_X + 5)
+    expect(legs('still')).toEqual([0x686878, 0x0000bc, 0x686878, 0x0000bc, 0x686878])
+    expect(legs('breathe')).not.toEqual(legs('still'))
   }
 })
