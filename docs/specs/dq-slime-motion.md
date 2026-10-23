@@ -6,25 +6,32 @@ ADR 0015 enlarged the stage to 16 pixels (8 text rows). The dimensions and
 motion below describe the current 11-column kin on that stage; the original
 7-pixel drafts have been superseded.
 
-The faces were later redrawn closer to Dragon Quest: 3×3 white eye blocks around a
-centred pupil, with white above, below and on both sides, looking straight ahead.
-The wide crescent grin has a salmon mouth and corners outside the eyes. The
-King is 22 pixels wide under a crown of gold, purple and green. The merge crowns a King Slime, a Gold King Slime or a Metal King Slime, picked at
-random each time; each has its own body colours, and the Gold King's crown band is
-silver. The replies below name whichever King it is.
+The kin faces follow the user's SFC slime reference: each eye is a white plus
+with a black centre, looking straight ahead. Each two-row U smile uses M,
+with corners under the eyes' outer columns. H highlights the upper left,
+L lights the body, D shades the edges and bottom, and E adds deep shade.
+A blink is a three-wide black line on the pupil row.
 
-Each kin was then modelled on its Dragon Quest counterpart and narrowed to 11
-pixels. The slime, she-slime and metal slime share one onion-shaped sprite set,
-a thin tip flaring into a round bulb; the bubble slime has its own puddle set, a
-low dome over a melted skirt with bubbles above. The fifth kin, the liquid metal
-slime, has a flowing silver mound sprite set.
-All five poses exist in all three sets. Each kin has its own palette: mouths
-are salmon, dark purple and red for the onion kin, with dark grins for both
-puddle-shaped kin. The merged blob stays 17 wide and all Kings stay 22 wide.
-The Gold and Metal Kings wear a plated sprite with banded metal shading; the
-blue King Slime keeps its own. A clean `main` heading uses 32 columns, so the
-63-column family (five 11-column kin and four 2-column gaps) fits from 95 columns.
-The README family showcase uses that minimum width; at 84 columns only four kin fit under the branch-first fit rule.
+The slime, she-slime and metal slime share an 11-wide onion sprite set: a
+three-pixel stem, sloped shoulders widest at the eye rows, and a rounded
+bottom. The bubble slime has a puddle set with bubbles above; the liquid
+metal slime has a flowing silver mound. All five poses exist in all three
+sets. Colours follow the reference: the blue slime's mouth is orange-red
+(`0xe85820`), the she-slime's dark purple and the metal slime's red; both
+puddle-shaped kin have dark smiles. Each palette has all eight letters;
+the puddle-shaped kin map L to B and E to D.
+
+The merged splat is 22 wide and 6 tall; the blob is 17 wide and 14 tall.
+They and both 22-wide, 16-tall Kings share plus eyes and orange-red U smiles.
+The show picks either the King Slime or the Metal King Slime. Both wear
+a crown of gold, purple and green. Only the Metal King uses the plated
+sprite with banded metal shading; the blue King takes the blue Kin's palette.
+The replies below name whichever King appears.
+
+A clean `main` heading uses 32 columns, so the 63-column family (five
+11-column kin and four 2-column gaps) fits from 95 columns. The README
+family showcase uses that minimum; at 84 columns four kin fit under the
+branch-first fit rule.
 
 ## Problem Statement
 
@@ -37,7 +44,7 @@ jerks rather than bounces. By default the slimes do not move at all, and the
 King Slime show's leaps (two in, a mid-air collision, two home) are drawn from
 the same two poses, and the show ends without a payoff. The
 faces have black dot eyes and no mouth, so the one thing that makes a slime
-recognisably a Dragon Quest slime (white eyes, a wide grin, the pointed tip)
+recognisably a Dragon Quest slime (cross eyes, a U smile, the pointed tip)
 is missing.
 
 ## Solution
@@ -64,8 +71,8 @@ The HUD's numbers stay first. Motion marks moments; it never narrates.
 
 ## User Stories
 
-1. As a developer, I want the slimes to have Dragon Quest faces (white eyes
-   with dark pupils, a wide open grin, a pointed tip), so that I recognise
+1. As a developer, I want the slimes to have DQ1 faces (white cross eyes
+   with black centres, a two-row U smile, a pointed tip), so that I recognise
    them as Dragon Quest slimes at a glance.
 2. As a developer, I want the five kin (slime, she-slime, metal slime, bubble
    slime, liquid metal slime) to keep their colours, so that the family I know
@@ -173,27 +180,29 @@ Palette letters extend B (body), H (highlight), Y (crown band), J (red
 jewel), P (purple crown fabric) and G (green crown fabric):
 
 - **W**: eye white
-- **K**: pupil, mouth corners and outlines
-- **M**: mouth interior, in each kin's own colour
-- **D**: shade, a darker version of each kin's body colour, added to each
-  kin's entry
+- **K**: pupil or closed blink lid for kin, merged poses and Kings
+- **M**: the kin's full two-row U smile, in its own mouth colour
+- **L**: light body
+- **D**: shade, a darker version of each kin's body colour
+- **E**: deep shade
 
 Each kin has 11-pixel-wide stand, blink, squash, wide and stretch sprites,
-with its feet on the floor of the 16-pixel stage. Stand heights are 11 pixels
-for the onion kin, 10 for the bubble slime and 9 for the liquid metal slime;
-stretch heights are 13, 13 and 11 respectively. Neighbouring kin have a 2-column
+with its feet on the floor of the 16-pixel stage. Stand heights are 13 pixels
+for the onion kin, 9 for the bubble slime and 8 for the liquid metal slime;
+stretch heights are 15, 12 and 11 respectively. Neighbouring kin have a 2-column
 gap, with no gap at the outer ends. Airborne stand poses lift by
-the unused stage height (5, 6 and 7 pixels), keeping each tip at the top.
+the unused stage height (3, 7 and 8 pixels), keeping each tip at the top.
 The authoritative pixel rows are the `ONION`, `PUDDLE` and `LIQUID` sprite
 sets in the slime module.
 
 A blink replaces eye whites with body colour and draws a closed lid across
-each eye's pupil row: `.BWWWB.` / `.BWKWB.` becomes `.BBBBB.` / `.BKKKB.`.
+each eye's pupil row: `BBBWBBBWBDD` / `BBWKWBWKWDD` becomes
+`BBBBBBBBBDD` / `BBKKKBKKKDD` for the bubble slime.
 
-All three Kings are 22 pixels wide and 16 pixels tall, with white eyes,
-pupils, a grin and a shaded lower edge. Their blink uses the same closed-lid
-pattern, derived from the standing sprite. The Gold King's crown band is
-silver; its jewels retain their colours. The landing squash is generated
+Both Kings are 22 pixels wide and 16 pixels tall, with white plus eyes,
+black pupils, an orange-red U smile and a shaded lower edge. Their blink uses
+the same closed-lid pattern, derived from the standing sprite (`WKW` becomes `KKK`, other W
+becomes B). The landing squash is generated
 from the sprite: drop the first row and extend each remaining row by one
 pixel on each side.
 
@@ -268,7 +277,7 @@ it):
 - All slimes play one hop in unison, with no rest phase. This is the only
   time they move in step, which is what makes it read as an event.
 - For the 2 ticks at the top of the hop, the body and highlight are drawn in
-  GOLD and WHITE.
+  GOLD and WHITE; B and L turn gold while D and E retain their shade.
 
 **King Slime show** (the trigger rules are unchanged: a main-loop answer
 after a task of 20 seconds or more, or `/slime-king`; and it needs two
@@ -299,7 +308,7 @@ and its 24-column landing squash fit at that minimum):
 
 | Situation | Reply |
 |---|---|
-| Crowned | `The slimes band together... A King Slime appears!` (or `A Gold King Slime`, `A Metal King Slime`) |
+| Crowned | `The slimes band together... A King Slime appears!` (or `A Metal King Slime`) |
 | Already reigning | `The King Slime is already here!`, naming the King that reigns |
 | No room | `But there was no room for a King Slime! Widen the terminal.` |
 | `/slime-king` command description | `Call the slimes together to form a King Slime` |

@@ -84,7 +84,8 @@ function shape(pixels: (number | null)[][]): string {
 
 const WHITE = 0xfcfcfc
 const GOLD = 0xfcbc3c
-const MOUTH = 0xf87858
+const KING_MOUTH = KINGS.king.body.M
+const KIN_MOUTH = FAMILY[0]!.palette.M
 const BREATH_PERIODS = FAMILY.map(kin => kin.breath.period)
 const LONGEST_BREATH_PERIOD = Math.max(...BREATH_PERIODS)
 const BLINK_OBSERVATION_TICKS = BLINK_EVERY_CYCLES * LONGEST_BREATH_PERIOD
@@ -93,10 +94,10 @@ const HOP_START_WINDOW_TICKS = Math.max(...FAMILY.map(kin => kin.hopRests.reduce
 const kingLandingTick = KING_SHOW_TICKS - HOP_LAND_TICKS
 const PUPIL = 0x0b0a0d
 // The blue slime's tip row at rest.
-const TIP_ROW = 5
+const TIP_ROW = SLIME_ROWS * 2 - ONION.stand.length
 // Rows above every crouching kin, and the blue slime's stretching tip row.
-const CROUCH_EMPTY_ROWS = 7
-const STRETCH_TIP_ROW = 3
+const CROUCH_EMPTY_ROWS = SLIME_ROWS * 2 - Math.max(...FAMILY.map(kin => kin.sprites.squash.length))
+const STRETCH_TIP_ROW = 1
 
 function slimeFace(pixels: (number | null)[][], i: number) {
   return pixels.map(row => row.slice(kinHomeX(i), kinHomeX(i) + SLIME_WIDTH))
@@ -411,6 +412,16 @@ test('picks up a branch switched outside Claude Code on the next poll', async ($
 })
 
 describe('slime family', () => {
+  test('the five kin keep their literal eight-letter palettes', () => {
+    expect(Object.fromEntries(FAMILY.map(kin => [kin.name, kin.palette]))).toEqual({
+      'slime': { B: 0x3880a8, L: 0x50b0d0, H: 0xf8f8f8, D: 0x206088, E: 0x205068, M: 0xe85820, W: 0xfcfcfc, K: 0x0b0a0d },
+      'she-slime': { B: 0xf88820, L: 0xfcb048, H: 0xfcd860, D: 0xd06010, E: 0xb03800, M: 0x5c1c68, W: 0xfcfcfc, K: 0x0b0a0d },
+      'metal slime': { B: 0xa8b0c0, L: 0xd0d8e0, H: 0xffffff, D: 0x747c90, E: 0x4c5468, M: 0xe83828, W: 0xfcfcfc, K: 0x0b0a0d },
+      'bubble slime': { B: 0x40c818, H: 0xc8f840, D: 0x1c7c10, M: 0x0b0a0d, K: 0x0b0a0d, W: 0xfcfcfc, L: 0x40c818, E: 0x1c7c10 },
+      'liquid metal slime': { B: 0x8c9cb8, H: 0xf0f8ff, D: 0x3c4860, M: 0x0b0a0d, K: 0x0b0a0d, W: 0xfcfcfc, L: 0x8c9cb8, E: 0x3c4860 },
+    })
+  })
+
   test('kin have two empty columns between their homes and no outer gap', () => {
     expect(SLIME_GAP).toBe(2)
     expect(slimeColumns(0)).toBe(0)
@@ -429,7 +440,7 @@ describe('slime family', () => {
     expect(slimeCells(FAMILY.length, firstSquishTick)).toBe(slimeCells(FAMILY.length, firstSquishTick, null, 'breathe'))
   })
 
-  test('each kin has white eyes, centred pupils, its mouth colour and a shaded lower edge', () => {
+  test('each kin has white cross eyes, centred pupils, a two-row U smile and a shaded lower edge', () => {
     const rest = stage(FAMILY.length, null)
     expect(new Set(FAMILY.map(kin => kin.palette.B)).size).toBe(FAMILY.length)
     for (const [i, kin] of FAMILY.entries()) {
@@ -439,12 +450,17 @@ describe('slime family', () => {
       for (const x of pupils(face[eyeRow])) {
         expect(face[eyeRow - 1]?.[x]).toBe(WHITE)
         expect(face[eyeRow + 1]?.[x]).toBe(WHITE)
+        for (const y of [eyeRow - 1, eyeRow + 1]) {
+          expect(face[y]?.[x - 1]).not.toBe(WHITE)
+          expect(face[y]?.[x + 1]).not.toBe(WHITE)
+        }
       }
       const [left, right] = pupils(face[eyeRow])
       expect((left ?? 0) + (right ?? 0)).toBe(SLIME_WIDTH - 1)
-      // The grin is a run of the kin's own mouth colour below the eyes.
-      const mouth = face.slice(eyeRow + 1).some(row => row.some((_, x) => row.slice(x, x + 3).every(p => p === kin.palette.M)))
-      expect(mouth).toBe(true)
+      // The U's corners sit below the outer eye columns, above its five-pixel base.
+      expect(face[eyeRow + 2]?.[left! - 1]).toBe(kin.palette.M)
+      expect(face[eyeRow + 2]?.[right! + 1]).toBe(kin.palette.M)
+      expect(face[eyeRow + 3]?.slice(left!, right! + 1)).toEqual(Array(5).fill(kin.palette.M))
       const shade = face[floorRow]?.filter(p => p !== null) ?? []
       expect(new Set(shade)).toEqual(new Set([kin.palette.D]))
       for (const shift of [16, 8, 0]) {
@@ -558,8 +574,8 @@ describe('slime family', () => {
     // Crouch, launch, rise/hang, fall, land, rebound, settle/rest.
     expect(runs).toEqual([2, 1, 3, 1, 2, 1, nextCrouchTick - settleTick])
     const stretch = stage(1, launchTick, 'hop')
-    expect(stretch[STRETCH_TIP_ROW]?.filter(p => p !== null)).toEqual([FAMILY[0]?.palette.B])
-    expect(stretch[floorRow]?.filter(p => p !== null).length).toBe(1)
+    expect(stretch[STRETCH_TIP_ROW]?.filter(p => p !== null)).toEqual([FAMILY[0]?.palette.D])
+    expect(stretch[floorRow]?.filter(p => p !== null).length).toBe(5)
     expect(stage(1, fallTick, 'hop')).toEqual(stretch)
     expect(stage(1, reboundTick, 'hop')).toEqual(stretch)
     expect(stage(1, riseTick, 'hop')[floorRow]?.every(p => p === null)).toBe(true)
@@ -657,8 +673,8 @@ describe('slime family', () => {
       if (!pixels[floorRow]?.some(p => p !== null)) {
         airborneTicks += 1
         expect(pixels[0]).toBe(top)
-        expect(top?.filter(p => p !== null)).toEqual([0x3cbcfc])
-        expect(pixels.some(row => row.filter(p => p === MOUTH).length === 5)).toBe(true)
+        expect(top?.filter(p => p !== null)).toEqual([FAMILY[0]!.palette.D])
+        expect(pixels.some(row => row.filter(p => p === KIN_MOUTH).length === 5)).toBe(true)
       }
     }
     expect(airborneTicks).toBeGreaterThan(0)
@@ -682,12 +698,12 @@ describe('slime family', () => {
     expect(rest.slice(0, TIP_ROW).flat().some(p => p !== null)).toBe(false)
   })
 
-  test('the crouch keeps the white eyes and grin in a lower silhouette', () => {
+  test('the crouch keeps the cross eyes and U smile in a lower silhouette', () => {
     const crouchTick = 0
     const crouch = stage(1, crouchTick, 'hop')
     expect(crouch.slice(0, CROUCH_EMPTY_ROWS).flat().every(p => p === null)).toBe(true)
-    expect(crouch.flat().filter(p => p === WHITE).length).toBe(16)
-    expect(crouch.flat()).toContain(MOUTH)
+    expect(crouch.flat().filter(p => p === WHITE).length).toBe(8)
+    expect(crouch.flat()).toContain(KIN_MOUTH)
   })
 
   test('packs a frame into eight rows of Raster cells', () => {
@@ -702,10 +718,10 @@ describe('slime family', () => {
       const silhouettes = [
         [
           '           ',
-          '           ',
           '     ▄     ',
+          '     █     ',
           '   ▄███▄   ',
-          '▄█████████▄',
+          ' ▄███████▄ ',
           '███████████',
           '███████████',
           ' ▀███████▀ ',
@@ -714,19 +730,19 @@ describe('slime family', () => {
           '           ',
           '           ',
           '           ',
-          ' ▀    ▄  ▀ ',
-          ' ▄▄█████▄▄ ',
-          ' █████████ ',
+          ' ▄       ▄ ',
+          '   ▄▄▄█▄   ',
           '███████████',
-          '▀█████████▀',
+          '███████████',
+          '███████████',
         ],
         [
           '           ',
           '           ',
           '           ',
-          '     ▄▄    ',
-          ' ▄███████▄ ',
-          ' █████████ ',
+          '           ',
+          '   ▄▄██▄   ',
+          '███████████',
           '███████████',
           '███████████',
         ],
@@ -1306,7 +1322,7 @@ describe('slime moments', () => {
       if (frame < hopFall + HOP_FALL_TICKS + HOP_LAND_TICKS) return sprites.squash
       return frame < settleTick ? sprites.stretch : sprites.stand
     }
-    const bodyPixels = (i: number) => FAMILY[i]!.sprites.stand.join('').split('B').length - 1
+    const bodyPixels = (i: number) => [...FAMILY[i]!.sprites.stand.join('')].filter(pixel => pixel === 'B' || pixel === 'L').length
     for (let count = 1; count <= FAMILY.length; count += 1) {
       const levelUp: Moment = { kind: 'level-up', startTick }
       let isAllAirborne = false
@@ -1324,7 +1340,11 @@ describe('slime moments', () => {
           expect(face.map(row => row.map(pixel => pixel !== null))).toEqual(expected)
           expect(face.flat().filter(p => p === GOLD).length).toBe(isGold ? bodyPixels(i) : 0)
           if (isGold) {
-            expect(face.flat()).not.toContain(kin.palette.B)
+            for (const letter of ['B', 'L', 'D', 'E'] as const) {
+              expect(face.flat()).not.toContain(kin.palette[letter])
+            }
+            expect(face.flat()).toContain(0xd89010)
+            if (sprite.some(row => row.includes('E'))) expect(face.flat()).toContain(0x8c5000)
             if (kin.palette.H !== WHITE) expect(face.flat()).not.toContain(kin.palette.H)
           }
         }
@@ -1558,7 +1578,6 @@ describe('King Slime', () => {
     expect(kingStage(FAMILY.length, dropStarts, null, 'breathe', 'king')[floorRow]?.every(p => p === null)).toBe(true)
     expect(height(kingStage(FAMILY.length, squashStarts, null, 'breathe', 'king'))).toBe(KING_SPRITE.length - 1)
     expect(width(kingStage(FAMILY.length, squashStarts, null, 'breathe', 'king'))).toBe(KING_WIDTH + 2)
-    // Two kin with their gap now fit the whole landing squash.
     expect(width(kingStage(2, squashStarts, null, 'breathe', 'king'))).toBe(KING_WIDTH + 2)
     expect(kingStage(FAMILY.length, rebound, null, 'breathe', 'king')[floorRow]?.every(p => p === null)).toBe(true)
     expect(hasGold(kingStage(FAMILY.length, reignStarts, null, 'breathe', 'king'))).toBe(true)
@@ -1568,22 +1587,37 @@ describe('King Slime', () => {
     expect(KING_SHOW_TICKS).toBe(86)
   })
 
-  test('the king keeps its jewelled crown above white eyes with centred pupils and a wide salmon grin', () => {
+  test('the king keeps its jewelled crown above white cross eyes with centred pupils and an orange-red U smile', () => {
     const pixels = kingStage(2, kingReignStarts, null, 'breathe', 'king')
     expect(pixels.length).toBe(16)
     expect(pixels[0]?.includes(0x8838d0)).toBe(true)
     expect(pixels[0]?.includes(0x28a848)).toBe(true)
     expect(pixels[2]?.filter(p => p === GOLD).length).toBe(10)
     expect(pixels[3]?.filter(p => p === 0xf83800).length).toBe(4)
-    expect(pixels[7]?.filter(p => p === WHITE).length).toBe(6)
+    expect(pixels[7]?.filter(p => p === WHITE).length).toBe(2)
     const eyes = pixels[8]?.flatMap(p => p === WHITE ? ['W'] : p === 0x0b0a0d ? ['K'] : []).join('')
     expect(eyes).toBe('WKWWKW')
-    expect(pixels[11]?.filter(p => p === MOUTH).length).toBe(8)
-    expect(pixels[12]?.filter(p => p === MOUTH).length).toBe(6)
+    expect(pixels[11]?.filter(p => p === KING_MOUTH).length).toBe(2)
+    expect(pixels[12]?.filter(p => p === KING_MOUTH).length).toBe(6)
     expect(pixels[floorRow]?.filter(p => p !== null).length).toBe(20)
-    expect(pixels[floorRow]?.filter(p => p === 0x1878bc).length).toBe(20)
+    expect(pixels[floorRow]?.filter(p => p === FAMILY[0]!.palette.D).length).toBe(20)
     const kingBlink = kingReignStarts + 10
     expect(kingStage(2, kingBlink, null, 'breathe', 'king')[7]?.includes(WHITE)).toBe(false)
+  })
+
+  test('both Kings keep plus eyes, the whole three-row U smile and an orange-red mouth', () => {
+    for (const king of Object.values(KINGS)) {
+      expect(king.body.M).toBe(0xe85820)
+      // Mask only the face ink: metal sheen and body shading are independent.
+      expect(king.sprite.slice(7, 13).map(row => row.replaceAll(/[^WKM]/g, '.'))).toEqual([
+        '........W....W........',
+        '.......WKW..WKW.......',
+        '........W....W........',
+        '......M........M......',
+        '.......M......M.......',
+        '........MMMMMM........',
+      ])
+    }
   })
 
   test('every King closes each three-pixel eye into a lid when blinking', () => {
@@ -1596,11 +1630,11 @@ describe('King Slime', () => {
     }
   })
 
-  test('both merged poses keep white eyes, pupils, a red grin and lower shading at their original sizes', () => {
+  test('both merged poses keep white eyes, pupils, an orange-red U smile and lower shading', () => {
     // [offset, width, height, white, dark, mouth, floor shade] of the splat and the blob.
     for (const [offset, width, height, white, dark, mouth, floorShade] of [
-      [0, 22, 6, 10, 16, 10, 10],
-      [KING_MERGE_TICKS / 2, 17, 12, 16, 13, 7, 13],
+      [0, 22, 6, 8, 2, 10, 10],
+      [KING_MERGE_TICKS / 2, 17, 14, 8, 2, 7, 9],
     ] as const) {
       const pixels = kingStage(2, KING_GATHER_TICKS + offset, null, 'breathe', 'king')
       const occupied = pixels.filter(row => row.some(p => p !== null))
@@ -1609,7 +1643,7 @@ describe('King Slime', () => {
       expect(columns.length).toBe(width)
       expect(pixels.flat().filter(p => p === WHITE).length).toBe(white)
       expect(pixels.flat().filter(p => p === KINGS.king.body.K).length).toBe(dark)
-      expect(pixels.flat().filter(p => p === MOUTH).length).toBe(mouth)
+      expect(pixels.flat().filter(p => p === KING_MOUTH).length).toBe(mouth)
       expect(pixels[floorRow]?.filter(p => p === KINGS.king.body.D).length).toBe(floorShade)
     }
   })
@@ -1698,8 +1732,10 @@ describe('King Slime', () => {
 
   test('scatter bursts from the collision in one airborne arc and lands home squashed', () => {
     // The onion tips stay at the collision x positions across poses.
-    const tips = (pixels: Pixels) => [...new Set(pixels.slice(0, 2).flatMap(row => row.flatMap((p, x) => FAMILY.filter(kin => kin.sprites === ONION).some(kin => kin.palette.B === p) ? [x] : [])))].sort()
-    expect(tips(at(out))).toEqual(tips(at(collide)))
+    const tips = (pixels: Pixels) => [...new Set(pixels.slice(0, 1).flatMap(row => row.flatMap((p, x) => FAMILY.filter(kin => kin.sprites === ONION).some(kin => kin.palette.D === p) ? [x] : [])))].sort()
+    // A bubble can cover a tip in the collision; scatter reveals all three.
+    expect(tips(at(out)).length).toBe(3)
+    for (const tip of tips(at(collide))) expect(tips(at(out))).toContain(tip)
     // LIQUID changes its top from HB to B; the highlight marks the same column.
     const liquid = FAMILY.find(kin => kin.sprites === LIQUID)!
     expect(at(out)[0]?.indexOf(liquid.palette.B)).toBe(at(collide)[0]?.indexOf(liquid.palette.H))
@@ -1722,8 +1758,8 @@ describe('King Slime', () => {
     }
   })
 
-  test('an injected random crowns the King, Gold King or Metal King, each in its own body and crown', () => {
-    const reigns = ([[0, 'king'], [0.5, 'gold'], [0.99, 'metal']] as const).map(([pick, variant]) => {
+  test('an injected random crowns the King or Metal King, each in its own body and crown', () => {
+    const reigns = ([[0, 'king'], [0.5, 'metal']] as const).map(([pick, variant]) => {
       expect(pickKing(() => pick)).toBe(variant)
       const { body, crown } = KINGS[variant]
       const merged = kingStage(2, KING_GATHER_TICKS + KING_MERGE_TICKS / 2, null, 'breathe', variant)
@@ -1733,23 +1769,24 @@ describe('King Slime', () => {
       expect(reign.flat()).toContain(body.D)
       // The crown's band is all crown metal.
       expect(new Set(reign[2]?.filter(p => p !== null))).toEqual(new Set([crown.Y]))
-      // The Gold and Metal Kings are plated: a bright sheen above, a darker band below.
+      // The Metal King is plated: a bright sheen above, a darker band below.
       for (const plate of [body.S, body.O]) {
         if (variant === 'king') expect(plate).toBeUndefined()
         else expect(reign.flat()).toContain(plate)
       }
       return reign
     })
-    expect(new Set(Object.values(KINGS).map(king => king.body.B)).size).toBe(3)
+    expect(new Set(Object.values(KINGS).map(king => king.body.B)).size).toBe(2)
     for (const [i, reign] of reigns.entries()) {
       const others = Object.values(KINGS).filter((_, k) => k !== i)
       for (const other of others) expect(reign.flat()).not.toContain(other.body.B)
     }
+    expect(pickKing(() => 0.499)).toBe('king')
+    expect(pickKing(() => 0.99)).toBe('metal')
     expect(KINGS.king.name).toBe('King Slime')
-    expect(KINGS.gold.name).toBe('Gold King Slime')
     expect(KINGS.metal.name).toBe('Metal King Slime')
-    // The King and Metal King wear gold bands; the Gold King's band is silver.
-    expect([KINGS.king, KINGS.gold, KINGS.metal].map(king => king.crown.Y)).toEqual([GOLD, 0xd0d8e0, GOLD])
+    // Both Kings wear gold bands.
+    expect([KINGS.king, KINGS.metal].map(king => king.crown.Y)).toEqual([GOLD, GOLD])
   })
 
   test('the show lasts 6.5 to 7 seconds at 80 ms per frame', () => {

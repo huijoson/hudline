@@ -15,6 +15,13 @@ function silhouette(pixels: (number | null)[][]): string[] {
   return pixels.map(row => row.map(p => p === null ? '.' : '#').join(''))
 }
 
+test('the quest slime keeps its literal green eight-letter palette', () => {
+  expect(MONSTERS.slime.palette).toEqual({
+    B: 0x38c838, L: 0x38c838, H: 0xb8f818, D: 0x008800,
+    E: 0x008800, W: 0xfcfcfc, K: 0x0b0a0d, M: 0xf87858,
+  })
+})
+
 test('the quest slime is a green, grounded silhouette with eyes', () => {
   const pixels = blank()
   paintMonster(pixels, 'slime', LEFT, 0)
@@ -22,20 +29,19 @@ test('the quest slime is a green, grounded silhouette with eyes', () => {
     '....................',
     '....................',
     '....................',
-    '....................',
-    '....................',
+    '.......#............',
+    '.......#............',
     '.......#............',
     '......###...........',
     '.....#####..........',
+    '....#######.........',
     '...#########........',
-    '..###########.......',
     '..###########.......',
     '..###########.......',
     '..###########.......',
     '..###########.......',
     '...#########........',
     '....#######.........',
-
   ])
   expect(pixels.flat()).toContain(0x38c838)
   expect(pixels.flat()).toContain(0x0b0a0d)
@@ -175,8 +181,8 @@ test('painting clips at either edge and preserves transparent pixels and other r
   const slimeWidth = MONSTERS.slime.frames[0]!.sprite[0]!.length
   paintMonster(left, 'slime', 1 - slimeWidth, 0)
   paintMonster(right, 'slime', COLUMNS - 1, 0)
-  expect(left[11]).toEqual([0x38c838, ...Array(COLUMNS - 1).fill(null)])
-  expect(right[11]).toEqual([...Array(COLUMNS - 1).fill(null), 0x38c838])
+  expect(left[12]).toEqual([0x008800, ...Array(COLUMNS - 1).fill(null)])
+  expect(right[12]).toEqual([...Array(COLUMNS - 1).fill(null), 0x38c838])
   expect(left.every(row => row.length === COLUMNS)).toBe(true)
   expect(right.every(row => row.length === COLUMNS)).toBe(true)
 
@@ -184,7 +190,7 @@ test('painting clips at either edge and preserves transparent pixels and other r
   paintMonster(background, 'slime', LEFT, 0)
   expect(background[0]?.[LEFT]).toBe(0x123456)
   expect(background[2]?.[LEFT]).toBe(0x123456)
-  expect(background[6]?.[LEFT + 4]).toBe(0xb8f818)
+  expect(background[7]?.[LEFT + 3]).toBe(0xb8f818)
   paintSkill(background, 'thunder', COLUMNS - 6, THUNDER_TICKS - 1)
   expect(background[0]?.[COLUMNS - 1]).toBe(0xfcd848)
   expect(background.every(row => row.length === COLUMNS)).toBe(true)

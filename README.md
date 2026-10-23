@@ -71,12 +71,14 @@ pixel letters on top. It needs no Node.js and no `statusLine` setting.
 
 Beside the branch sits a slime family: a slime, a she-slime, a metal slime, a
 bubble slime and a liquid metal slime, each modelled on its Dragon Quest namesake.
-All five are 11 pixels wide, with 2-pixel gaps, centred pupils in 3×3 white
-eyes and a wide grin. A clean
-`main` branch needs 95 columns to show all five; at 84 columns four fit. At
+All five are 11 pixels wide, with 2-pixel gaps, white cross eyes with black
+centres and two-row U smiles. The onion kin have a three-pixel stem, sloped
+shoulders and a rounded bottom, with body colours taken from the SFC reference.
+The blue slime, merged poses and both Kings share an orange-red mouth (`0xe85820`).
+A clean `main` branch needs 95 columns to show all five; at 84 columns four fit. At
 session start they drop in one by one, then settle into their resting motion. When a task of 20 seconds or more finishes, they leap toward
 each other in two hops and collide in mid-air. They splat together, then a crowned
-**King Slime**, plated **Gold King Slime** or plated **Metal King Slime**, picked
+**King Slime** or plated **Metal King Slime**, picked
 at random, drops in with a squash and rebound. It reigns for a few seconds,
 flickers in defeat, then bursts into the family, each arcing home in one leap
 and settling at rest. Type `/slime-king` to see the show any time.
