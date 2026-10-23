@@ -14,10 +14,10 @@ import {
   tokens,
   usd,
 } from './format'
-import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
+import { BRANCH_SPRITE, pixelText, pixelWidth } from './pixel'
 import { QUEST_STAGE } from './quest'
 import { HERO_PALETTE, QUEST_ROWS } from './quest-hero'
-import { METER_ROWS, POLL_MS } from './register'
+import { METER_ROWS, POLL_MS, TITLE_ROWS } from './register'
 import {
   canCrown,
   DAMAGE_COOLDOWN_TICKS,
@@ -116,11 +116,15 @@ function slimePixels(cells: string, rows = SLIME_ROWS) {
   )
 }
 
-const SPRITE_ROW = pack(BRANCH_SPRITE)[0]
+const SPRITE_ROW = '█   █'
+const MAIN_TITLE = ['█▄ ▄█ ▄▀▀▀▄  ▀█▀  █   █', '█ █ █ █▄▄▄█   █   █▀▄ █', '█   █ █   █   █   █  ▀█', '▀   ▀ ▀   ▀  ▀▀▀  ▀   ▀']
+const DEV_TITLE = ['█▀▀▀▄ █▀▀▀▀ █   █', '█   █ █▄▄▄  █   █', '█   █ █     ▀▄ ▄▀', '▀▀▀▀  ▀▀▀▀▀   ▀  ']
+const FEATURE_TITLE = ['█▀▀▀▀ █▀▀▀▀ ▄▀▀▀▄ ▀▀█▀▀ █   █ █▀▀▀▄ █▀▀▀▀     █ ▄▀▀▀▀ █      ▀█▀  █▄ ▄█ █▀▀▀▀ ▄▀▀▀▀', '█▄▄▄  █▄▄▄  █▄▄▄█   █   █   █ █▄▄▄▀ █▄▄▄    ▄▀  ▀▄▄▄  █       █   █ █ █ █▄▄▄  ▀▄▄▄ ', '█     █     █   █   █   █   █ █ ▀▄  █     ▄▀        █ █       █   █   █ █         █', '▀     ▀▀▀▀▀ ▀   ▀   ▀    ▀▀▀  ▀   ▀ ▀▀▀▀▀ ▀     ▀▀▀▀  ▀▀▀▀▀  ▀▀▀  ▀   ▀ ▀▀▀▀▀ ▀▀▀▀ ']
+const CLIPPED_TITLE = ['█▀▀▀▀ █▀▀▀▀ ▄▀▀▀▄ ▀▀█▀▀            ', '█▄▄▄  █▄▄▄  █▄▄▄█   █              ', '█     █     █   █   █    ▄▄    ▄▄  ', '▀     ▀▀▀▀▀ ▀   ▀   ▀    ▀▀    ▀▀  ']
 
 describe('pixel font', () => {
-  test('packs a glyph into three half-block rows', () => {
-    expect(pixelText('a')).toEqual(['▄▀▄', '█▀█', '▀ ▀'])
+  test('packs a glyph into four half-block rows', () => {
+    expect(pixelText('a')).toEqual(['▄▀▀▀▄', '█▄▄▄█', '█   █', '▀   ▀'])
   })
 
   test('spaces glyphs one column apart', () => {
@@ -248,10 +252,10 @@ test('draws the branch in pixel glyphs above the neon meter', async ($, on) => {
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await mount($, surface, 10, 120)
-    for (const line of pixelText('main')) {
+    for (const line of MAIN_TITLE) {
       expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
     }
-    expect(await ui.find({ type: 'Text', text: `  ${pixelText('*')[1]}` })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '  ▄███▄' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: ' Opus 5.5 ' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: ' ▰▰▱▱▱ 42%' })).toBeDefined()
     // Quota windows read as remaining: 39% used is 61% left, 85% used is 15% left.
@@ -264,6 +268,31 @@ test('draws the branch in pixel glyphs above the neon meter', async ($, on) => {
     await ui.unmount()
   }
 })
+
+for (const [theme, rows] of [['slimes', SLIME_ROWS], ['quest', QUEST_ROWS]] as const) {
+  for (const surface of ['terminal', 'desktop'] as const) {
+    test(`centres the branch title beside the ${theme} stage on ${surface}`, { options: { stage: theme } }, async ($, on) => {
+      mock.clock(on)
+      answers(on, { name: 'main', porcelain: ' M app.ts\n', isRepo: true })
+      await $.session.start({ cwd: '/repo', surface, isInteractive: true })
+      const height = Math.max(rows, TITLE_ROWS)
+      const ui = await mount($, surface, height + METER_ROWS, 120)
+      const top = Math.floor((height - TITLE_ROWS) / 2)
+      const blank = ' '.repeat(BRANCH_SPRITE[0]!.length + 2 + pixelWidth('main'.length) + 2 + pixelWidth(1))
+      const sprite = ['█   █', '█  ▄▀', '█▄▀  ', '▀    ']
+      const dirty = ['▄ ▄ ▄', '▄███▄', '▄▀█▀▄', '     ']
+      for (let row = 0; row < height; row += 1) {
+        const titleRow = row - top
+        const prefix = titleRow >= 0 && titleRow < TITLE_ROWS
+          ? `${sprite[titleRow]}  ${MAIN_TITLE[titleRow]}  ${dirty[titleRow]}`
+          : blank
+        expect((await ui.find({ type: 'Box', key: `row-${row}` }))?.text.startsWith(prefix)).toBe(true)
+      }
+      expect(await ui.find({ type: 'Box', key: `row-${height}` })).toBeUndefined()
+      await ui.unmount()
+    })
+  }
+}
 
 test('reads token flow from the transcript the classic hooks name', async ($, on) => {
   mock.clock(on)
@@ -333,7 +362,7 @@ test('picks up a branch switched outside Claude Code on the next poll', async ($
   await clock.advance(3000)
 
   const ui = await mount($, 'terminal', 10, 120)
-  for (const line of pixelText('dev')) {
+  for (const line of DEV_TITLE) {
     expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
   }
   await ui.unmount()
@@ -1119,8 +1148,9 @@ test('with breath off the slimes sit still, and the King Slime still plays', { o
 test('slimes give up their room before the branch name does', async ($, on) => {
   answers(on, { name: 'feature/slimes', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 70)
-  for (const line of pixelText('feature/slimes')) {
+  const columns = BRANCH_SPRITE[0]!.length + 2 + pixelWidth('feature/slimes'.length)
+  const ui = await mount($, 'terminal', 10, columns)
+  for (const line of FEATURE_TITLE) {
     expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
   }
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
@@ -1725,9 +1755,10 @@ test('marks a dirty tree on the chip too', async ($, on) => {
 test('cuts a branch name too long for the band, after the slimes have left', async ($, on) => {
   answers(on, { name: 'feature/very-long-name', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  // 30 columns: 7 for the sprite and its gap leave room for 6 glyphs.
-  const ui = await mount($, 'terminal', 10, 30)
-  for (const line of pixelText('feat..')) {
+  const clipped = 'feat..'
+  const columns = BRANCH_SPRITE[0]!.length + 2 + pixelWidth(clipped.length)
+  const ui = await mount($, 'terminal', 10, columns)
+  for (const line of CLIPPED_TITLE) {
     expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
   }
   await ui.unmount()
@@ -1785,7 +1816,7 @@ test('rereads the branch shortly after /clear', async ($, on) => {
   await clock.advance(200)
 
   const ui = await mount($, 'terminal', 10, 120)
-  expect(await ui.find({ type: 'Text', text: pixelText('dev')[0] })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: DEV_TITLE[0] })).toBeDefined()
   await ui.unmount()
 })
 
@@ -1990,7 +2021,7 @@ for (const [theme, rows] of [['quest', QUEST_ROWS], ['slimes', SLIME_ROWS]] as c
     answers(on, { name: 'main', porcelain: '', isRepo: true })
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
     for (let render = 0; render < 2; render += 1) {
-      const ui = await mount($, 'terminal', rows + METER_ROWS, 120)
+      const ui = await mount($, 'terminal', Math.max(rows, TITLE_ROWS) + METER_ROWS, 120)
       const raster = await ui.find({ type: 'Raster', key: 'slimes' })
       expect(raster?.props.rows).toBe(rows)
       expect(new Uint32Array(Uint8Array.from(atob(String(raster?.props.cells)), ch => ch.charCodeAt(0)).buffer).length).toBe(Number(raster?.props.columns) * rows * 3)

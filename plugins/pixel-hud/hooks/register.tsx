@@ -20,7 +20,7 @@ import {
   usd,
 } from './format'
 import type { Role } from './format'
-import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
+import { BRANCH_SPRITE, GLYPH_ADVANCE, pack, pixelText, pixelWidth } from './pixel'
 import { DAMAGE_COOLDOWN_TICKS, FRAME_MS, nextMoment } from './stage'
 import type { Moment, Rest, Stage } from './stage'
 import { selectStage } from './stages'
@@ -31,7 +31,7 @@ const EMPTY: Tally = { effort: null, transcript: null, base: null, since: NO_FLO
 const tally = atom({ plugin: 'pixel-hud', key: 'tally' } as const, EMPTY)
 
 // Branch: NES-style palette, a vertical title gradient, green sprite, red alert.
-const ROW_COLORS = ['#58f898', '#3cbcfc', '#6888fc']
+const ROW_COLORS = ['#58f898', '#58d8d0', '#3cbcfc', '#6888fc']
 const SPRITE_COLOR = '#00b800'
 const DIRTY_COLOR = '#f83800'
 const SPRITE = pack(BRANCH_SPRITE)
@@ -44,7 +44,8 @@ const CHIP = '#ff1f8f'
 const CHIP_INK = '#0b0a0d'
 const SEP = ' ★ '
 export const METER_ROWS = 2
-const FULL_ROWS = SPRITE.length + METER_ROWS
+export const TITLE_ROWS = SPRITE.length
+const FULL_ROWS = TITLE_ROWS + METER_ROWS
 // /clear empties $.state, and a branch switched outside Claude Code raises no
 // event: poll to catch both.
 export const POLL_MS = 3000
@@ -133,7 +134,7 @@ function fitBranch(theme: Stage, name: string, isDirty: boolean, columns: number
   const roomFor = (slimes: number) => {
     const width = theme.columns(slimes)
     const used = fixed + (width > 0 ? GAP.length + width : 0)
-    return Math.floor((columns - used + 1) / 4)
+    return Math.floor((columns - used + 1) / GLYPH_ADVANCE)
   }
   for (let slimes = theme.maxRoom; slimes > 0; slimes -= 1) {
     if (name.length <= roomFor(slimes)) {
@@ -375,6 +376,9 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
     const cells = Raster ? theme.cells(slimes, tick, currentMoment(), rest) : ''
     stage = Raster ? { requestId: e.requestId, slimes, cells } : null
     const still = Raster === null && slimes > 0 ? theme.text(slimes) : null
+    // The title block is centred against a taller stage.
+    const branchRows = Math.max(TITLE_ROWS, slimes > 0 ? theme.rows : 0)
+    const titleTop = Math.floor((branchRows - TITLE_ROWS) / 2)
     const dirty = pixelText('*')
     const chip =
       git && glyphs === null
@@ -487,14 +491,14 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
         {glyphs && git ? (
           <Box key="branch">
             <Box flexDirection="column">
-              {Array.from({ length: Math.max(glyphs.length, still?.length ?? 0) }, (_, row) => (
+              {Array.from({ length: branchRows }, (_, row) => (
                 <Box key={`row-${row}`}>
-                  <Text color={SPRITE_COLOR}>{paddedRow(SPRITE, row, BRANCH_SPRITE[0]!.length)}</Text>
+                  <Text color={SPRITE_COLOR}>{paddedRow(SPRITE, row - titleTop, BRANCH_SPRITE[0]!.length)}</Text>
                   <Text>{GAP}</Text>
-                  <Text color={ROW_COLORS[row]} bold>
-                    {paddedRow(glyphs, row, glyphs[0]!.length)}
+                  <Text color={ROW_COLORS[row - titleTop]} bold>
+                    {paddedRow(glyphs, row - titleTop, glyphs[0]!.length)}
                   </Text>
-                  {git.isDirty ? <Text color={DIRTY_COLOR}>{GAP + paddedRow(dirty, row, pixelWidth(1))}</Text> : null}
+                  {git.isDirty ? <Text color={DIRTY_COLOR}>{GAP + paddedRow(dirty, row - titleTop, pixelWidth(1))}</Text> : null}
                   {still ? <Text>{GAP}</Text> : null}
                   {still?.[row]?.map((s, i) => (
                     <Text key={`slime-${i}`} color={s.color}>
