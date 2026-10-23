@@ -13,6 +13,14 @@ merge crowns a King Slime, a Gold King Slime or a Metal King Slime, picked at
 random each time; each has its own body colours, and the Gold King's crown is
 silver. The replies below name whichever King it is.
 
+Each kin was then modelled on its Dragon Quest counterpart and narrowed to 13
+pixels. The slime, she-slime and metal slime share one onion-shaped sprite set,
+a thin tip flaring into a round bulb; the bubble slime has its own puddle set, a
+low dome over a melted skirt with bubbles above. Every pose exists in both sets,
+and each kin has its own palette and mouth colour (salmon, dark purple, red, and
+a dark grin for the bubble slime). The Gold and Metal Kings wear a plated sprite
+with banded metal shading; the blue King Slime keeps its own.
+
 ## Problem Statement
 
 The slime family beside the branch in the pixel-hud mod reads as generic pixel
@@ -157,7 +165,7 @@ R (jewel):
 
 - **W**: eye white
 - **K**: pupil, mouth corners and outlines
-- **M**: mouth interior, a salmon shared by all kin
+- **M**: mouth interior, in each kin's own colour
 - **D**: shade, a darker version of each kin's body colour, added to each
   kin's entry
 

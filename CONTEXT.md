@@ -274,7 +274,8 @@ instead.
 
 The row of pixel-art slimes the pixel-hud mod draws beside the branch name, one
 **Kin** per colour. The family shares one stage; each Kin keeps its own place
-and its own rhythm on it.
+and its own rhythm on it. Each Kin has its own palette and sprite set: the
+slime, she-slime and metal slime share an onion shape, the bubble slime a puddle.
 
 ## Rest
 
