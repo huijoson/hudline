@@ -109,6 +109,8 @@ for a walking hero. After a completed main-agent reply, a random slime, bat,
 ghost or skeleton scrolls in. The hero uses slash, fireball or thunder, picked
 separately at random. Battles need room beside the branch and give way to the compaction
 level-up. Replies during a battle or level-up do not start another battle.
+Type `/quest-battle [monster] [skill]` to summon a battle now; omit either pick for
+a random one, or give both in either order (for example, `/quest-battle dracky thunder`).
 The hero walks in at session start, flickers when a tool fails and hops with a
 gold flash on compaction. Turning off **Slimes breathe** stops the resting walk
 and scrolling ground. **Slimes hop** only affects the slime family.

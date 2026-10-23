@@ -26,6 +26,8 @@ import type { Moment, Rest, Stage } from './stage'
 import { KINGS, pickKing } from './slime'
 import type { KingVariant } from './slime'
 import { selectStage } from './stages'
+import { MONSTERS, SKILLS } from './quest-foes'
+import type { Monster, Skill } from './quest-foes'
 
 const branch = atom({ plugin: 'pixel-hud', key: 'branch' } as const, null)
 const usage = atom({ plugin: 'pixel-hud', key: 'usage' } as const, null)
@@ -55,6 +57,7 @@ const SLIMES_KEY = 'slimes'
 // A task long enough to earn the King Slime: the slimes merge, reign, and split.
 const KING_AFTER_MS = 20_000
 const KING_COMMAND = 'slime-king'
+const BATTLE_COMMAND = 'quest-battle'
 // $.fs.read refuses files over 4 MiB.
 const READ_LIMIT = 4 * 1024 * 1024
 
@@ -171,6 +174,21 @@ async function repaint(theme: Stage, $: EngineInterface, drawn: DrawnStage | nul
   }
 }
 
+type Battle = Extract<Moment, { kind: 'battle' }>
+type BattlePick = Partial<Pick<Battle, 'monster' | 'skill'>>
+
+function battle($: EngineInterface, theme: Stage, stage: DrawnStage | null, tick: number, active: Moment | null, rest: Rest, random: () => number, fixed: BattlePick, unseat: (denied: DrawnStage | null) => void) {
+  if (!theme.accepts('battle', theme.maxRoom)) return 'no-hero'
+  if (active?.kind === 'battle') return 'busy'
+  if (!stage || !theme.accepts('battle', stage.slimes)) return 'no-room'
+  if (active && theme.priority('battle') <= theme.priority(active.kind)) return 'busy'
+  const incoming = theme.taskMoment(tick, random)
+  if (incoming?.kind !== 'battle') return 'no-hero'
+  const picked = { ...incoming, ...fixed }
+  void repaint(theme, $, stage, tick, picked, rest).then(unseat)
+  return picked
+}
+
 // The battle and King pickers are injectable.
 export const register = (on: Parameters<Register>[0], options: Parameters<Register>[1], random: () => number = Math.random) => {
   const theme = selectStage(options.stage)
@@ -229,6 +247,13 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
         description: 'Call the slimes together to form a King Slime',
       })
       .catch(() => undefined)
+    await $.command
+      .register({
+        name: BATTLE_COMMAND,
+        description: 'Summon a monster for the hero to fight',
+        argumentHint: '[monster] [skill]',
+      })
+      .catch(() => undefined)
     return next(e)
   })
 
@@ -240,17 +265,36 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
     return { text: crowning.isNew ? `The slimes band together... A ${name} appears!` : `The ${name} is already here!` }
   })
 
+  on('command.run', { command: BATTLE_COMMAND }, async ($, e) => {
+    const monsters = Object.keys(MONSTERS) as Monster[]
+    const skills = Object.keys(SKILLS) as Skill[]
+    const normalize = (word: string) => word.toLowerCase().replace(/[\s-]/g, '')
+    const args = (e.args ?? '').trim()
+    const words = args ? args.split(/\s+/) : []
+    const fixed: BattlePick = {}
+    const help = { text: `But that battle is unknown! Monsters: ${monsters.join(', ')}. Skills: ${skills.join(', ')}. Choose one of each, or leave either to fate.` }
+    if (words.length > 2) return help
+    for (const word of words) {
+      const monster = monsters.find(key => normalize(key) === normalize(word) || normalize(MONSTERS[key].name) === normalize(word))
+      const skill = skills.find(key => normalize(key) === normalize(word))
+      if (monster && !fixed.monster) fixed.monster = monster
+      else if (skill && !fixed.skill) fixed.skill = skill
+      else return help
+    }
+    const summoned = battle($, theme, stage, tick, currentMoment(), rest, random, fixed, unseat)
+    if (summoned === 'no-hero') return { text: 'But there is no hero here. The slimes carry on.' }
+    if (summoned === 'no-room') return { text: 'But there was no room for a battle! Widen the terminal.' }
+    if (summoned === 'busy') return { text: 'But the hero is already fighting!' }
+    moment = summoned
+    const skill = summoned.skill[0]!.toUpperCase() + summoned.skill.slice(1)
+    return { text: `A ${MONSTERS[summoned.monster].name} draws near! The hero casts ${skill}.` }
+  })
+
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     if (!e.agentId && e.reason === 'answer') {
-      const active = currentMoment()
-      if (stage && theme.accepts('battle', stage.slimes) && (!active || theme.priority('battle') > theme.priority(active.kind))) {
-        const incoming = theme.taskMoment(tick, random)
-        if (incoming) {
-          moment = nextMoment(theme, active, incoming, stage.slimes)
-          void repaint(theme, $, stage, tick, moment, rest).then(unseat)
-        }
-      }
+      const started = battle($, theme, stage, tick, currentMoment(), rest, random, {}, unseat)
+      if (typeof started !== 'string') moment = started
       if (e.durationMs >= KING_AFTER_MS) crown()
     }
     return result

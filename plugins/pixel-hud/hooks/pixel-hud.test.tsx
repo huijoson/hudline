@@ -1912,7 +1912,10 @@ test('/slime-king is registered, and crowns the slimes while they are on stage',
   const registered: { name: string; description: string }[] = []
   answers(on, { name: 'main', porcelain: '', isRepo: true }, registered)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  expect(registered).toEqual([{ name: 'slime-king', description: 'Call the slimes together to form a King Slime' }])
+  expect(registered).toEqual([
+    { name: 'slime-king', description: 'Call the slimes together to form a King Slime' },
+    { name: 'quest-battle', description: 'Summon a monster for the hero to fight' },
+  ])
 
   // Nothing drawn yet: no stage for a king.
   expect((await $.command.run(KING)).text).toBe('But there was no room for a King Slime! Widen the terminal.')
