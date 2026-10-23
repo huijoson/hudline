@@ -196,14 +196,24 @@ const WHITE = 0xfcfcfc
 const PUPIL = 0x0b0a0d
 const GOLD = 0xfcbc3c
 
-export type Kin = { name: string; sprites: KinSprites; palette: Record<'B' | 'H' | 'D' | 'K' | 'M' | 'W', number> }
+type Breath = { period: number; blink: number }
+
+export type Kin = {
+  name: string
+  sprites: KinSprites
+  palette: Record<'B' | 'H' | 'D' | 'K' | 'M' | 'W', number>
+  phase: number
+  breath: Breath
+  // Fixed rest lengths keep each kin's pauses varied and repeatable.
+  hopRests: readonly number[]
+}
 
 export const FAMILY: readonly Kin[] = [
-  { name: 'slime', sprites: ONION, palette: { B: 0x3cbcfc, H: 0xbcf0fc, D: 0x1878bc, K: PUPIL, M: 0xf87858, W: WHITE } },
-  { name: 'she-slime', sprites: ONION, palette: { B: 0xf88820, H: 0xfcd860, D: 0xb03800, K: PUPIL, M: 0x5c1c68, W: WHITE } },
-  { name: 'metal slime', sprites: ONION, palette: { B: 0xa8b0c0, H: 0xffffff, D: 0x4c5468, K: PUPIL, M: 0xe83828, W: WHITE } },
-  { name: 'bubble slime', sprites: PUDDLE, palette: { B: 0x40c818, H: 0xc8f840, D: 0x1c7c10, K: PUPIL, M: PUPIL, W: WHITE } },
-  { name: 'liquid metal slime', sprites: LIQUID, palette: { B: 0x8c9cb8, H: 0xf0f8ff, D: 0x3c4860, K: PUPIL, M: PUPIL, W: WHITE } },
+  { name: 'slime', phase: 0, breath: { period: 36, blink: 12 }, hopRests: [6, 10, 14], sprites: ONION, palette: { B: 0x3cbcfc, H: 0xbcf0fc, D: 0x1878bc, K: PUPIL, M: 0xf87858, W: WHITE } },
+  { name: 'she-slime', phase: 3, breath: { period: 44, blink: 18 }, hopRests: [9, 14, 7], sprites: ONION, palette: { B: 0xf88820, H: 0xfcd860, D: 0xb03800, K: PUPIL, M: 0x5c1c68, W: WHITE } },
+  { name: 'metal slime', phase: 7, breath: { period: 50, blink: 24 }, hopRests: [12, 6, 10], sprites: ONION, palette: { B: 0xa8b0c0, H: 0xffffff, D: 0x4c5468, K: PUPIL, M: 0xe83828, W: WHITE } },
+  { name: 'bubble slime', phase: 12, breath: { period: 40, blink: 30 }, hopRests: [14, 8, 11], sprites: PUDDLE, palette: { B: 0x40c818, H: 0xc8f840, D: 0x1c7c10, K: PUPIL, M: PUPIL, W: WHITE } },
+  { name: 'liquid metal slime', phase: 17, breath: { period: 46, blink: 28 }, hopRests: [8, 12, 9], sprites: LIQUID, palette: { B: 0x8c9cb8, H: 0xf0f8ff, D: 0x3c4860, K: PUPIL, M: PUPIL, W: WHITE } },
 ]
 
 export const SLIME_ROWS = 8
@@ -215,7 +225,7 @@ const SLIME_PIXELS = SLIME_ROWS * 2
 type Lift = number | 'air'
 export type Pose = { pose: KinPose; lift: Lift }
 type Beat = Pose & { ticks: number }
-const beats = ({ ticks, ...pose }: Beat): Pose[] => Array<Pose>(ticks).fill(pose)
+const beats = <T extends { ticks: number }>({ ticks, ...pose }: T): Omit<T, 'ticks'>[] => Array<Omit<T, 'ticks'>>(ticks).fill(pose)
 export type Frame = { sprite: readonly string[]; lift: number }
 
 export function kinFrame(sprites: KinSprites, { pose, lift }: Pose): Frame {
@@ -250,30 +260,8 @@ export const HOP: readonly Pose[] = ([
   { pose: 'stand', lift: 0, ticks: HOP_SETTLE_TICKS },
 ] satisfies Beat[]).flatMap(beats)
 export const HOP_TICKS = HOP.length
-// Fixed rest lengths in ticks keep each kin's pauses varied and repeatable.
-const HOP_RESTS = [
-  [6, 10, 14],
-  [9, 14, 7],
-  [12, 6, 10],
-  [14, 8, 11],
-  [8, 12, 9],
-] satisfies number[][]
-
-// Each kin has an offset in ticks, so they never move in step.
-const PHASE = [0, 3, 7, 12, 17]
-
-const BLINK_EVERY_CYCLES = 3
-const BREATH_SQUISH_TICKS = 2
-type Breath = { period: number; blink: number }
-
-// A short squish at the end of each kin's own breathing cycle.
-const BREATH = [
-  { period: 36, blink: 12 },
-  { period: 44, blink: 18 },
-  { period: 50, blink: 24 },
-  { period: 40, blink: 30 },
-  { period: 46, blink: 28 },
-] satisfies Breath[]
+export const BLINK_EVERY_CYCLES = 3
+export const BREATH_SQUISH_TICKS = 2
 
 const DEFAULT = 0x01000000
 const TOP_HALF = 0x2580
@@ -313,7 +301,7 @@ function paintKin(pixels: Pixels, i: number, pose: Pose, x: number, palette: Pal
 function pose(i: number, tick: number | null, rest: Rest): Pose {
   if (tick === null || rest === 'still') return RESTING_POSE
   if (rest === 'breathe') {
-    const breath = BREATH[i % BREATH.length] as Breath
+    const breath = kinOf(i).breath
     const isBlinking = tick % (breath.period * BLINK_EVERY_CYCLES) === breath.period * (BLINK_EVERY_CYCLES - 1) + breath.blink
     if (isBlinking) return { pose: 'blink', lift: 0 }
     const isSquishing = tick % breath.period >= breath.period - BREATH_SQUISH_TICKS
@@ -328,9 +316,9 @@ function pose(i: number, tick: number | null, rest: Rest): Pose {
 
 // Locate a kin in its deterministic hop/rest sequence.
 function hopClock(i: number, tick: number): { step: number; cycle: number } {
-  const rests = HOP_RESTS[i % HOP_RESTS.length] as number[]
+  const rests = kinOf(i).hopRests
   const period = rests.reduce((total, ticks) => total + HOP_TICKS + ticks, 0)
-  let step = (tick + (PHASE[i % PHASE.length] ?? 0)) % period
+  let step = (tick + kinOf(i).phase) % period
   let cycle = 0
   while (step >= HOP_TICKS + (rests[cycle] as number)) {
     step -= HOP_TICKS + (rests[cycle] as number)
@@ -437,13 +425,13 @@ export const KING_DROP_SQUASH_TICKS = 2
 // The King falls from five eighths of the stage, halving its height, and rebounds one eighth.
 const KING_DROP_LIFT = SLIME_PIXELS * 5 / 8
 type KingBeat = { squash: boolean; lift: number; ticks: number }
-export const KING_DROP: readonly { squash: boolean; lift: number }[] = ([
+export const KING_DROP: readonly Omit<KingBeat, 'ticks'>[] = ([
   { squash: false, lift: KING_DROP_LIFT, ticks: KING_DROP_FALL_TICKS / 2 },
   { squash: false, lift: KING_DROP_LIFT / 2, ticks: KING_DROP_FALL_TICKS / 2 },
   { squash: true, lift: 0, ticks: KING_DROP_SQUASH_TICKS },
   { squash: false, lift: SLIME_PIXELS / 8, ticks: HOP_REBOUND_TICKS },
   { squash: false, lift: 0, ticks: HOP_SETTLE_TICKS },
-] satisfies KingBeat[]).flatMap(({ ticks, ...pose }) => Array(ticks).fill(pose))
+] satisfies KingBeat[]).flatMap(beats)
 export const KING_WIDTH = KING[0]!.length
 // The slimes landing on one another: a splat, then a blob bouncing up.
 const MERGED_SPLAT = [
@@ -635,7 +623,7 @@ function whiteOf(sprite: readonly string[]): Palette {
 
 // The stage `frame` ticks into the King Slime show; `tick` poses the slimes
 // after the exact resting frame at the end of the show.
-export function kingStage(count: number, frame: number, tick: number | null, rest: Rest = 'breathe', variant: KingVariant = 'king'): Pixels {
+export function kingStage(count: number, frame: number, tick: number | null, rest: Rest, variant: KingVariant): Pixels {
   const pixels = blank(count)
   const kingX = Math.floor((slimeColumns(count) - KING_WIDTH) / 2)
   const poofX = Math.floor((slimeColumns(count) - POOF[0]!.length) / 2)

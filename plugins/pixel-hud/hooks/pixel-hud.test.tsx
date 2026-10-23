@@ -17,8 +17,13 @@ import {
 import { BRANCH_SPRITE, pixelText, pixelWidth } from './pixel'
 import { QUEST_MIN_COLUMNS, QUEST_STAGE } from './quest'
 import { HERO_PALETTE, QUEST_ROWS } from './quest-hero'
-import { METER_ROWS, POLL_MS, TITLE_ROWS } from './register'
+import { GAP, METER_ROWS, POLL_MS, TITLE_ROWS } from './register'
 import {
+  BLINK_EVERY_CYCLES,
+  BREATH_SQUISH_TICKS,
+  ONION,
+  PUDDLE,
+  LIQUID,
   canCrown,
   DAMAGE_COOLDOWN_TICKS,
   DAMAGE_TICKS,
@@ -57,9 +62,7 @@ import {
   LEAP,
   momentEndTick,
   nextMoment,
-  HOP,
   kinFrame,
-  paint,
   pickKing,
   slimeCells,
   slimeColumns,
@@ -80,13 +83,11 @@ function shape(pixels: (number | null)[][]): string {
 const WHITE = 0xfcfcfc
 const GOLD = 0xfcbc3c
 const MOUTH = 0xf87858
-// Ticket #8's per-kin breathing periods, in clock ticks.
-const BREATH_PERIODS = [36, 44, 50, 40, 46]
-const BLINK_EVERY_CYCLES = 3
+const BREATH_PERIODS = FAMILY.map(kin => kin.breath.period)
 const LONGEST_BREATH_PERIOD = Math.max(...BREATH_PERIODS)
 const BLINK_OBSERVATION_TICKS = BLINK_EVERY_CYCLES * LONGEST_BREATH_PERIOD
 // Sweep enough start offsets to exercise the staggered hop clocks.
-const HOP_START_WINDOW_TICKS = 100
+const HOP_START_WINDOW_TICKS = Math.max(...FAMILY.map(kin => kin.hopRests.reduce((sum, rest) => sum + HOP_TICKS + rest, 0)))
 const kingLandingTick = KING_SHOW_TICKS - HOP_LAND_TICKS
 const PUPIL = 0x0b0a0d
 // The blue slime's tip row at rest.
@@ -299,7 +300,7 @@ for (const [theme, rows] of [['slimes', SLIME_ROWS], ['quest', QUEST_ROWS]] as c
       const height = Math.max(rows, TITLE_ROWS)
       const ui = await mount($, surface, height + METER_ROWS, 120)
       const top = Math.floor((height - TITLE_ROWS) / 2)
-      const blank = ' '.repeat(BRANCH_SPRITE[0]!.length + 2 + pixelWidth('main'.length) + 2 + pixelWidth(1))
+      const blank = ' '.repeat(BRANCH_SPRITE[0]!.length + GAP.length + pixelWidth('main'.length) + GAP.length + pixelWidth(1))
       const sprite = ['█   █', '█  ▄▀', '█▄▀  ', '▀    ']
       const dirty = ['▄ ▄ ▄', '▄███▄', '▄▀█▀▄', '     ']
       for (let row = 0; row < height; row += 1) {
@@ -319,13 +320,15 @@ for (const [theme, rows] of [['slimes', SLIME_ROWS], ['quest', QUEST_ROWS]] as c
   }
 }
 
-for (const [columns, count] of [[84, 4], [86, 4], [87, 5]] as const) {
+const mainTitleColumns = BRANCH_SPRITE[0]!.length + GAP.length + pixelWidth('main'.length) + GAP.length
+const fiveKinColumns = mainTitleColumns + slimeColumns(FAMILY.length)
+for (const [columns, count] of [[fiveKinColumns - 3, FAMILY.length - 1], [fiveKinColumns - 1, FAMILY.length - 1], [fiveKinColumns, FAMILY.length]] as const) {
   test(`a clean main branch fits ${count} kin at ${columns} columns`, async ($, on) => {
     mock.clock(on)
     answers(on, { name: 'main', porcelain: '', isRepo: true })
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
     const ui = await mount($, 'terminal', FULL_ROWS, columns)
-    expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns).toBe(count * 11)
+    expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns).toBe(slimeColumns(count))
     for (const line of MAIN_TITLE) expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
     await ui.unmount()
   })
@@ -407,7 +410,7 @@ test('picks up a branch switched outside Claude Code on the next poll', async ($
 
 describe('slime family', () => {
   test('the default Raster breathes at rest', () => {
-    const firstSquishTick = 34
+    const firstSquishTick = FAMILY[0]!.breath.period - BREATH_SQUISH_TICKS
     expect(slimeCells(FAMILY.length, firstSquishTick)).toBe(slimeCells(FAMILY.length, firstSquishTick, null, 'breathe'))
   })
 
@@ -444,7 +447,7 @@ describe('slime family', () => {
         frames.push(JSON.stringify(face))
       }
       const standing = JSON.stringify(slimeFace(rest, i))
-      expect(frames.filter(frame => frame !== standing).length).toBe(2)
+      expect(frames.filter(frame => frame !== standing).length).toBe(BREATH_SQUISH_TICKS)
       expect(frames.at(-1)).toBe(standing)
       poses.push(frames.map(frame => frame === standing ? 'stand' : 'wide'))
     }
@@ -467,6 +470,7 @@ describe('slime family', () => {
       }
       expect(blinks.length).toBe(1)
       const blinkTick = blinks[0] ?? 0
+      expect(blinkTick).toBe(period * (BLINK_EVERY_CYCLES - 1) + FAMILY[i]!.breath.blink)
       blinkTicks.push(blinkTick)
       const nextBlink = slimeFace(stage(FAMILY.length, blinkTick + blinkCycleTicks, 'breathe'), i)
       const firstBlink = slimeFace(stage(FAMILY.length, blinkTick, 'breathe'), i)
@@ -479,8 +483,7 @@ describe('slime family', () => {
     const silhouette = (pixels: (number | null)[][]) => pixels.map(row => row.map(p => p !== null))
     for (const count of [2, 3, 4, 5]) {
       const standing = stage(count, null)
-      const crouching = kingStage(count, kingLandingTick, null)
-      // 100 offsets cover every kin's complete hop/rest clock (at most 66 ticks).
+      const crouching = kingStage(count, kingLandingTick, null, 'breathe', 'king')
       for (let startTick = 0; startTick < HOP_START_WINDOW_TICKS; startTick += 1) {
         const king: Moment = { kind: 'king', startTick, variant: 'king' }
         const endpoint = startTick + KING_SHOW_TICKS
@@ -490,7 +493,7 @@ describe('slime family', () => {
         for (let tick = endpoint + 1; tick <= endpoint + HOP_TICKS; tick += 1) {
           const global = stage(count, tick, 'hop')
           const previous = stage(count, tick - 1, 'hop')
-          const actual = kingStage(count, tick - startTick, tick, 'hop')
+          const actual = kingStage(count, tick - startTick, tick, 'hop', 'king')
           const cells = slimeCells(count, tick, king, 'hop')
           const globalCells = slimeCells(count, tick, null, 'hop')
           const standingCells = slimeCells(count, 0, null, 'still')
@@ -545,12 +548,11 @@ describe('slime family', () => {
   })
 
   test('each kin blinks for one grounded tick strictly inside every third hop rest', () => {
-    const restSequences = [[6, 10, 14], [9, 14, 7], [12, 6, 10], [14, 8, 11], [8, 12, 9]]
-    const phaseTicks = [0, 3, 7, 12, 17]
     const blinkOffsets: number[] = []
-    for (const [i, rests] of restSequences.entries()) {
+    for (const [i, kin] of FAMILY.entries()) {
+      const rests = kin.hopRests
       const standing = slimeFace(stage(FAMILY.length, null), i)
-      let crouchTick = -(phaseTicks[i] ?? 0)
+      let crouchTick = -kin.phase
       for (let cycle = 0; cycle < BLINK_EVERY_CYCLES * 2; cycle += 1) {
         const restTicks = rests[cycle % rests.length] ?? 0
         const restStart = crouchTick + HOP_TICKS
@@ -580,13 +582,12 @@ describe('slime family', () => {
   })
 
   test('hop rests vary by kin and cycle, within six to fourteen ticks, deterministically', () => {
-    const observationTicks = 200
+    const observationTicks = HOP_START_WINDOW_TICKS * 3
     const movingTicks = HOP_TICKS
-    const launchOffset = 2
-    const riseOffset = 3
-    const minRestTicks = 6
-    const maxRestTicks = 14
-    const expectedRests = [[6, 10, 14], [14, 7, 9], [6, 10, 12], [8, 11, 14], [12, 9, 8]]
+    const launchOffset = HOP_CROUCH_TICKS
+    const riseOffset = HOP_CROUCH_TICKS + HOP_LAUNCH_TICKS
+    const minRestTicks = Math.min(...FAMILY.flatMap(kin => [...kin.hopRests]))
+    const maxRestTicks = Math.max(...FAMILY.flatMap(kin => [...kin.hopRests]))
     const restLengths: number[][] = []
     for (let i = 0; i < FAMILY.length; i += 1) {
       const crouches: number[] = []
@@ -601,7 +602,14 @@ describe('slime family', () => {
         if (isCrouching && isLaunching && isRising) crouches.push(tick)
       }
       const rests = crouches.slice(1).map((tick, cycle) => tick - (crouches[cycle] ?? 0) - movingTicks)
-      expect(rests.slice(0, 3)).toEqual(expectedRests[i])
+      const kin = FAMILY[i]!
+      let firstCycle = 0
+      let firstCrouch = -kin.phase
+      while (firstCrouch < 0) {
+        firstCrouch += HOP_TICKS + kin.hopRests[firstCycle % kin.hopRests.length]!
+        firstCycle += 1
+      }
+      expect(rests.slice(0, kin.hopRests.length)).toEqual(kin.hopRests.map((_, cycle) => kin.hopRests[(firstCycle + cycle) % kin.hopRests.length]))
       expect(rests.length).toBeGreaterThan(2)
       expect(new Set(rests).size).toBeGreaterThan(1)
       for (const rest of rests) {
@@ -704,9 +712,9 @@ describe('slime family', () => {
           '███████████',
         ],
       ]
-      expect(rows.map(row => row[i]?.text)).toEqual(silhouettes[i < 3 ? 0 : i - 2])
+      expect(rows.map(row => row[i]?.text)).toEqual(new Map([[ONION, silhouettes[0]], [PUDDLE, silhouettes[1]], [LIQUID, silhouettes[2]]]).get(FAMILY[i]!.sprites))
     }
-    expect(rows[0]?.map(part => part.color)).toEqual(['#3cbcfc', '#f88820', '#a8b0c0', '#40c818', '#8c9cb8'])
+    expect(rows[0]?.map(part => part.color)).toEqual(FAMILY.map(kin => `#${kin.palette.B.toString(16).padStart(6, '0')}`))
   })
 })
 
@@ -1266,15 +1274,18 @@ describe('slime moments', () => {
     const startTick = HOP_TICKS * 2 + 1
     const settleTick = HOP_TICKS - HOP_SETTLE_TICKS
     const floorRow = SLIME_ROWS * 2 - 1
-    // Each kin hops its own hop from its first crouch, as it would alone at home.
-    const hopFace = (i: number, frame: number) => {
-      const face = Array.from({ length: SLIME_ROWS * 2 }, () => Array<number | null>(SLIME_WIDTH).fill(null))
-      const { sprite, lift } = kinFrame(FAMILY[i]!.sprites, HOP[frame]!)
-      paint(face, sprite, 0, lift, FAMILY[i]!.palette)
-      return face
+    // Expected art comes directly from the sprite requirement, independently of HOP/kinFrame.
+    const expectedSprite = (i: number, frame: number) => {
+      const sprites = FAMILY[i]!.sprites
+      if (frame < HOP_CROUCH_TICKS) return sprites.squash
+      if (frame < hopRise) return sprites.stretch
+      if (frame < hopFall) return sprites.stand
+      if (frame < hopFall + HOP_FALL_TICKS) return sprites.stretch
+      if (frame < hopFall + HOP_FALL_TICKS + HOP_LAND_TICKS) return sprites.squash
+      return frame < settleTick ? sprites.stretch : sprites.stand
     }
-    const bodyPixels = (i: number) => hopFace(i, hopTop).flat().filter(p => p === FAMILY[i]?.palette.B).length
-    for (const count of [1, 2, 3, 4]) {
+    const bodyPixels = (i: number) => FAMILY[i]!.sprites.stand.join('').split('B').length - 1
+    for (let count = 1; count <= FAMILY.length; count += 1) {
       const levelUp: Moment = { kind: 'level-up', startTick }
       let isAllAirborne = false
       for (let frame = 0; frame < HOP_TICKS; frame += 1) {
@@ -1283,7 +1294,12 @@ describe('slime moments', () => {
         for (let i = 0; i < count; i += 1) {
           const face = slimeFace(pixels, i)
           const kin = FAMILY[i] as (typeof FAMILY)[number]
-          expect(shape(face)).toBe(shape(hopFace(i, frame)))
+          const sprite = expectedSprite(i, frame)
+          const airborne = frame >= hopRise && frame < hopFall
+          const top = airborne ? 0 : SLIME_ROWS * 2 - sprite.length
+          const expected = Array.from({ length: SLIME_ROWS * 2 }, (_, row) =>
+            Array.from({ length: SLIME_WIDTH }, (_, col) => (sprite[row - top]?.[col] ?? '.') !== '.'))
+          expect(face.map(row => row.map(pixel => pixel !== null))).toEqual(expected)
           expect(face.flat().filter(p => p === GOLD).length).toBe(isGold ? bodyPixels(i) : 0)
           if (isGold) {
             expect(face.flat()).not.toContain(kin.palette.B)
@@ -1323,14 +1339,13 @@ describe('slime moments', () => {
   test('damage expires after every kin rejoins hopping from rest or a fresh crouch', () => {
     for (const count of [1, 2, 3, 4]) {
       const standing = slimeCells(count, 0, null, 'still')
-      // 100 offsets cover every kin's complete hop/rest clock (at most 66 ticks).
       for (let startTick = 0; startTick < HOP_START_WINDOW_TICKS; startTick += 1) {
         const damage: Moment = { kind: 'damage', startTick, target: count - 1 }
         let allJoinedTick = startTick + 1
         for (let i = 0; i < count; i += 1) {
           const endpointTick = startTick + DAMAGE_TICKS
           const stand = shape(slimeFace(stage(count, null), i))
-          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null), i))
+          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null, 'breathe', 'king'), i))
           let joined = false
           for (let tick = endpointTick; tick <= endpointTick + HOP_TICKS; tick += 1) {
             const global = shape(slimeFace(stage(count, tick, 'hop'), i))
@@ -1353,14 +1368,13 @@ describe('slime moments', () => {
     const settleTick = HOP_TICKS - HOP_SETTLE_TICKS
     for (const count of [1, 2, 3, 4]) {
       const standing = slimeCells(count, 0, null, 'still')
-      // 100 offsets cover every kin's complete hop/rest clock (at most 66 ticks).
       for (let startTick = 0; startTick < HOP_START_WINDOW_TICKS; startTick += 1) {
         const levelUp: Moment = { kind: 'level-up', startTick }
         const endpointTick = startTick + settleTick
         let allJoinedTick = startTick + 1
         for (let i = 0; i < count; i += 1) {
           const stand = shape(slimeFace(stage(count, null), i))
-          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null), i))
+          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null, 'breathe', 'king'), i))
           let joined = false
           for (let tick = endpointTick; tick <= endpointTick + HOP_TICKS; tick += 1) {
             const global = shape(slimeFace(stage(count, tick, 'hop'), i))
@@ -1384,14 +1398,13 @@ describe('slime moments', () => {
     const arrivalTicks = ENCOUNTER_ARRIVAL_TICKS
     for (const count of [1, 2, 3, 4]) {
       const standing = slimeCells(count, 0, null, 'still')
-      // 100 offsets cover every kin's complete hop/rest clock (at most 66 ticks).
       for (let startTick = 0; startTick < HOP_START_WINDOW_TICKS; startTick += 1) {
         const encounter: Moment = { kind: 'encounter', startTick }
         let allJoinedTick = startTick + 1
         for (let i = 0; i < count; i += 1) {
           const endpointTick = startTick + i * staggerTicks + arrivalTicks
           const stand = shape(slimeFace(stage(count, null), i))
-          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null), i))
+          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null, 'breathe', 'king'), i))
           let joined = false
           for (let tick = endpointTick; tick <= endpointTick + HOP_TICKS; tick += 1) {
             const global = shape(slimeFace(stage(count, tick, 'hop'), i))
@@ -1484,7 +1497,7 @@ describe('King Slime', () => {
     const land = hopLanding
     const rebound = hopRebound
     const settle = hopSettle
-    const home = kingStage(FAMILY.length, crouch, null)
+    const home = kingStage(FAMILY.length, crouch, null, 'breathe', 'king')
     expect(home.slice(0, CROUCH_EMPTY_ROWS).flat().every(p => p === null)).toBe(true)
     for (const [i, kin] of FAMILY.entries()) {
       expect(slimeFace(home, i)[floorRow]).toEqual(
@@ -1493,16 +1506,16 @@ describe('King Slime', () => {
     }
     // The launch stretches every kin taller than it stands, still on the floor.
     const topOf = (face: (number | null)[][]) => face.findIndex(row => row.some(p => p !== null))
-    const launched = kingStage(FAMILY.length, launch, null)
+    const launched = kingStage(FAMILY.length, launch, null, 'breathe', 'king')
     for (let i = 0; i < FAMILY.length; i += 1) {
       expect(topOf(slimeFace(launched, i))).toBeLessThan(topOf(slimeFace(stage(FAMILY.length, null), i)))
       expect(slimeFace(launched, i)[floorRow]?.some(p => p !== null)).toBe(true)
     }
-    expect(kingStage(FAMILY.length, rise, null)[floorRow]?.every(p => p === null)).toBe(true)
-    expect(kingStage(FAMILY.length, land, null).slice(0, CROUCH_EMPTY_ROWS).flat().every(p => p === null)).toBe(true)
+    expect(kingStage(FAMILY.length, rise, null, 'breathe', 'king')[floorRow]?.every(p => p === null)).toBe(true)
+    expect(kingStage(FAMILY.length, land, null, 'breathe', 'king').slice(0, CROUCH_EMPTY_ROWS).flat().every(p => p === null)).toBe(true)
     const fall = hopFall
-    expect(kingStage(FAMILY.length, rebound, null)).toEqual(kingStage(FAMILY.length, fall, null))
-    expect(topOf(kingStage(FAMILY.length, settle, null))).toBe(topOf(stage(FAMILY.length, null)))
+    expect(kingStage(FAMILY.length, rebound, null, 'breathe', 'king')).toEqual(kingStage(FAMILY.length, fall, null, 'breathe', 'king'))
+    expect(topOf(kingStage(FAMILY.length, settle, null, 'breathe', 'king'))).toBe(topOf(stage(FAMILY.length, null)))
   })
 
   const GOLD = 0xfcbc3c
@@ -1519,22 +1532,22 @@ describe('King Slime', () => {
     const width = (pixels: (number | null)[][]) => new Set(pixels.flatMap(row => row.flatMap((p, x) => p === null ? [] : [x]))).size
     const height = (pixels: (number | null)[][]) => pixels.filter(row => row.some(p => p !== null)).length
     // Falling in from above, only the King's rows below the stage top show.
-    expect(height(kingStage(FAMILY.length, dropStarts, null))).toBe(SLIME_ROWS * 2 - KING_DROP[0]!.lift)
-    expect(kingStage(FAMILY.length, dropStarts, null)[floorRow]?.every(p => p === null)).toBe(true)
-    expect(height(kingStage(FAMILY.length, squashStarts, null))).toBe(KING_SPRITE.length - 1)
-    expect(width(kingStage(FAMILY.length, squashStarts, null))).toBe(KING_WIDTH + 2)
+    expect(height(kingStage(FAMILY.length, dropStarts, null, 'breathe', 'king'))).toBe(SLIME_ROWS * 2 - KING_DROP[0]!.lift)
+    expect(kingStage(FAMILY.length, dropStarts, null, 'breathe', 'king')[floorRow]?.every(p => p === null)).toBe(true)
+    expect(height(kingStage(FAMILY.length, squashStarts, null, 'breathe', 'king'))).toBe(KING_SPRITE.length - 1)
+    expect(width(kingStage(FAMILY.length, squashStarts, null, 'breathe', 'king'))).toBe(KING_WIDTH + 2)
     // At the two-slot minimum, the landing squash clips one pixel per side.
-    expect(width(kingStage(2, squashStarts, null))).toBe(KING_WIDTH)
-    expect(kingStage(FAMILY.length, rebound, null)[floorRow]?.every(p => p === null)).toBe(true)
-    expect(hasGold(kingStage(FAMILY.length, reignStarts, null))).toBe(true)
-    const defeat = Array.from({ length: KING_DEFEAT_TICKS }, (_, step) => kingStage(FAMILY.length, defeatStarts + step, null))
+    expect(width(kingStage(2, squashStarts, null, 'breathe', 'king'))).toBe(KING_WIDTH)
+    expect(kingStage(FAMILY.length, rebound, null, 'breathe', 'king')[floorRow]?.every(p => p === null)).toBe(true)
+    expect(hasGold(kingStage(FAMILY.length, reignStarts, null, 'breathe', 'king'))).toBe(true)
+    const defeat = Array.from({ length: KING_DEFEAT_TICKS }, (_, step) => kingStage(FAMILY.length, defeatStarts + step, null, 'breathe', 'king'))
     expect(defeat.map(pixels => pixels.flat().every(p => p === null))).toEqual([true, false, true, false, true, false])
-    expect(kingStage(FAMILY.length, poofStarts, null).flat().filter(p => p !== null).every(p => p === WHITE)).toBe(true)
+    expect(kingStage(FAMILY.length, poofStarts, null, 'breathe', 'king').flat().filter(p => p !== null).every(p => p === WHITE)).toBe(true)
     expect(KING_SHOW_TICKS).toBe(86)
   })
 
   test('the king keeps its jewelled crown above white eyes with centred pupils and a wide salmon grin', () => {
-    const pixels = kingStage(2, kingReignStarts, null)
+    const pixels = kingStage(2, kingReignStarts, null, 'breathe', 'king')
     expect(pixels.length).toBe(16)
     expect(pixels[0]?.includes(0x8838d0)).toBe(true)
     expect(pixels[0]?.includes(0x28a848)).toBe(true)
@@ -1548,7 +1561,7 @@ describe('King Slime', () => {
     expect(pixels[floorRow]?.filter(p => p !== null).length).toBe(20)
     expect(pixels[floorRow]?.filter(p => p === 0x1878bc).length).toBe(20)
     const kingBlink = kingReignStarts + 10
-    expect(kingStage(2, kingBlink, null)[7]?.includes(WHITE)).toBe(false)
+    expect(kingStage(2, kingBlink, null, 'breathe', 'king')[7]?.includes(WHITE)).toBe(false)
   })
 
   test('both merged poses keep white eyes, pupils, a red grin and lower shading at their original sizes', () => {
@@ -1557,15 +1570,15 @@ describe('King Slime', () => {
       [0, 22, 6, 10, 16, 10, 10],
       [KING_MERGE_TICKS / 2, 17, 12, 16, 13, 7, 13],
     ] as const) {
-      const pixels = kingStage(2, KING_GATHER_TICKS + offset, null)
+      const pixels = kingStage(2, KING_GATHER_TICKS + offset, null, 'breathe', 'king')
       const occupied = pixels.filter(row => row.some(p => p !== null))
       expect(occupied.length).toBe(height)
       const columns = pixels[floorRow]?.map((_, x) => x).filter(x => pixels.some(row => row[x] !== null)) ?? []
       expect(columns.length).toBe(width)
       expect(pixels.flat().filter(p => p === WHITE).length).toBe(white)
-      expect(pixels.flat().filter(p => p === FAMILY[0]?.palette.K).length).toBe(dark)
+      expect(pixels.flat().filter(p => p === KINGS.king.body.K).length).toBe(dark)
       expect(pixels.flat().filter(p => p === MOUTH).length).toBe(mouth)
-      expect(pixels[floorRow]?.filter(p => p === FAMILY[0]?.palette.D).length).toBe(floorShade)
+      expect(pixels[floorRow]?.filter(p => p === KINGS.king.body.D).length).toBe(floorShade)
     }
   })
 
@@ -1575,9 +1588,9 @@ describe('King Slime', () => {
   })
 
   test('the slimes gather, the king reigns crowned, and they end back home', () => {
-    expect(hasGold(kingStage(FAMILY.length, 0, 0))).toBe(false)
-    expect(hasGold(kingStage(FAMILY.length, kingReignStarts, HOP_TICKS))).toBe(true)
-    expect(kingStage(FAMILY.length, KING_SHOW_TICKS, HOP_TICKS, 'hop')).toEqual(stage(FAMILY.length, null))
+    expect(hasGold(kingStage(FAMILY.length, 0, 0, 'breathe', 'king'))).toBe(false)
+    expect(hasGold(kingStage(FAMILY.length, kingReignStarts, HOP_TICKS, 'breathe', 'king'))).toBe(true)
+    expect(kingStage(FAMILY.length, KING_SHOW_TICKS, HOP_TICKS, 'hop', 'king')).toEqual(stage(FAMILY.length, null))
   })
 
   type Pixels = (number | null)[][]
@@ -1585,7 +1598,7 @@ describe('King Slime', () => {
   const atTop = (pixels: Pixels) => pixels.slice(-1).every(row => row.every(c => c === null))
   const left = (pixels: Pixels) => Math.min(...pixels.map(row => row.findIndex(c => c !== null)).filter(x => x >= 0))
   const right = (pixels: Pixels) => Math.max(...pixels.map(row => row.findLastIndex(c => c !== null)))
-  const at = (frame: number, count = FAMILY.length) => kingStage(count, frame, null)
+  const at = (frame: number, count = FAMILY.length) => kingStage(count, frame, null, 'breathe', 'king')
   const bodies = (pixels: Pixels) => FAMILY.filter(kin => pixels.some(row => row.includes(kin.palette.B))).length
   const rise = hopRise
   const top = hopTop
@@ -1637,7 +1650,7 @@ describe('King Slime', () => {
     expect(grounded(splat)).toBe(true)
     expect(right(splat) - left(splat) + 1).toBe(22)
     expect(bodies(splat)).toBe(1)
-    expect(splat.some(row => row.includes(FAMILY[0]?.palette.B ?? -1))).toBe(true)
+    expect(splat.some(row => row.includes(KINGS.king.body.B ?? -1))).toBe(true)
   })
 
   test('the airborne collision keeps every body tip inside the stage', () => {
@@ -1653,10 +1666,10 @@ describe('King Slime', () => {
 
   test('scatter bursts from the collision in one airborne arc and lands home squashed', () => {
     // The onion tips stay at the collision x positions across poses.
-    const tips = (pixels: Pixels) => [...new Set(pixels.slice(0, 2).flatMap(row => row.flatMap((p, x) => FAMILY.slice(0, 3).some(kin => kin.palette.B === p) ? [x] : [])))].sort()
+    const tips = (pixels: Pixels) => [...new Set(pixels.slice(0, 2).flatMap(row => row.flatMap((p, x) => FAMILY.filter(kin => kin.sprites === ONION).some(kin => kin.palette.B === p) ? [x] : [])))].sort()
     expect(tips(at(out))).toEqual(tips(at(collide)))
     // LIQUID changes its top from HB to B; the highlight marks the same column.
-    const liquid = FAMILY[4]!
+    const liquid = FAMILY.find(kin => kin.sprites === LIQUID)!
     expect(at(out)[0]?.indexOf(liquid.palette.B)).toBe(at(collide)[0]?.indexOf(liquid.palette.H))
     expect(bodies(at(out))).toBe(FAMILY.length)
     expect(atTop(at(out))).toBe(true)
@@ -1703,7 +1716,7 @@ describe('King Slime', () => {
     expect(KINGS.king.name).toBe('King Slime')
     expect(KINGS.gold.name).toBe('Gold King Slime')
     expect(KINGS.metal.name).toBe('Metal King Slime')
-    // The King and the Metal King wear gold; the Gold King's crown is silver.
+    // The King and Metal King wear gold bands; the Gold King's band is silver.
     expect([KINGS.king, KINGS.gold, KINGS.metal].map(king => king.crown.Y)).toEqual([GOLD, 0xd0d8e0, GOLD])
   })
 

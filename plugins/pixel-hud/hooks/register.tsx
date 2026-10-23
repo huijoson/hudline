@@ -37,7 +37,7 @@ const ROW_COLORS = ['#58f898', '#58d8d0', '#3cbcfc', '#6888fc']
 const SPRITE_COLOR = '#00b800'
 const DIRTY_COLOR = '#f83800'
 const SPRITE = pack(BRANCH_SPRITE)
-const GAP = '  '
+export const GAP = '  '
 // Meter: hudline's neon theme.
 const ROLE_COLORS: Record<Role, string> = { ok: '#4ade80', warn: '#fbbf24', danger: '#f2555a' }
 const LABEL = '#ff49a4'
