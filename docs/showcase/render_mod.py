@@ -17,12 +17,13 @@ from PIL import Image, ImageChops, ImageDraw, ImageFont, features
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 MOD = ROOT / "plugins" / "pixel-hud"
+VARIANTS = ["king", "metal"]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--font", default="/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
 parser.add_argument("--stage", choices=["slimes", "quest"], default="slimes",
                     help="choose the stage theme")
 parser.add_argument("--output", type=Path, help="write the image to this path")
-parser.add_argument("--variant", choices=["king", "gold", "metal"], default="king",
+parser.add_argument("--variant", choices=VARIANTS, default="king",
                     help="which King the slimes crown")
 mode = parser.add_mutually_exclusive_group()
 mode.add_argument("--king", action="store_true",
@@ -219,8 +220,8 @@ export const register: Register = (on, options) => {
 """)
         (copy / "hooks" / "hooks.json").write_text(json.dumps({"modules": ["./battle-showcase.ts"]}))
     else:
-        # A fixed pick in the middle of the variant's third of [0, 1).
-        pick = (["king", "gold", "metal"].index(args.variant) + 0.5) / 3
+        # A fixed pick in the middle of the variant's half of [0, 1).
+        pick = (VARIANTS.index(args.variant) + 0.5) / len(VARIANTS)
         (copy / "hooks" / "king-showcase.ts").write_text(f"""
 import {{ register as registerHud }} from './register'
 import type {{ Register }} from 'claude-code'
