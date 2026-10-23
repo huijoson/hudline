@@ -21,7 +21,6 @@ import {
 import { MONSTERS, SKILLS } from './quest-foes'
 import type { Monster, Skill } from './quest-foes'
 import { HERO_PALETTE, QUEST_ROWS } from './quest-hero'
-import { slimeColumns } from './slime'
 import { FRAME_MS, nextMoment } from './stage'
 import { selectStage } from './stages'
 
@@ -71,7 +70,7 @@ for (const monster of Object.keys(MONSTERS) as Monster[]) {
 
 test('the quest hero stands near the left over a dotted ground with a matching text fallback', () => {
   const quest = selectStage('quest')
-  expect(quest.columns(quest.maxRoom)).toBe(slimeColumns(quest.maxRoom))
+  expect(quest.columns(quest.maxRoom)).toBe(QUEST_MIN_COLUMNS)
   const frame = pixels(quest.cells(quest.maxRoom, 0, null, 'still'))
   // The helmet's crest is the gold Loto emblem between blue plates.
   expect(frame[1]?.slice(HERO_X + 6, HERO_X + 11)).toEqual([0x78b8fc, 0x2068f8, 0xfcbc3c, 0x2068f8, 0x0828a0])
@@ -79,14 +78,14 @@ test('the quest hero stands near the left over a dotted ground with a matching t
   expect(frame[FLOOR]?.slice(24, 32)).toEqual([GROUND, null, GROUND, null, GROUND, null, GROUND, null])
   expect(quest.text(quest.maxRoom).flat().map(span => span.color)).toEqual(Array(QUEST_ROWS).fill(`#${HERO_PALETTE.B.toString(16).padStart(6, '0')}`))
   expect(quest.text(quest.maxRoom).map(row => row.map(span => span.text).join(''))).toEqual([
-    '  ▄     ▄██▄▄    █                                      ',
-    '  ██▄ ▄███████▄  █                                      ',
-    '  ▀████████████▄▄█▄▄                                    ',
-    '    ██████████  ▄█▄                                     ',
-    '   ▀████████▀█████████                                  ',
-    '  ▄█████████ █████████                                  ',
-    '  ▀█████████ █████████                                  ',
-    '▄ ▄ ████▄███▄ ███████ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ',
+    '  ▄     ▄██▄▄    █                            ',
+    '  ██▄ ▄███████▄  █                            ',
+    '  ▀████████████▄▄█▄▄                          ',
+    '    ██████████  ▄█▄                           ',
+    '   ▀████████▀█████████                        ',
+    '  ▄█████████ █████████                        ',
+    '  ▀█████████ █████████                        ',
+    '▄ ▄ ████▄███▄ ███████ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ',
   ])
 })
 
@@ -103,19 +102,19 @@ test('walking alternates legs and scrolls the ground, then repeats its cycle', (
   }
 })
 
-test('the quest stage disappears below the full attack and widest monster width and admits no moments there', () => {
+test('the quest stage takes exactly the attack and widest monster width whenever it has room', () => {
   const quest = selectStage('quest')
-  for (let room = 0; slimeColumns(room) < QUEST_MIN_COLUMNS; room += 1) {
-    expect(quest.columns(room)).toBe(0)
-    expect(quest.cells(room, 0, null, 'breathe')).toBe('')
-    expect(quest.text(room)).toEqual([])
-    for (const kind of ['king', 'encounter', 'damage', 'level-up', 'battle'] as const) {
-      expect(quest.accepts(kind, room)).toBe(false)
-    }
+  expect(quest.columns(0)).toBe(0)
+  expect(quest.cells(0, 0, null, 'breathe')).toBe('')
+  expect(quest.text(0)).toEqual([])
+  for (const kind of ['king', 'encounter', 'damage', 'level-up', 'battle'] as const) {
+    expect(quest.accepts(kind, 0)).toBe(false)
   }
   // Hero offset 2, attack 26, gap 2 and the 16-pixel bat.
   expect(QUEST_MIN_COLUMNS).toBe(46)
-  expect(quest.columns(quest.maxRoom)).toBe(slimeColumns(quest.maxRoom))
+  for (let room = 1; room <= quest.maxRoom; room += 1) {
+    expect(quest.columns(room)).toBe(QUEST_MIN_COLUMNS)
+  }
 })
 
 test('the encounter walks in from the left and hands back the plain rest at its endpoint', () => {

@@ -10,7 +10,8 @@ export type Moment =
   | { kind: 'damage'; startTick: number; target: number }
   | { kind: 'battle'; startTick: number; monster: Monster; skill: Skill }
 
-// Room is the number of SLIME_WIDTH-column slots granted beside the branch.
+// Room is a theme's own unit of width beside the branch, from 0 to maxRoom.
+// columns(room) turns it into columns; 0 columns means the stage is not drawn.
 export interface Stage {
   rows: number
   taskMoment: (tick: number, random: () => number) => Moment | null

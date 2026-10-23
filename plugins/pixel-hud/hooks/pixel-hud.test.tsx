@@ -15,7 +15,7 @@ import {
   usd,
 } from './format'
 import { BRANCH_SPRITE, pixelText, pixelWidth } from './pixel'
-import { QUEST_STAGE } from './quest'
+import { QUEST_MIN_COLUMNS, QUEST_STAGE } from './quest'
 import { HERO_PALETTE, QUEST_ROWS } from './quest-hero'
 import { METER_ROWS, POLL_MS, TITLE_ROWS } from './register'
 import {
@@ -2009,6 +2009,24 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 }
 
+// The width docs/showcase/render_mod.py renders at.
+const SHOWCASE_COLUMNS = 84
+
+test('the quest stage claims only its own columns beside the branch at the showcase width', { options: { stage: 'quest' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, SHOWCASE_COLUMNS)
+  expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns).toBe(QUEST_MIN_COLUMNS)
+  await clock.advance(FRAME_MS * QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, QUEST_STAGE.maxRoom, 'still'))
+  expect(slimePixels(blits.at(-1)!, QUEST_STAGE.rows).flat()).toContain(HERO_PALETTE.B)
+  await ui.unmount()
+})
 
 for (const columns of [40, 120]) {
   test(`quest battles ignore ineligible turns at ${columns} columns`, { options: { stage: 'quest', slimesIdle: false } }, async ($, on) => {

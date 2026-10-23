@@ -1,6 +1,6 @@
 import { MONSTERS, paintMonster, paintSkill, SKILLS } from './quest-foes'
 import type { Monster, Skill } from './quest-foes'
-import { FAMILY, halfBlockText, paint, pixelCells, POOF, slimeColumns } from './slime'
+import { halfBlockText, paint, pixelCells, POOF } from './slime'
 import type { Palette, Pixels } from './slime'
 import { ATTACK, CHEER, HERO_PALETTE, HURT, QUEST_ROWS, STAND, WALK_A, WALK_B } from './quest-hero'
 import type { Moment, Rest, Stage } from './stage'
@@ -77,8 +77,7 @@ function battleGroundTick(frame: number, tick: number, moment: Battle): number {
 }
 
 function questColumns(room: number): number {
-  const width = slimeColumns(room)
-  return width >= QUEST_MIN_COLUMNS ? width : 0
+  return room > 0 ? QUEST_MIN_COLUMNS : 0
 }
 
 type HeroPose = { sprite: readonly string[]; x: number; lift: number; palette: Palette }
@@ -154,7 +153,7 @@ export const QUEST_STAGE: Stage = {
     const skills = Object.keys(SKILLS) as Skill[]
     return { kind: 'battle', startTick, monster: monsters[Math.floor(random() * monsters.length)]!, skill: skills[Math.floor(random() * skills.length)]! }
   },
-  maxRoom: FAMILY.length,
+  maxRoom: 1,
   rest: idle => idle ? 'breathe' : 'still',
   columns: questColumns,
   cells: (room, tick, moment, rest) => questColumns(room) > 0 ? pixelCells(questPixels(room, tick, rest, moment)) : '',
