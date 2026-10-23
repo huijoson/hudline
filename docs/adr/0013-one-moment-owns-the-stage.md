@@ -35,7 +35,8 @@ clock at once, in mid-air for 87 of 200 start ticks.
 - **Queue dropped Moments:** a backlog of failures or compactions would replay
   long after the cause, and a queued damage after a King show reads as a bug.
 - **Layer Moments, for example damage over the King:** each pair would need its
-  own compositing rules, and the stage is only three rows high.
+  own compositing rules, and the slime stage is only three rows high
+  (the quest theme uses four).
 - **Per-kind expiry in `register`:** the shape before #10. Every new kind
   would need its own check, and a missed one never ends.
 - **Rejoin the global clock at once:** simplest, but it drops Kin into the air

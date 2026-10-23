@@ -72,8 +72,8 @@ slime theme stays the default and does not change.
 - **A stage seam.** Today `register.tsx` imports slime functions directly
   (`slimeCells`, `slimeColumns`, `slimeText`, `canCrown`, `nextMoment`,
   `momentEndTick`). Ticket 01 puts these behind one `Stage` interface that a
-  theme implements: its columns for a given room, its cells for a tick and a
-  moment, its text fallback, its moment endpoints and priority. `register`
+  theme implements: its row count, its columns for a given room, its cells
+  for a tick and a moment, its text fallback, its moment endpoints and priority. `register`
   picks the implementation from `options.stage` once and never branches on
   the theme again. The slime module implements it with no behaviour change;
   the existing tests are the proof.
@@ -89,32 +89,37 @@ slime theme stays the default and does not change.
 
 - The quest stage takes the same room `fitBranch` grants the slimes:
   `slimeColumns(n)` columns, so 28, 21, 14 or 7.
-- Below `QUEST_MIN_COLUMNS = 17` (so 14 or 7) there is no quest stage: no
+- Below `QUEST_MIN_COLUMNS = 25` (so 21, 14 or 7) there is no quest stage: no
   Raster, no text fallback, and battles are not admitted. The branch layout
-  rules are unchanged.
+  reserves four quest rows plus two meter rows. The minimum is computed from
+  the hero's left offset, attack width, two-column gap and widest monster
+  (9 columns).
 
 ### Sprites
 
 Original pixel art in the NES palette the slimes use. Do not copy any
-published game's sprites. The stage stays 6 pixels tall.
+published game's sprites. The quest stage is 8 pixels tall (4 text rows); the
+slime stage stays 6 pixels tall (3 text rows).
 
-- **Hero**: about 5 wide by 6 tall. Blue armour, a skin-tone face, a sword.
+- **Hero**: about 10 wide by 8 tall (12 wide when attacking). Blue armour,
+  a skin-tone face, a sword.
   Poses: WALK_A and WALK_B (legs apart, legs together), STAND, ATTACK (sword
   forward), HURT (for flicker), CHEER (sword up, for level-up). The hero
   stands near the left of the stage, about column 2.
 - **Ground**: the bottom pixel row is a dotted ground line that scrolls left
   one pixel every 2 ticks while the hero walks. No other background.
-- **Monsters**, about 5 to 7 wide and up to 6 tall: `slime` (a green
+- **Monsters**, up to 9 wide and 7 to 8 tall: `slime` (a green
   quest-slime, not one of the slime family's kin), `bat` (purple, wings
   flapping between two frames), `skeleton` (bone white), `ghost` (pale blue,
   bobbing one pixel).
 - **Skills**:
   - `slash`: the hero steps forward one pixel in ATTACK, and a white
     diagonal streak appears over the monster for 2 ticks.
-  - `fireball`: an orange 2×2 pixel ball travels from the hero's sword to the
-    monster, about 1 pixel every tick, at most 6 ticks.
+  - `fireball`: an orange 3×3 pixel ball with a lighter centre travels from
+    the hero's sword at the attack blade row to the monster, about 1 pixel
+    every tick, at most 6 ticks.
   - `thunder`: a yellow zigzag bolt drops from the top of the stage onto the
-    monster for 3 ticks.
+    monster for 3 ticks, growing from 2 to 4 to all 8 pixel rows.
 - The builder finalises the pixels by rendering them with the showcase
   renderer. The silhouettes and colours are the decision, not the exact
   pixels.
@@ -202,7 +207,8 @@ ground line. No monster.
     some tick of Hit, and ends with no monster pixel left.
   - The frame after a battle's end equals the plain walk frame at that tick.
   - The battle lasts 2.4 to 3 seconds at `FRAME_MS`.
-  - Under 17 columns there is no stage.
+  - Under 25 columns there is no stage.
+  - Quest Raster and text fallback use 4 rows; slime Raster stays at 3.
   - Encounter starts with the hero off its spot and ends on the rest frame.
   - Level-up contains gold.
 - **Seam 2, the mod through `claude-code/testing`**:
@@ -213,7 +219,7 @@ ground line. No monster.
     the monster.
   - A subagent `turn.complete`, or a reason other than `answer`, does not.
   - A second `turn.complete` during a battle does not restart it.
-  - Under 17 columns, `turn.complete` blits nothing.
+  - Under 25 columns, `turn.complete` blits nothing.
   - Tool failure and compaction blit the quest damage and level-up.
   - `/slime-king` on the quest stage returns the quest reply.
   - With `slimesIdle: false` nothing blits at rest on the quest stage.
