@@ -8,7 +8,7 @@ export type { Moment, Rest } from './stage'
 // Raster, two pixels to a cell ('▀' paints the top pixel in the foreground and
 // the bottom one in the background).
 
-// B body, H highlight, W white, K pupil and grin, M mouth, D shade, '.' transparent.
+// B body, L light body, H highlight, E deep shade, W white, K pupil or blink lid, M two-row U smile, D shade, '.' transparent.
 // Each kin is 11 wide in a 16-pixel-tall stage (8 text rows), feet on the floor unless it is airborne.
 export type KinPose = 'stand' | 'blink' | 'squash' | 'wide' | 'stretch'
 export type KinSprites = Record<KinPose, readonly string[]>
@@ -16,68 +16,77 @@ export type KinSprites = Record<KinPose, readonly string[]>
 // A thin tip flaring into a round bulb: the slime, she-slime and metal slime.
 export const ONION: KinSprites = {
   stand: [
+    '.....D.....',
     '.....B.....',
-    '....HBB....',
-    '...HBBBB...',
-    '.BHBBBBBBB.',
-    'BBWWWBWWWBB',
-    'BBWKWBWKWBB',
-    'BBWWWBWWWBB',
-    'BKBBBBBBBKB',
-    'DBKMMMMMKBD',
-    '.DDKKKKKDD.',
+    '.....B.....',
+    '....BLB....',
+    '...HHLDB...',
+    '..HLLLBDB..',
+    '.HLLLBBDEB.',
+    'BHBWBBDWDEB',
+    'BDWKWDWKWEB',
+    'BEBWDDDWDED',
+    'BDMDDDDEMED',
+    '.BEMMMMMED.',
     '..DDDDDDD..',
   ],
   blink: [
+    '.....D.....',
     '.....B.....',
-    '....HBB....',
-    '...HBBBB...',
-    '.BHBBBBBBB.',
-    'BBBBBBBBBBB',
-    'BBKKKBKKKBB',
-    'BBBBBBBBBBB',
-    'BKBBBBBBBKB',
-    'DBKMMMMMKBD',
-    '.DDKKKKKDD.',
+    '.....B.....',
+    '....BLB....',
+    '...HHLDB...',
+    '..HLLLBDB..',
+    '.HLLLBBDEB.',
+    'BHBDBBDDDEB',
+    'BDKKKDKKKEB',
+    'BEBDDDDDDED',
+    'BDMDDDDEMED',
+    '.BEMMMMMED.',
     '..DDDDDDD..',
   ],
   squash: [
-    '.....B.....',
-    '...HBBBB...',
-    '.BHBBBBBBB.',
-    'BBWWWBWWWBB',
-    'BBWKWBWKWBB',
-    'BBWWWBWWWBB',
-    'BKBBBBBBBKB',
-    'DBKMMMMMKBD',
-    '.DDKKKKKDD.',
+    '.....D.....',
+    '....BLB....',
+    '...HHLDB...',
+    '.HLLLBBDEB.',
+    'BHBWBBDWDEB',
+    'BDWKWDWKWEB',
+    'BEBWDDDWDED',
+    'BDMDDDDEMED',
+    '.BEMMMMMED.',
+    '.DDDDDDDDD.',
   ],
   wide: [
+    '.....D.....',
     '.....B.....',
-    '....HBB....',
-    '..BHBBBBB..',
-    'BBWWWBWWWBB',
-    'BBWKWBWKWBB',
-    'BBWWWBWWWBB',
-    'BKBBBBBBBKB',
-    'DBKMMMMMKBD',
-    '.DDKKKKKDD.',
-    '..DDDDDDD..',
+    '....BLB....',
+    '...HHLDB...',
+    '..HLLLBDB..',
+    '.HLLLBBDEB.',
+    'BHBWBBDWDEB',
+    'BDWKWDWKWEB',
+    'BEBWDDDWDED',
+    'BDMDDDDEMED',
+    '.BEMMMMMED.',
+    '.DDDDDDDDD.',
   ],
   stretch: [
-    '.....B.....',
-    '.....B.....',
-    '....HBB....',
-    '...HBBBB...',
-    '..BHBBBBB..',
-    '.BWWWBWWWB.',
-    '.BWKWBWKWB.',
-    '.BWWWBWWWB.',
-    '.BKBBBBBKB.',
-    '.BBKMMMKBB.',
-    '..DBKKKBD..',
-    '...DDDDD...',
     '.....D.....',
+    '.....B.....',
+    '.....B.....',
+    '.....B.....',
+    '....BLB....',
+    '...HHLDB...',
+    '..HLLLBDB..',
+    '.HLLLBBDEB.',
+    'BHBWBBDWDEB',
+    'BDWKWDWKWEB',
+    'BEBWDDDWDED',
+    'BDMDDDDEMED',
+    '.BEMMMMMED.',
+    '..DBBBBBD..',
+    '...DDDDD...',
   ],
 }
 
@@ -86,63 +95,59 @@ export const PUDDLE: KinSprites = {
   stand: [
     '.H.......H.',
     '......H....',
-    '...BHHBB...',
-    '.BWWWBWWWB.',
-    '.BWKWBWKWB.',
-    '.BWWWBWWWB.',
-    'BKBBBBBBBKB',
-    'BBKMMMMMKBB',
-    'DDBKKKKKBDD',
-    '.DDDDDDDDD.',
+    '...HHBBD...',
+    'BBBWBBBWBDD',
+    'BBWKWBWKWDD',
+    'BBBWBBBWBDD',
+    'BBMBBBBBMDD',
+    'DDBMMMMMBDD',
+    'DDDDDDDDDDD',
   ],
   blink: [
     '.H.......H.',
     '......H....',
-    '...BHHBB...',
-    '.BBBBBBBBB.',
-    '.BKKKBKKKB.',
-    '.BBBBBBBBB.',
-    'BKBBBBBBBKB',
-    'BBKMMMMMKBB',
-    'DDBKKKKKBDD',
-    '.DDDDDDDDD.',
+    '...HHBBD...',
+    'BBBBBBBBBDD',
+    'BBKKKBKKKDD',
+    'BBBBBBBBBDD',
+    'BBMBBBBBMDD',
+    'DDBMMMMMBDD',
+    'DDDDDDDDDDD',
   ],
   squash: [
     '.H.......H.',
-    '.....H.....',
-    '...BHHBB...',
-    'BBWWWBWWWBB',
-    'BBWKWBWKWBB',
-    'BBWWWBWWWBB',
-    'BBKMMMMMKBB',
-    'DDBKKKKKBDD',
-    '.DDDDDDDDD.',
+    '..HHBBBBD..',
+    'BBBWBBBWBDD',
+    'BBWKWBWKWDD',
+    'BBBWBBBWBDD',
+    'BBMBBBBBMDD',
+    'DDBMMMMMBDD',
+    'DDDDDDDDDDD',
   ],
   wide: [
     '.H.......H.',
     '.....H.....',
-    '...BHHBB...',
-    'BBWWWBWWWBB',
-    'BBWKWBWKWBB',
-    'BBWWWBWWWBB',
-    'BBKMMMMMKBB',
-    'DDBKKKKKBDD',
-    '.DDDDDDDDD.',
+    '..HHBBBBD..',
+    'BBBWBBBWBDD',
+    'BBWKWBWKWDD',
+    'BBBWBBBWBDD',
+    'BBMBBBBBMDD',
+    'DDBMMMMMBDD',
+    'DDDDDDDDDDD',
   ],
   stretch: [
     '........H..',
     '.H.........',
     '.....H.....',
-    '....BHB....',
-    '...BHBBB...',
-    '.BWWWBWWWB.',
-    '.BWKWBWKWB.',
-    '.BWWWBWWWB.',
-    '.BKBBBBBKB.',
-    '.BBKMMMKBB.',
-    'BBBBBBBBBBB',
-    'DDBBBBBBBDD',
-    '.DDDDDDDDD.',
+    '....HB.....',
+    '...HHBBD...',
+    '..HBBBBBD..',
+    'BBBWBBBWBDD',
+    'BBWKWBWKWDD',
+    'BBBWBBBWBDD',
+    'BBMBBBBBMDD',
+    'DDBMMMMMBDD',
+    '..DDDDDDD..',
   ],
 }
 
@@ -150,56 +155,52 @@ export const PUDDLE: KinSprites = {
 export const LIQUID: KinSprites = {
   stand: [
     '.....HB....',
-    '..BHHBBBB..',
-    '.BWWWBWWWB.',
-    '.BWKWBWKWB.',
-    '.BWWWBWWWB.',
-    'BKBBBBBBBKB',
-    'BBKMMMMMKBB',
-    'BHHKKKKKHHB',
+    '...HHBBD...',
+    'BBBWBBBWBDD',
+    'BBWKWBWKWDD',
+    'BBBWBBBWBDD',
+    'BBMBBBBBMDD',
+    'HHBMMMMMBHH',
     'DDDDDDDDDDD',
   ],
   blink: [
     '.....HB....',
-    '..BHHBBBB..',
-    '.BBBBBBBBB.',
-    '.BKKKBKKKB.',
-    '.BBBBBBBBB.',
-    'BKBBBBBBBKB',
-    'BBKMMMMMKBB',
-    'BHHKKKKKHHB',
+    '...HHBBD...',
+    'BBBBBBBBBDD',
+    'BBKKKBKKKDD',
+    'BBBBBBBBBDD',
+    'BBMBBBBBMDD',
+    'HHBMMMMMBHH',
     'DDDDDDDDDDD',
   ],
   squash: [
-    '..BHHHBBB..',
-    '.BWWWBWWWB.',
-    'BBWKWBWKWBB',
-    'BBWWWBWWWBB',
-    'BKBBBBBBBKB',
-    'BHKMMMMMKHB',
-    'DDDKKKKKDDD',
+    '..HHHBBBD..',
+    'BBBWBBBWBDD',
+    'BBWKWBWKWDD',
+    'BBBWBBBWBDD',
+    'BBMBBBBBMDD',
+    'DDDMMMMMDDD',
   ],
   wide: [
     '.....HB....',
-    '.BBHHBBBBB.',
-    'BBWWWBWWWBB',
-    'BBWKWBWKWBB',
-    'BBWWWBWWWBB',
-    'BKBBBBBBBKB',
-    'BHKMMMMMKHB',
-    'DDDKKKKKDDD',
+    '..HHHBBBD..',
+    'BBBWBBBWBDD',
+    'BBWKWBWKWDD',
+    'BBBWBBBWBDD',
+    'BBMBBBBBMDD',
+    'DDDMMMMMDDD',
   ],
   stretch: [
     '.....B.....',
     '....HB.....',
-    '...HBBB....',
-    '..BHBBBB...',
-    '.BWWWBWWWB.',
-    '.BWKWBWKWB.',
-    '.BWWWBWWWB.',
-    '.BKBBBBBKB.',
-    '.BBKMMMKBB.',
-    'BHHBBBBBHHB',
+    '...HBBD....',
+    '..HBBBBD...',
+    'BBBWBBBWBDD',
+    'BBWKWBWKWDD',
+    'BBBWBBBWBDD',
+    'BBMBBBBBMDD',
+    '..DMMMMMD..',
+    'HHHBBBBBHHH',
     'DDDDDDDDDDD',
   ],
 }
@@ -207,16 +208,22 @@ export const LIQUID: KinSprites = {
 export type Pixels = (number | null)[][]
 export type Palette = Partial<Record<string, number>>
 
+export function bodyPalette<T extends { B: number; D: number; L?: number; E?: number }>(palette: T): T & { L: number; E: number } {
+  return { ...palette, L: palette.L ?? palette.B, E: palette.E ?? palette.D }
+}
+
 const WHITE = 0xfcfcfc
 const PUPIL = 0x0b0a0d
 const GOLD = 0xfcbc3c
+const GOLD_SHADE = 0xd89010
+const GOLD_DEEP_SHADE = 0x8c5000
 
 type Breath = { period: number; blink: number }
 
 export type Kin = {
   name: string
   sprites: KinSprites
-  palette: Record<'B' | 'H' | 'D' | 'K' | 'M' | 'W', number>
+  palette: Record<'B' | 'L' | 'H' | 'D' | 'E' | 'K' | 'M' | 'W', number>
   phase: number
   breath: Breath
   // Fixed rest lengths keep each kin's pauses varied and repeatable.
@@ -224,11 +231,11 @@ export type Kin = {
 }
 
 export const FAMILY: readonly Kin[] = [
-  { name: 'slime', phase: 0, breath: { period: 36, blink: 12 }, hopRests: [6, 10, 14], sprites: ONION, palette: { B: 0x3cbcfc, H: 0xbcf0fc, D: 0x1878bc, K: PUPIL, M: 0xf87858, W: WHITE } },
-  { name: 'she-slime', phase: 3, breath: { period: 44, blink: 18 }, hopRests: [9, 14, 7], sprites: ONION, palette: { B: 0xf88820, H: 0xfcd860, D: 0xb03800, K: PUPIL, M: 0x5c1c68, W: WHITE } },
-  { name: 'metal slime', phase: 7, breath: { period: 50, blink: 24 }, hopRests: [12, 6, 10], sprites: ONION, palette: { B: 0xa8b0c0, H: 0xffffff, D: 0x4c5468, K: PUPIL, M: 0xe83828, W: WHITE } },
-  { name: 'bubble slime', phase: 12, breath: { period: 40, blink: 30 }, hopRests: [14, 8, 11], sprites: PUDDLE, palette: { B: 0x40c818, H: 0xc8f840, D: 0x1c7c10, K: PUPIL, M: PUPIL, W: WHITE } },
-  { name: 'liquid metal slime', phase: 17, breath: { period: 46, blink: 28 }, hopRests: [8, 12, 9], sprites: LIQUID, palette: { B: 0x8c9cb8, H: 0xf0f8ff, D: 0x3c4860, K: PUPIL, M: PUPIL, W: WHITE } },
+  { name: 'slime', phase: 0, breath: { period: 36, blink: 12 }, hopRests: [6, 10, 14], sprites: ONION, palette: { B: 0x3880a8, L: 0x50b0d0, H: 0xf8f8f8, D: 0x206088, E: 0x205068, M: 0xe85820, W: WHITE, K: PUPIL } },
+  { name: 'she-slime', phase: 3, breath: { period: 44, blink: 18 }, hopRests: [9, 14, 7], sprites: ONION, palette: { B: 0xf88820, L: 0xfcb048, H: 0xfcd860, D: 0xd06010, E: 0xb03800, M: 0x5c1c68, W: WHITE, K: PUPIL } },
+  { name: 'metal slime', phase: 7, breath: { period: 50, blink: 24 }, hopRests: [12, 6, 10], sprites: ONION, palette: { B: 0xa8b0c0, L: 0xd0d8e0, H: 0xffffff, D: 0x747c90, E: 0x4c5468, M: 0xe83828, W: WHITE, K: PUPIL } },
+  { name: 'bubble slime', phase: 12, breath: { period: 40, blink: 30 }, hopRests: [14, 8, 11], sprites: PUDDLE, palette: bodyPalette({ B: 0x40c818, H: 0xc8f840, D: 0x1c7c10, M: PUPIL, K: PUPIL, W: WHITE }) },
+  { name: 'liquid metal slime', phase: 17, breath: { period: 46, blink: 28 }, hopRests: [8, 12, 9], sprites: LIQUID, palette: bodyPalette({ B: 0x8c9cb8, H: 0xf0f8ff, D: 0x3c4860, M: PUPIL, K: PUPIL, W: WHITE }) },
 ]
 
 export const SLIME_ROWS = 8
@@ -371,7 +378,7 @@ export function stage(count: number, tick: number | null, rest: Rest = 'breathe'
 
 // The King Slime: crowned, the whole stage tall, and too wide for one slot.
 // B body, H highlight, Y crown gold, J red jewel, P and G crown fabric, W white eyes,
-// K pupils and grin outline, M salmon mouth, D lower shade, '.' transparent.
+// K pupils or blink lids, M orange-red U smile, D lower shade, '.' transparent.
 export const KING = [
   '......Y..PGGP..Y......',
   '......YPGPGGPGPY......',
@@ -380,17 +387,17 @@ export const KING = [
   '....HHBBBBBBBBBBBB....',
   '..BHHBBBBBBBBBBBBBBB..',
   '.BHBBBBBBBBBBBBBBBBBB.',
-  '.BBBBBBWWWBBWWWBBBBBB.',
+  '.BBBBBBBWBBBBWBBBBBBB.',
   'BBBBBBBWKWBBWKWBBBBBBB',
-  'BBBBBBBWWWBBWWWBBBBBBB',
-  'BBBBBKBBBBBBBBBBKBBBBB',
-  'BBBBBBKMMMMMMMMKBBBBBB',
-  'DBBBBBBKMMMMMMKBBBBBBD',
-  'DBBBBBBBKKKKKKBBBBBBBD',
+  'BBBBBBBBWBBBBWBBBBBBBB',
+  'BBBBBBMBBBBBBBBMBBBBBB',
+  'BBBBBBBMBBBBBBMBBBBBBB',
+  'DBBBBBBBMMMMMMBBBBBBBD',
+  'DBBBBBBBBBBBBBBBBBBBBD',
   'DDBBBBBBBBBBBBBBBBBBDD',
   '.DDDDDDDDDDDDDDDDDDDD.',
 ]
-// The plated Kings: S the bright metal sheen, O the darker band above the shade.
+// The plated Metal King: S the bright metal sheen, O the darker band above the shade.
 export const PLATED_KING = [
   '......Y..PGGP..Y......',
   '......YPGPGGPGPY......',
@@ -399,20 +406,20 @@ export const PLATED_KING = [
   '....SSHBBBBBBBBBSS....',
   '..BSSHBBBBBBBBBBBSSB..',
   '.BSHBBBBBBBBBBBBBBBSB.',
-  '.SHBBBBWWWBBWWWBBBBBS.',
+  '.SHBBBBBWBBBBWBBBBBBS.',
   'BSBBBBBWKWBBWKWBBBBBSB',
-  'BHBBBBBWWWBBWWWBBBBBBB',
-  'BBBBBKBBBBBBBBBBKBBBBB',
-  'OBBBBBKMMMMMMMMKBBBBBO',
-  'OOBBBBBKKKKKKKKBBBBBOO',
+  'BHBBBBBBWBBBBWBBBBBBBB',
+  'BBBBBBMBBBBBBBBMBBBBBB',
+  'OBBBBBBMBBBBBBMBBBBBBO',
+  'OOBBBBBBMMMMMMBBBBBBOO',
   'DOOBBBBBBBBBBBBBBBBOOD',
   'DDOOOOOOOOOOOOOOOOOODD',
   '.DDDDDDDDDDDDDDDDDDDD.',
 ]
 const CROWN: Palette = { Y: GOLD, J: 0xf83800, P: 0x8838d0, G: 0x28a848 }
-const FACE: Palette = { K: PUPIL, M: 0xf87858, W: WHITE }
+const FACE: Palette = { K: PUPIL, M: 0xe85820, W: WHITE }
 
-export type KingVariant = 'king' | 'gold' | 'metal'
+export type KingVariant = 'king' | 'metal'
 type King = { name: string; sprite: readonly string[]; blink: readonly string[]; squash: readonly string[]; body: Palette; crown: Palette }
 
 function crowned(name: string, sprite: readonly string[], body: Palette, crown: Palette): King {
@@ -428,11 +435,9 @@ function crowned(name: string, sprite: readonly string[], body: Palette, crown: 
   }
 }
 
-// The Gold King's crown is silver: a gold one would vanish into its body.
 export const KINGS: Record<KingVariant, King> = {
-  king: crowned('King Slime', KING, (FAMILY[0] as Kin).palette, CROWN),
-  gold: crowned('Gold King Slime', PLATED_KING, { B: 0xf8c828, H: 0xfcf0a0, D: 0x8c5000, O: 0xd89010, S: 0xffffff }, { ...CROWN, Y: 0xd0d8e0 }),
-  metal: crowned('Metal King Slime', PLATED_KING, { B: 0xb8c4d0, H: 0xe8f0f8, D: 0x5c6878, O: 0x8c98a8, S: 0xffffff }, CROWN),
+  king: crowned('King Slime', KING, FAMILY[0]!.palette, CROWN),
+  metal: crowned('Metal King Slime', PLATED_KING, bodyPalette({ B: 0xb8c4d0, H: 0xe8f0f8, D: 0x5c6878, O: 0x8c98a8, S: 0xffffff }), CROWN),
 }
 
 export function pickKing(random: () => number): KingVariant {
@@ -456,26 +461,27 @@ export const KING_WIDTH = KING[0]!.length
 // The slimes landing on one another: a splat, then a blob bouncing up.
 const MERGED_SPLAT = [
   '.......BBHHBBBB.......',
-  '....BBWWWBBBBWWWBB....',
+  '....BBBWBBBBBBWBBB....',
   '..BBBBWKWBBBBWKWBBBB..',
-  '.BBBKBBBBBBBBBBBBKBBB.',
-  'DDBBBKMMMMMMMMMMKBBBDD',
-  '.DDDDDKKKKKKKKKKDDDDD.',
+  '.BBBBBBWBBBBBBWBBBBBB.',
+  'DDBBBBMBBBBBBBBMBBBBDD',
+  '.DDDDDBMMMMMMMMBDDDDD.',
 ]
 const MERGED_BLOB = [
-  '.................',
-  '........H........',
-  '.......HBB.......',
-  '.....BHBBBBB.....',
-  '...BBHBBBBBBBB...',
-  '..BBBBBBBBBBBBB..',
-  '.BBBBWWWBWWWBBBB.',
-  '.BBBBWKWBWKWBBBB.',
-  'BBBBBWWWBWWWBBBBB',
-  'BBBKBBBBBBBBBKBBB',
-  'DBBBKMMMMMMMKBBBD',
-  '.DDBBKKKKKKKBBDD.',
-  '..DDDDDDDDDDDDD..',
+  '........D........',
+  '........B........',
+  '.......BLB.......',
+  '......HHLDB......',
+  '....HHLLLBDBB....',
+  '..HHHLLLLBBDDEB..',
+  '.HHLLLLLBBBDDEEB.',
+  'BHBBBBWBBDWDDEEEB',
+  'BHBDBWKWDWKWDDEEB',
+  'BBDEDBWDDDWDDEEED',
+  'BDDEDMDDDDDMEEEED',
+  '.BDDEEMMMMMEEDDD.',
+  '..BDDDDDDDDDDDD..',
+  '....DDDDDDDDD....',
 ]
 export const MERGED = [MERGED_SPLAT, MERGED_BLOB]
 export const POOF = [
@@ -736,7 +742,7 @@ function levelUpStage(moment: Moment, count: number, tick: number, rest: Rest): 
   for (let i = 0; i < count; i += 1) {
     if (frame < LEVEL_UP_ENDPOINT) {
       const { palette } = kinOf(i)
-      paintKin(pixels, i, HOP[frame]!, kinHomeX(i), isGold ? { ...palette, B: GOLD, H: WHITE } : palette)
+      paintKin(pixels, i, HOP[frame]!, kinHomeX(i), isGold ? { ...palette, B: GOLD, L: GOLD, D: GOLD_SHADE, E: GOLD_DEEP_SHADE, H: WHITE } : palette)
     } else {
       paintRejoiningKin(pixels, i, tick, rest, endpointTick)
     }

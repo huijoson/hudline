@@ -1,13 +1,13 @@
-import { ONION, paint } from './slime'
+import { bodyPalette, ONION, paint } from './slime'
 import type { Palette, Pixels } from './slime'
 import { ATTACK_BLADE_LIFT, QUEST_ROWS } from './quest-hero'
 
 type Pose = { sprite: readonly string[]; lift: number }
 
-// B body, H highlight or side shade, D shade, W eyes, K pupils, M mouth.
+// B body, L light body, H highlight or side shade, D shade, E deep shade, W eyes, K pupils, M mouth.
 // The bat's pupils are red; the skeleton's K and W are its sockets and teeth gaps.
 const QUEST_SLIME = ONION.stand
-const SLIME_PAL = { B: 0x38c838, H: 0xb8f818, D: 0x008800, W: 0xfcfcfc, K: 0x0b0a0d, M: 0xf87858 }
+const SLIME_PAL = bodyPalette({ B: 0x38c838, H: 0xb8f818, D: 0x008800, W: 0xfcfcfc, K: 0x0b0a0d, M: 0xf87858 })
 const BAT_UP = [
   'D..............D',
   'BD............DB',
