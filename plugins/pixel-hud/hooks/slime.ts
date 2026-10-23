@@ -90,8 +90,8 @@ export function slimeColumns(count: number): number {
   return count * SLIME_WIDTH
 }
 
-type Pixels = (number | null)[][]
-type Palette = Partial<Record<string, number>>
+export type Pixels = (number | null)[][]
+export type Palette = Partial<Record<string, number>>
 
 const WHITE = 0xfcfcfc
 const MOUTH = 0x981828
@@ -103,7 +103,7 @@ function blank(count: number): Pixels {
 }
 
 // Paints `sprite` with its left edge at `x`, its bottom `lift` pixels off the floor.
-function paint(pixels: Pixels, sprite: readonly string[], x: number, lift: number, palette: Palette) {
+export function paint(pixels: Pixels, sprite: readonly string[], x: number, lift: number, palette: Palette) {
   const top = STAGE_PIXELS - sprite.length - lift
   sprite.forEach((line, r) => {
     ;[...line].forEach((ch, c) => {
@@ -484,7 +484,11 @@ export function slimeCells(count: number, tick: number, moment: Moment | null = 
   if (moment && frame >= 0 && tick < momentEndTick(moment, count, rest)) {
     pixels = MOMENT_MOTION[moment.kind].stage(moment, count, tick, rest)
   }
-  const width = slimeColumns(count)
+  return pixelCells(pixels)
+}
+
+export function pixelCells(pixels: Pixels): string {
+  const width = pixels[0]?.length ?? 0
   const words = new Uint32Array(width * STAGE_ROWS * 3)
   for (let row = 0; row < STAGE_ROWS; row += 1) {
     for (let col = 0; col < width; col += 1) {
@@ -524,6 +528,7 @@ export function slimeText(count: number): { text: string; color: string }[][] {
 
 export const SLIME_STAGE: Stage = {
   maxRoom: FAMILY.length,
+  rest: (idle, hop) => hop ? 'hop' : idle ? 'breathe' : 'still',
   columns: slimeColumns,
   cells: slimeCells,
   text: slimeText,

@@ -131,7 +131,8 @@ function add(a: Flow, b: Flow): Flow {
 function fitBranch(theme: Stage, name: string, isDirty: boolean, columns: number): { name: string; slimes: number } | null {
   const fixed = (BRANCH_SPRITE[0] ?? '').length + GAP.length + (isDirty ? GAP.length + pixelWidth(1) : 0)
   const roomFor = (slimes: number) => {
-    const used = fixed + (slimes > 0 ? GAP.length + theme.columns(slimes) : 0)
+    const width = theme.columns(slimes)
+    const used = fixed + (width > 0 ? GAP.length + width : 0)
     return Math.floor((columns - used + 1) / 4)
   }
   for (let slimes = theme.maxRoom; slimes > 0; slimes -= 1) {
@@ -166,8 +167,7 @@ async function repaint(theme: Stage, $: EngineInterface, drawn: DrawnStage | nul
 // The battle picker is injectable; the slime stage does not consume it.
 export const register = (on: Parameters<Register>[0], options: Parameters<Register>[1], random: () => number = Math.random) => {
   const theme = selectStage(options.stage)
-  // Hopping supersedes breath; moments take the stage over either.
-  const rest: Rest = options.slimesHop === true ? 'hop' : options.slimesIdle !== false ? 'breathe' : 'still'
+  const rest = theme.rest(options.slimesIdle !== false, options.slimesHop === true)
   let poll: Timer | undefined
   let hop: Timer | undefined
   let tick = 0
@@ -347,7 +347,7 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
     // Branch: big glyphs when there is room, else a chunky chip.
     const fit = git && e.props.maxRows >= FULL_ROWS ? fitBranch(theme, git.name, git.isDirty, e.props.bodyColumns) : null
     const glyphs = fit === null ? null : pixelText(fit.name)
-    const slimes = fit?.slimes ?? 0
+    const slimes = fit && theme.columns(fit.slimes) > 0 ? fit.slimes : 0
     // The terminal paints them in full color and can make them hop; elsewhere they rest.
     const Raster = e.surface === 'terminal' && slimes > 0 ? $.ui.resolve(e).Raster : null
     if (Raster && encounterPending) {
