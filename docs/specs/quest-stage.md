@@ -173,6 +173,7 @@ like the slime stage.
 - **Battle trigger**: `turn.complete` with no `agentId` and
   `reason === 'answer'`, any duration, when a quest stage is seated. On the
   slime stage `turn.complete` keeps today's King rule unchanged.
+- **Command**: `/quest-battle [monster] [skill]` starts the same battle immediately; either roster key (or a monster display name with spaces/hyphens removed) can be fixed, in either order and case-insensitively, with omitted parts random and the same room and priority rules. Unknown or repeated picks list the current roster and start nothing.
 - **Encounter (quest)**: on the first seated frame after `session.start`, the
   hero walks in from the left edge to its spot over about 12 ticks.
 - **Damage (quest)**: on `classic.PostToolUseFailure` without
