@@ -1,7 +1,6 @@
 import type { Monster, Skill } from './quest-foes'
 
 export const FRAME_MS = 80
-export const STAGE_ROWS = 3
 export const DAMAGE_COOLDOWN_TICKS = Math.round(2_000 / FRAME_MS)
 
 export type Rest = 'hop' | 'breathe' | 'still'
@@ -13,6 +12,7 @@ export type Moment =
 
 // Room is the number of seven-column slots granted beside the branch.
 export interface Stage {
+  rows: number
   taskMoment: (tick: number, random: () => number) => Moment | null
   maxRoom: number
   rest: (idle: boolean, hop: boolean) => Rest

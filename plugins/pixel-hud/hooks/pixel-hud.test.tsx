@@ -57,7 +57,7 @@ import {
   slimeText,
   SLIME_WIDTH,
   stage,
-  STAGE_ROWS,
+  SLIME_ROWS,
 } from './slime'
 import type { Moment } from './slime'
 
@@ -93,7 +93,7 @@ function slimeFace(pixels: (number | null)[][], i: number) {
 function slimeCellFace(cells: string, count: number, i: number) {
   const binary = atob(cells)
   const bytesPerSlime = SLIME_WIDTH * 3 * Uint32Array.BYTES_PER_ELEMENT
-  return Array.from({ length: STAGE_ROWS }, (_, row) => {
+  return Array.from({ length: SLIME_ROWS }, (_, row) => {
     const start = (row * count + i) * bytesPerSlime
     return binary.slice(start, start + bytesPerSlime)
   })
@@ -103,8 +103,8 @@ function slimeCellFace(cells: string, count: number, i: number) {
 function slimePixels(cells: string) {
   const bytes = Uint8Array.from(atob(cells), ch => ch.charCodeAt(0))
   const words = new Uint32Array(bytes.buffer)
-  const width = words.length / (STAGE_ROWS * 3)
-  return Array.from({ length: STAGE_ROWS * 2 }, (_, row) =>
+  const width = words.length / (SLIME_ROWS * 3)
+  return Array.from({ length: SLIME_ROWS * 2 }, (_, row) =>
     Array.from({ length: width }, (_, col) => {
       const offset = (Math.floor(row / 2) * width + col) * 3
       const glyph = words[offset]
@@ -1134,7 +1134,7 @@ const hopFall = hopTop + HOP_HANG_TICKS
 const hopLanding = hopFall + HOP_FALL_TICKS
 const hopRebound = hopLanding + HOP_LAND_TICKS
 const hopSettle = hopRebound + HOP_REBOUND_TICKS
-const floorRow = STAGE_ROWS * 2 - 1
+const floorRow = SLIME_ROWS * 2 - 1
 const kingDropStarts = KING_GATHER_TICKS + KING_MERGE_TICKS
 const kingReignStarts = KING_GATHER_TICKS + KING_MERGE_TICKS + KING_DROP_TICKS + KING_FLASH_TICKS
 
@@ -1163,7 +1163,7 @@ describe('slime moments', () => {
   test('level-up hops every kin in unison, gold and white at the top, and ends standing', () => {
     const startTick = HOP_TICKS * 2 + 1
     const settleTick = HOP_TICKS - HOP_SETTLE_TICKS
-    const floorRow = STAGE_ROWS * 2 - 1
+    const floorRow = SLIME_ROWS * 2 - 1
     // Blue's own hop from its first crouch is the shape every kin shares.
     const hopShape = (frame: number) => shape(slimeFace(stage(1, frame, 'hop'), 0))
     const blueHang = slimeFace(stage(1, hopTop, 'hop'), 0)
@@ -1206,7 +1206,7 @@ describe('slime moments', () => {
         // First visible tick: bottom two rows; next tick: bottom four rows.
         for (const [offset, visibleRows] of [[1, 2], [2, 4]] as const) {
           const actual = slimeFace(slimePixels(slimeCells(count, dropTick + offset, encounter, 'still')), i)
-          const expected = [...standing.slice(-visibleRows), ...Array(STAGE_ROWS * 2 - visibleRows).fill(emptyRow)]
+          const expected = [...standing.slice(-visibleRows), ...Array(SLIME_ROWS * 2 - visibleRows).fill(emptyRow)]
           expect(actual).toEqual(expected)
         }
       }

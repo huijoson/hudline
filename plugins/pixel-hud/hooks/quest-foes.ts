@@ -1,6 +1,6 @@
 import { paint } from './slime'
 import type { Palette, Pixels } from './slime'
-import { STAGE_ROWS } from './stage'
+import { QUEST_ROWS } from './quest-hero'
 
 type Pose = { sprite: readonly string[]; lift: number }
 
@@ -60,7 +60,7 @@ export const SKILLS = {
     origin: 'monster',
     originOffset: 0,
     palette: { Y: 0xf8d878 },
-    frames: [2, 4, STAGE_ROWS * 2].map(rows => ({ sprite: ['..Y', '.Y.', 'YYY', '..Y', '.Y.', 'Y..'].slice(0, rows), lift: STAGE_ROWS * 2 - rows, offset: 0 })),
+    frames: [2, 4, QUEST_ROWS * 2].map(rows => ({ sprite: ['..Y', '.Y.', 'YYY', '..Y', '.Y.', 'Y..'].slice(0, rows), lift: QUEST_ROWS * 2 - rows, offset: 0 })),
   },
 } satisfies Record<string, { heroStep: number; origin: 'monster' | 'sword'; originOffset: number; palette: Palette; frames: readonly EffectPose[] }>
 

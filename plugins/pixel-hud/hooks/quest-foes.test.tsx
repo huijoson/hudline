@@ -1,10 +1,10 @@
 import { expect, test } from 'claude-code/testing'
 
 import { FIREBALL_TICKS, paintMonster, paintSkill, SLASH_TICKS, THUNDER_TICKS } from './quest-foes'
-import { STAGE_ROWS } from './stage'
+import { QUEST_ROWS } from './quest'
 
 function blank(columns = 12): (number | null)[][] {
-  return Array.from({ length: STAGE_ROWS * 2 }, () => Array<number | null>(columns).fill(null))
+  return Array.from({ length: QUEST_ROWS * 2 }, () => Array<number | null>(columns).fill(null))
 }
 
 test('the quest slime is a green, grounded silhouette with eyes', () => {
@@ -27,7 +27,7 @@ for (const monster of ['bat', 'skeleton', 'ghost'] as const) {
     const pixels = blank()
     paintMonster(pixels, monster, 2, 0)
     expect(pixels.flat().some(p => p !== null)).toBe(true)
-    expect(pixels.length).toBe(STAGE_ROWS * 2)
+    expect(pixels.length).toBe(QUEST_ROWS * 2)
     expect(pixels.every(row => row.length === 12)).toBe(true)
     expect(pixels.every(row => row.slice(0, 2).every(p => p === null) && row.slice(9).every(p => p === null))).toBe(true)
     const body = { bat: 0x9878f8, skeleton: 0xfcfcfc, ghost: 0xbcf0fc }[monster]

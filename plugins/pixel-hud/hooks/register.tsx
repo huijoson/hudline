@@ -21,7 +21,7 @@ import {
 } from './format'
 import type { Role } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { DAMAGE_COOLDOWN_TICKS, FRAME_MS, nextMoment, STAGE_ROWS } from './stage'
+import { DAMAGE_COOLDOWN_TICKS, FRAME_MS, nextMoment } from './stage'
 import type { Moment, Rest, Stage } from './stage'
 import { selectStage } from './stages'
 
@@ -502,7 +502,7 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
             </Box>
             {Raster ? <Text>{GAP}</Text> : null}
             {Raster ? (
-              <Raster key={SLIMES_KEY} columns={theme.columns(slimes)} rows={STAGE_ROWS} cells={cells} />
+              <Raster key={SLIMES_KEY} columns={theme.columns(slimes)} rows={theme.rows} cells={cells} />
             ) : null}
           </Box>
         ) : null}

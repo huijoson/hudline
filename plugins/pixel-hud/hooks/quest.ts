@@ -2,7 +2,8 @@ import { MONSTERS, paintMonster, paintSkill, SKILLS } from './quest-foes'
 import type { Monster, Skill } from './quest-foes'
 import { FAMILY, halfBlockText, paint, pixelCells, POOF, slimeColumns } from './slime'
 import type { Palette, Pixels } from './slime'
-import { STAGE_ROWS } from './stage'
+import { QUEST_ROWS } from './quest-hero'
+export { QUEST_ROWS } from './quest-hero'
 import type { Moment, Rest, Stage } from './stage'
 
 // H helmet, F face, K eye, R cape, B armour, S hand, Y hilt, W blade, L legs.
@@ -138,13 +139,13 @@ function walkSprite(tick: number, rest: Rest): readonly string[] {
 
 function questPixels(room: number, tick = 0, rest: Rest = 'still', moment: Moment | null = null): Pixels {
   const width = questColumns(room)
-  const pixels = Array.from({ length: STAGE_ROWS * 2 }, () => Array<number | null>(width).fill(null))
+  const pixels = Array.from({ length: QUEST_ROWS * 2 }, () => Array<number | null>(width).fill(null))
   const motion = moment ? MOMENT_MOTION[moment.kind] : undefined
   const frame = moment ? tick - moment.startTick : -1
   const active = motion && moment && frame >= 0 && frame < motion.ticks(moment)
   const groundTick = active ? motion.groundTick?.(frame, tick, moment) ?? tick : tick
   const offset = rest === 'still' ? 0 : Math.floor(groundTick / GROUND_STEP_TICKS) % 2
-  for (let col = offset; col < width; col += 2) pixels[STAGE_ROWS * 2 - 1]![col] = GROUND
+  for (let col = offset; col < width; col += 2) pixels[QUEST_ROWS * 2 - 1]![col] = GROUND
   const pose = active
     ? motion.pose(frame, tick, moment, rest)
     : { sprite: walkSprite(tick, rest), x: HERO_X, lift: 0, palette: HERO_PALETTE }
@@ -154,6 +155,7 @@ function questPixels(room: number, tick = 0, rest: Rest = 'still', moment: Momen
 }
 
 export const QUEST_STAGE: Stage = {
+  rows: QUEST_ROWS,
   taskMoment: (startTick, random) => {
     const monsters = Object.keys(MONSTERS) as Monster[]
     const skills = Object.keys(SKILLS) as Skill[]
@@ -166,7 +168,7 @@ export const QUEST_STAGE: Stage = {
   text: room => {
     if (questColumns(room) === 0) return []
     const pixels = questPixels(room)
-    return Array.from({ length: STAGE_ROWS }, (_, row) => [{
+    return Array.from({ length: QUEST_ROWS }, (_, row) => [{
       text: halfBlockText(pixels, row),
       color: `#${HERO_PALETTE.B.toString(16).padStart(6, '0')}`,
     }])

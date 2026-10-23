@@ -1,3 +1,4 @@
+import { QUEST_ROWS } from './quest'
 import { expect, test } from 'claude-code/testing'
 
 import {
@@ -22,14 +23,14 @@ import {
 import { MONSTERS, SKILLS } from './quest-foes'
 import type { Monster, Skill } from './quest-foes'
 import { slimeColumns } from './slime'
-import { FRAME_MS, nextMoment, STAGE_ROWS } from './stage'
+import { FRAME_MS, nextMoment } from './stage'
 import { selectStage } from './stages'
 
 // Decode the public Raster cells into their six pixel rows.
 function pixels(cells: string) {
   const words = new Uint32Array(Uint8Array.from(atob(cells), ch => ch.charCodeAt(0)).buffer)
-  const width = words.length / (STAGE_ROWS * 3)
-  return Array.from({ length: STAGE_ROWS * 2 }, (_, row) =>
+  const width = words.length / (QUEST_ROWS * 3)
+  return Array.from({ length: QUEST_ROWS * 2 }, (_, row) =>
     Array.from({ length: width }, (_, col) => {
       const offset = (Math.floor(row / 2) * width + col) * 3
       const glyph = words[offset]
@@ -70,7 +71,7 @@ test('the quest hero stands near the left over a dotted ground with a matching t
   const frame = pixels(quest.cells(4, 0, null, 'still'))
   expect(frame[1]?.slice(2, 8)).toEqual([null, 0x0058f8, 0x0058f8, 0x0058f8, null, 0xfcfcfc])
   expect(frame[5]?.slice(8, 16)).toEqual([0x686878, null, 0x686878, null, 0x686878, null, 0x686878, null])
-  expect(quest.text(4).flat().map(span => span.color)).toEqual(Array(STAGE_ROWS).fill(`#${HERO_PALETTE.B.toString(16).padStart(6, '0')}`))
+  expect(quest.text(4).flat().map(span => span.color)).toEqual(Array(QUEST_ROWS).fill(`#${HERO_PALETTE.B.toString(16).padStart(6, '0')}`))
   expect(quest.text(4).map(row => row.map(span => span.text).join(''))).toEqual([
     '   ▄▄▄ █                    ',
     '  ▄███▄█                    ',
@@ -223,7 +224,7 @@ test('still rest keeps standing legs during encounter and battle travel while br
     { moment: battle, tick: end - BATTLE_RESUME_TICKS },
   ]
   for (const { moment, tick } of samples) {
-    const legs = (rest: 'still' | 'breathe') => pixels(quest.cells(quest.maxRoom, tick, moment, rest))[STAGE_ROWS * 2 - 1]?.slice(HERO_X, HERO_X + 5)
+    const legs = (rest: 'still' | 'breathe') => pixels(quest.cells(quest.maxRoom, tick, moment, rest))[QUEST_ROWS * 2 - 1]?.slice(HERO_X, HERO_X + 5)
     expect(legs('still')).toEqual([0x686878, 0x0000bc, 0x686878, 0x0000bc, 0x686878])
     expect(legs('breathe')).not.toEqual(legs('still'))
   }

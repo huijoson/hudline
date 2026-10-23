@@ -1,7 +1,7 @@
-import { nextMoment as admitMoment, STAGE_ROWS } from './stage'
+import { nextMoment as admitMoment } from './stage'
 import type { Moment, Rest, Stage } from './stage'
 
-export { DAMAGE_COOLDOWN_TICKS, FRAME_MS, STAGE_ROWS } from './stage'
+export { DAMAGE_COOLDOWN_TICKS, FRAME_MS } from './stage'
 export type { Moment, Rest } from './stage'
 
 // The slime family that hops beside the branch: 8-bit sprites drawn into a
@@ -16,8 +16,9 @@ export const WIDE = ['..BHB..', 'BWBBBWB', 'BKBBBKB', 'DDMMMDD']
 export const STRETCH = ['...B...', '..BHB..', '.BWBWB.', '.BKBKB.', '.BMMMB.', '..DDD..']
 export const BLINK = STAND.map(row => row.replaceAll('W', 'B'))
 
+export const SLIME_ROWS = 3
 export const SLIME_WIDTH = 7
-const STAGE_PIXELS = STAGE_ROWS * 2
+const STAGE_PIXELS = SLIME_ROWS * 2
 
 type Pose = { sprite: readonly string[]; lift: number }
 type Beat = Pose & { ticks: number }
@@ -104,7 +105,7 @@ function blank(count: number): Pixels {
 
 // Paints `sprite` with its left edge at `x`, its bottom `lift` pixels off the floor.
 export function paint(pixels: Pixels, sprite: readonly string[], x: number, lift: number, palette: Palette) {
-  const top = STAGE_PIXELS - sprite.length - lift
+  const top = pixels.length - sprite.length - lift
   sprite.forEach((line, r) => {
     ;[...line].forEach((ch, c) => {
       const color = palette[ch]
@@ -491,8 +492,9 @@ export function slimeCells(count: number, tick: number, moment: Moment | null = 
 
 export function pixelCells(pixels: Pixels): string {
   const width = pixels[0]?.length ?? 0
-  const words = new Uint32Array(width * STAGE_ROWS * 3)
-  for (let row = 0; row < STAGE_ROWS; row += 1) {
+  const rows = pixels.length / 2
+  const words = new Uint32Array(width * rows * 3)
+  for (let row = 0; row < rows; row += 1) {
     for (let col = 0; col < width; col += 1) {
       const top = pixels[row * 2]?.[col] ?? null
       const bottom = pixels[row * 2 + 1]?.[col] ?? null
@@ -525,7 +527,7 @@ export function halfBlockText(pixels: Pixels, row: number, start = 0, end = pixe
 // Where there is no Raster: one resting frame, each slime one color, as text.
 export function slimeText(count: number): { text: string; color: string }[][] {
   const pixels = stage(count, null)
-  return Array.from({ length: STAGE_ROWS }, (_, row) =>
+  return Array.from({ length: SLIME_ROWS }, (_, row) =>
     Array.from({ length: count }, (_, i) => {
       const text = halfBlockText(pixels, row, i * SLIME_WIDTH, (i + 1) * SLIME_WIDTH)
       const kin = FAMILY[i % FAMILY.length] as Kin
@@ -535,6 +537,7 @@ export function slimeText(count: number): { text: string; color: string }[][] {
 }
 
 export const SLIME_STAGE: Stage = {
+  rows: SLIME_ROWS,
   taskMoment: () => null,
   maxRoom: FAMILY.length,
   rest: (idle, hop) => hop ? 'hop' : idle ? 'breathe' : 'still',
