@@ -1671,6 +1671,19 @@ test('/slime-king is registered, and crowns the slimes while they are on stage',
   await ui.unmount()
 })
 
+test('/slime-king on the quest stage says the hero walks on, with or without room', { options: { stage: 'quest' } }, async ($, on) => {
+  mock.clock(on)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const reply = 'But there are no slimes here. The hero walks on.'
+  expect((await $.command.run(KING)).text).toBe(reply)
+  for (const columns of [120, 30]) {
+    const ui = await mount($, 'terminal', 10, columns)
+    expect((await $.command.run(KING)).text).toBe(reply)
+    await ui.unmount()
+  }
+})
+
 test('/slime-king finds no room when the band only fits the branch', async ($, on) => {
   answers(on, { name: 'feature/slimes', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })

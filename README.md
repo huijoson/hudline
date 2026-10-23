@@ -93,6 +93,10 @@ still.
 
 ![pixel-hud after a long task: the slimes leap together, merge into a crowned King Slime beside the branch, then burst apart and arc home.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-king.gif)
 
+![pixel-hud's quest stage: a blue-armoured hero walks beside the branch, sword in hand, above the same neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-quest.png)
+
+Pick **quest** under **Stage theme** (`stage`) in `/config` for a hero who fights a monster each time a task finishes.
+
 *Rendered from the mod's own drawing, one frame a tick, with the same sample
 values as the image above; [reproduce them](docs/showcase/README.md#the-mod-image).*
 
