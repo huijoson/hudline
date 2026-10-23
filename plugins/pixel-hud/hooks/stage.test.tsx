@@ -9,14 +9,14 @@ test('the slime stage keeps its room and resting text fallback', () => {
   const stage = selectStage('slimes')
   expect(stage.maxRoom).toBe(FAMILY.length)
   expect(stage.text(1)).toEqual([
-    [{ text: '             ', color: '#3cbcfc' }],
-    [{ text: '             ', color: '#3cbcfc' }],
-    [{ text: '      █      ', color: '#3cbcfc' }],
-    [{ text: '   ▄▄███▄▄   ', color: '#3cbcfc' }],
-    [{ text: ' ▄█████████▄ ', color: '#3cbcfc' }],
-    [{ text: '█████████████', color: '#3cbcfc' }],
-    [{ text: '█████████████', color: '#3cbcfc' }],
-    [{ text: '▀███████████▀', color: '#3cbcfc' }],
+    [{ text: '           ', color: '#3cbcfc' }],
+    [{ text: '           ', color: '#3cbcfc' }],
+    [{ text: '           ', color: '#3cbcfc' }],
+    [{ text: '    ▄█▄    ', color: '#3cbcfc' }],
+    [{ text: ' ▄▄█████▄▄ ', color: '#3cbcfc' }],
+    [{ text: '███████████', color: '#3cbcfc' }],
+    [{ text: '███████████', color: '#3cbcfc' }],
+    [{ text: ' ▀███████▀ ', color: '#3cbcfc' }],
   ])
 })
 
