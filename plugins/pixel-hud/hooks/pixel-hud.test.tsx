@@ -1653,6 +1653,11 @@ describe('King Slime', () => {
       expect(reign.flat()).toContain(body.D)
       // The crown's band is all crown metal.
       expect(new Set(reign[2]?.filter(p => p !== null))).toEqual(new Set([crown.Y]))
+      // The Gold and Metal Kings are plated: a bright sheen above, a darker band below.
+      for (const plate of [body.S, body.O]) {
+        if (variant === 'king') expect(plate).toBeUndefined()
+        else expect(reign.flat()).toContain(plate)
+      }
       return reign
     })
     expect(new Set(Object.values(KINGS).map(king => king.body.B)).size).toBe(3)

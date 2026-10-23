@@ -343,6 +343,25 @@ export const KING = [
   'DDBBBBBBBBBBBBBBBBBBDD',
   '.DDDDDDDDDDDDDDDDDDDD.',
 ]
+// The plated Kings: S the bright metal sheen, O the darker band above the shade.
+export const PLATED_KING = [
+  '......Y..PGGP..Y......',
+  '......YPGPGGPGPY......',
+  '......YYYYYYYYYY......',
+  '......YJYYJJYYJY......',
+  '....SSHBBBBBBBBBSS....',
+  '..BSSHBBBBBBBBBBBSSB..',
+  '.BSHBBBBBBBBBBBBBBBSB.',
+  '.SHBBBBWWWBBWWWBBBBBS.',
+  'BSBBBBBWKWBBWKWBBBBBSB',
+  'BHBBBBBWWWBBWWWBBBBBBB',
+  'BBBBBKBBBBBBBBBBKBBBBB',
+  'OBBBBBKMMMMMMMMKBBBBBO',
+  'OOBBBBBKKKKKKKKBBBBBOO',
+  'DOOBBBBBBBBBBBBBBBBOOD',
+  'DDOOOOOOOOOOOOOOOOOODD',
+  '.DDDDDDDDDDDDDDDDDDDD.',
+]
 const CROWN: Palette = { Y: GOLD, J: 0xf83800, P: 0x8838d0, G: 0x28a848 }
 const FACE: Palette = { K: PUPIL, M: 0xf87858, W: WHITE }
 
@@ -365,8 +384,8 @@ function crowned(name: string, sprite: readonly string[], body: Palette, crown: 
 // The Gold King's crown is silver: a gold one would vanish into its body.
 export const KINGS: Record<KingVariant, King> = {
   king: crowned('King Slime', KING, (FAMILY[0] as Kin).palette, CROWN),
-  gold: crowned('Gold King Slime', KING, { B: 0xf8d830, H: 0xfcfcc0, D: 0xc87800 }, { ...CROWN, Y: 0xd0d8e0 }),
-  metal: crowned('Metal King Slime', KING, { B: 0xb8c4d0, H: 0xffffff, D: 0x6c7888 }, CROWN),
+  gold: crowned('Gold King Slime', PLATED_KING, { B: 0xf8c828, H: 0xfcf0a0, D: 0x8c5000, O: 0xd89010, S: 0xffffff }, { ...CROWN, Y: 0xd0d8e0 }),
+  metal: crowned('Metal King Slime', PLATED_KING, { B: 0xb8c4d0, H: 0xe8f0f8, D: 0x5c6878, O: 0x8c98a8, S: 0xffffff }, CROWN),
 }
 
 export function pickKing(random: () => number): KingVariant {
