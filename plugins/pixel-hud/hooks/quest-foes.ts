@@ -73,33 +73,7 @@ const GHOST = [
 ]
 const GHOST_PAL = { B: 0xd8f4fc, H: 0x8cc8e8, K: 0x0b0a0d }
 
-const METAL_SLIME_A = [
-  '......K......',
-  '.....KHK.....',
-  '....KHBBK....',
-  '...KHHBBBK...',
-  '..KHHBBBBBK..',
-  '.KHHHBBBBBBK.',
-  'KHHBBKBBKBBBK',
-  'KHBBBKBBKBBBK',
-  'KBBBKBBBKBDDK',
-  '.KBDDKKKDDDK.',
-  '..KKKKKKKKK..',
-]
-const METAL_SLIME_B = [
-  '......K......',
-  '.....KHK.....',
-  '....KBBHK....',
-  '...KBBHHBK...',
-  '..KBBBHHBBK..',
-  '.KBBBBHBBBBK.',
-  'KHHBBKBBKBBBK',
-  'KHBBBKBBKBBBK',
-  'KBBBKBBBKBDDK',
-  '.KBDDKKKDDDK.',
-  '..KKKKKKKKK..',
-]
-const METAL_SLIME_PAL = { B: 0xa8b0bc, H: 0xfcfcfc, D: 0x586478, K: 0x181828 }
+const METAL_SLIME_PAL = bodyPalette({ B: 0xa8b0bc, L: 0xd8dce4, H: 0xfcfcfc, D: 0x687488, E: 0x404858, W: 0xfcfcfc, K: 0x0b0a0d, M: 0x404858 })
 const HEALSLIME = [
   '.....KKK.....',
   '....KHBBK....',
@@ -471,7 +445,7 @@ export const MONSTERS = {
   bat: { name: 'Dracky', palette: BAT_PAL, frames: [BAT_UP, BAT_DOWN].map(sprite => ({ sprite, lift: 0 })) },
   skeleton: { name: 'Skeleton', palette: SKELETON_PAL, frames: [{ sprite: SKELETON, lift: 0 }] },
   ghost: { name: 'Ghost', palette: GHOST_PAL, frames: [0, 2].map(lift => ({ sprite: GHOST, lift })) },
-  metalSlime: { name: 'Metal Slime', palette: METAL_SLIME_PAL, frames: [METAL_SLIME_A, METAL_SLIME_B].map(sprite => ({ sprite, lift: 0 })) },
+  metalSlime: { name: 'Metal Slime', palette: METAL_SLIME_PAL, frames: [{ sprite: ONION.stand, lift: 0 }] },
   healslime: { name: 'Healslime', palette: HEALSLIME_PAL, frames: [0, 2].map(lift => ({ sprite: HEALSLIME, lift })) },
   eyeball: { name: 'Eyeball', palette: EYEBALL_PAL, frames: [1, 3].map(lift => ({ sprite: EYEBALL, lift })) },
   mage: { name: 'Magician', palette: MAGE_PAL, frames: [MAGE_A, MAGE_B].map(sprite => ({ sprite, lift: 0 })) },

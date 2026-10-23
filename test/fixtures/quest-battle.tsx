@@ -63,7 +63,7 @@ test('a short main answer battles without restarting for another answer', { opti
 
 const monsters = Object.keys(MONSTERS) as Monster[]
 const skills = Object.keys(SKILLS) as Skill[]
-const randomMonster = monsters[Math.floor(0.25 * monsters.length)]!
+const randomMonster = monsters[1]!
 const randomSkill = skills[Math.floor(0.67 * skills.length)]!
 const cases: { args: string; monster: Monster; skill: Skill }[] = [
   { args: '', monster: randomMonster, skill: randomSkill },
