@@ -21,9 +21,10 @@ test("quest register admits the fixed monster and skill without restarting a bat
     // As in the showcase renderer, inject picks through the real entry point.
     writeFileSync(join(plugin, "hooks/fixed-battles.ts"), `
 import { register as registerHud } from './register'
+import { MONSTERS } from './quest-foes'
 import type { Register } from 'claude-code'
 export const register: Register = (on, options) => {
-  const picks = [0.25, 0.67]
+  const picks = [1 / Object.keys(MONSTERS).length, 0.67]
   let pick = 0
   return registerHud(on, options, () => picks[pick++ % picks.length]!)
 }
