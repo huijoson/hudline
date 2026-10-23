@@ -11,11 +11,11 @@ wrapped at 84 columns. Reset times in this image use UTC.*
 Fields without data disappear automatically. [Reproduce this image](docs/showcase/README.md).
 
 In Claude Code, the same line can also be drawn **above** the prompt as a mod,
-with the git branch in 8-bit pixel letters and a family of slimes breathing
-beside it.
-See [Claude Code: as a mod](#claude-code-as-a-mod).
+with the git branch in 8-bit pixel letters and a family of slimes beside it.
+**When a long task finishes, the slimes merge into a King Slime**, then burst
+apart again. See [Claude Code: as a mod](#claude-code-as-a-mod).
 
-![pixel-hud, the Claude Code mod: the branch name main in 8-bit pixel letters with five pixel-art slimes beside it, above the same neon line, with the same sample values.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
+![pixel-hud after a long task: the slimes leap together, merge into a crowned King Slime beside the branch, then burst apart and arc home.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-king.gif)
 
 | What to watch | How to read it |
 |---|---|
