@@ -6,6 +6,13 @@ ADR 0015 later redrew the slimes 14 pixels wide on a 16-pixel stage (8 text
 rows) and doubled the lifts. The sizes, lifts and pixel drafts below are the
 original 7-pixel ones.
 
+The faces were later redrawn closer to Dragon Quest: round white eyes around a
+centred pupil, looking straight ahead, and a wide crescent grin with a salmon
+mouth. The King is 22 pixels wide under a crown of gold, purple and green. The
+merge crowns a King Slime, a Gold King Slime or a Metal King Slime, picked at
+random each time; each has its own body colours, and the Gold King's crown is
+silver. The replies below name whichever King it is.
+
 ## Problem Statement
 
 The slime family beside the branch in the pixel-hud mod reads as generic pixel
@@ -150,7 +157,7 @@ R (jewel):
 
 - **W**: eye white
 - **K**: pupil, mouth corners and outlines
-- **M**: mouth interior, a dark red shared by all kin
+- **M**: mouth interior, a salmon shared by all kin
 - **D**: shade, a darker version of each kin's body colour, added to each
   kin's entry
 
@@ -274,8 +281,8 @@ slimes' worth of room):
 
 | Situation | Reply |
 |---|---|
-| Crowned | `The slimes band together... A King Slime appears!` |
-| Already reigning | `The King Slime is already here!` |
+| Crowned | `The slimes band together... A King Slime appears!` (or `A Gold King Slime`, `A Metal King Slime`) |
+| Already reigning | `The King Slime is already here!`, naming the King that reigns |
 | No room | `But there was no room for a King Slime! Widen the terminal.` |
 | `/slime-king` command description | `Call the slimes together to form a King Slime` |
 
