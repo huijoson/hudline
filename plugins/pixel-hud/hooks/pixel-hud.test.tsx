@@ -68,6 +68,8 @@ import {
   slimeColumns,
   slimeText,
   SLIME_WIDTH,
+  SLIME_GAP,
+  kinHomeX,
   stage,
   SLIME_ROWS,
 } from './slime'
@@ -91,13 +93,13 @@ const HOP_START_WINDOW_TICKS = Math.max(...FAMILY.map(kin => kin.hopRests.reduce
 const kingLandingTick = KING_SHOW_TICKS - HOP_LAND_TICKS
 const PUPIL = 0x0b0a0d
 // The blue slime's tip row at rest.
-const TIP_ROW = 6
+const TIP_ROW = 5
 // Rows above every crouching kin, and the blue slime's stretching tip row.
-const CROUCH_EMPTY_ROWS = 8
-const STRETCH_TIP_ROW = 4
+const CROUCH_EMPTY_ROWS = 7
+const STRETCH_TIP_ROW = 3
 
 function slimeFace(pixels: (number | null)[][], i: number) {
-  return pixels.map(row => row.slice(i * SLIME_WIDTH, (i + 1) * SLIME_WIDTH))
+  return pixels.map(row => row.slice(kinHomeX(i), kinHomeX(i) + SLIME_WIDTH))
 }
 
 // Columns of the pupils that sit between white on both sides, looking straight ahead.
@@ -115,7 +117,7 @@ function slimeCellFace(cells: string, count: number, i: number) {
   const binary = atob(cells)
   const bytesPerSlime = SLIME_WIDTH * 3 * Uint32Array.BYTES_PER_ELEMENT
   return Array.from({ length: SLIME_ROWS }, (_, row) => {
-    const start = (row * count + i) * bytesPerSlime
+    const start = (row * slimeColumns(count) + kinHomeX(i)) * 3 * Uint32Array.BYTES_PER_ELEMENT
     return binary.slice(start, start + bytesPerSlime)
   })
 }
@@ -409,6 +411,19 @@ test('picks up a branch switched outside Claude Code on the next poll', async ($
 })
 
 describe('slime family', () => {
+  test('kin have two empty columns between their homes and no outer gap', () => {
+    expect(SLIME_GAP).toBe(2)
+    expect(slimeColumns(0)).toBe(0)
+    for (let count = 1; count <= FAMILY.length; count += 1) {
+      const rest = stage(count, null)
+      expect(slimeColumns(count)).toBe(count * SLIME_WIDTH + (count - 1) * SLIME_GAP)
+      expect(rest.every(row => row.length === kinHomeX(count - 1) + SLIME_WIDTH)).toBe(true)
+      for (let i = 1; i < count; i += 1) {
+        expect(rest.every(row => row.slice(kinHomeX(i) - SLIME_GAP, kinHomeX(i)).every(p => p === null))).toBe(true)
+      }
+    }
+  })
+
   test('the default Raster breathes at rest', () => {
     const firstSquishTick = FAMILY[0]!.breath.period - BREATH_SQUISH_TICKS
     expect(slimeCells(FAMILY.length, firstSquishTick)).toBe(slimeCells(FAMILY.length, firstSquishTick, null, 'breathe'))
@@ -421,6 +436,10 @@ describe('slime family', () => {
       const face = slimeFace(rest, i)
       const eyeRow = face.findIndex(row => pupils(row).length === 2)
       expect(eyeRow).toBeGreaterThan(0)
+      for (const x of pupils(face[eyeRow])) {
+        expect(face[eyeRow - 1]?.[x]).toBe(WHITE)
+        expect(face[eyeRow + 1]?.[x]).toBe(WHITE)
+      }
       const [left, right] = pupils(face[eyeRow])
       expect((left ?? 0) + (right ?? 0)).toBe(SLIME_WIDTH - 1)
       // The grin is a run of the kin's own mouth colour below the eyes.
@@ -639,7 +658,7 @@ describe('slime family', () => {
         airborneTicks += 1
         expect(pixels[0]).toBe(top)
         expect(top?.filter(p => p !== null)).toEqual([0x3cbcfc])
-        expect(pixels.some(row => row.filter(p => p === MOUTH).length === 3)).toBe(true)
+        expect(pixels.some(row => row.filter(p => p === MOUTH).length === 5)).toBe(true)
       }
     }
     expect(airborneTicks).toBeGreaterThan(0)
@@ -667,7 +686,7 @@ describe('slime family', () => {
     const crouchTick = 0
     const crouch = stage(1, crouchTick, 'hop')
     expect(crouch.slice(0, CROUCH_EMPTY_ROWS).flat().every(p => p === null)).toBe(true)
-    expect(crouch.flat().filter(p => p === WHITE).length).toBe(10)
+    expect(crouch.flat().filter(p => p === WHITE).length).toBe(16)
     expect(crouch.flat()).toContain(MOUTH)
   })
 
@@ -684,9 +703,9 @@ describe('slime family', () => {
         [
           '           ',
           '           ',
-          '           ',
-          '    ▄█▄    ',
-          ' ▄▄█████▄▄ ',
+          '     ▄     ',
+          '   ▄███▄   ',
+          '▄█████████▄',
           '███████████',
           '███████████',
           ' ▀███████▀ ',
@@ -695,25 +714,28 @@ describe('slime family', () => {
           '           ',
           '           ',
           '           ',
-          ' ▄       ▄ ',
-          '   ▄▄▄█▄   ',
+          ' ▀    ▄  ▀ ',
+          ' ▄▄█████▄▄ ',
           ' █████████ ',
-          '▄█████████▄',
+          '███████████',
           '▀█████████▀',
         ],
         [
           '           ',
           '           ',
           '           ',
-          '           ',
-          '  ▄▄▄██▄▄  ',
+          '     ▄▄    ',
+          ' ▄███████▄ ',
           ' █████████ ',
-          '▄█████████▄',
+          '███████████',
           '███████████',
         ],
       ]
-      expect(rows.map(row => row[i]?.text)).toEqual(new Map([[ONION, silhouettes[0]], [PUDDLE, silhouettes[1]], [LIQUID, silhouettes[2]]]).get(FAMILY[i]!.sprites))
+      const silhouette = new Map([[ONION, silhouettes[0]], [PUDDLE, silhouettes[1]], [LIQUID, silhouettes[2]]]).get(FAMILY[i]!.sprites)!
+      const gap = i + 1 < FAMILY.length ? ' '.repeat(SLIME_GAP) : ''
+      expect(rows.map(row => row[i]?.text)).toEqual(silhouette.map(line => line + gap))
     }
+    expect(rows.map(row => row.map(part => part.text).join('').length)).toEqual(Array(SLIME_ROWS).fill(slimeColumns(FAMILY.length)))
     expect(rows[0]?.map(part => part.color)).toEqual(FAMILY.map(kin => `#${kin.palette.B.toString(16).padStart(6, '0')}`))
   })
 })
@@ -1536,8 +1558,8 @@ describe('King Slime', () => {
     expect(kingStage(FAMILY.length, dropStarts, null, 'breathe', 'king')[floorRow]?.every(p => p === null)).toBe(true)
     expect(height(kingStage(FAMILY.length, squashStarts, null, 'breathe', 'king'))).toBe(KING_SPRITE.length - 1)
     expect(width(kingStage(FAMILY.length, squashStarts, null, 'breathe', 'king'))).toBe(KING_WIDTH + 2)
-    // At the two-slot minimum, the landing squash clips one pixel per side.
-    expect(width(kingStage(2, squashStarts, null, 'breathe', 'king'))).toBe(KING_WIDTH)
+    // Two kin with their gap now fit the whole landing squash.
+    expect(width(kingStage(2, squashStarts, null, 'breathe', 'king'))).toBe(KING_WIDTH + 2)
     expect(kingStage(FAMILY.length, rebound, null, 'breathe', 'king')[floorRow]?.every(p => p === null)).toBe(true)
     expect(hasGold(kingStage(FAMILY.length, reignStarts, null, 'breathe', 'king'))).toBe(true)
     const defeat = Array.from({ length: KING_DEFEAT_TICKS }, (_, step) => kingStage(FAMILY.length, defeatStarts + step, null, 'breathe', 'king'))
@@ -1827,7 +1849,8 @@ test('the King show holds grounded kin until each can rejoin the global hop', { 
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await mount($, 'terminal', FULL_ROWS, 120)
-  const count = Number((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns) / SLIME_WIDTH
+  const columns = Number((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns)
+  const count = FAMILY.findIndex((_, i) => slimeColumns(i + 1) === columns) + 1
   const showStart = 12
   await clock.advance(FRAME_MS * showStart)
   const king: Moment = { kind: 'king', startTick: showStart, variant: await crownKing($) }

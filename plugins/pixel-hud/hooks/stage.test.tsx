@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { FAMILY, KING_WIDTH, SLIME_STAGE, SLIME_WIDTH } from './slime'
+import { FAMILY, KING_WIDTH, SLIME_STAGE, slimeColumns } from './slime'
 import { nextMoment } from './stage'
 import type { Moment } from './stage'
 import { selectStage } from './stages'
@@ -11,9 +11,9 @@ test('the slime stage keeps its room and resting text fallback', () => {
   expect(stage.text(1)).toEqual([
     [{ text: '           ', color: '#3cbcfc' }],
     [{ text: '           ', color: '#3cbcfc' }],
-    [{ text: '           ', color: '#3cbcfc' }],
-    [{ text: '    ▄█▄    ', color: '#3cbcfc' }],
-    [{ text: ' ▄▄█████▄▄ ', color: '#3cbcfc' }],
+    [{ text: '     ▄     ', color: '#3cbcfc' }],
+    [{ text: '   ▄███▄   ', color: '#3cbcfc' }],
+    [{ text: '▄█████████▄', color: '#3cbcfc' }],
     [{ text: '███████████', color: '#3cbcfc' }],
     [{ text: '███████████', color: '#3cbcfc' }],
     [{ text: ' ▀███████▀ ', color: '#3cbcfc' }],
@@ -32,7 +32,9 @@ test('stage admission keeps priority and the King room requirement', () => {
   const damage: Moment = { kind: 'damage', startTick: 0, target: 0 }
   const levelUp: Moment = { kind: 'level-up', startTick: 0 }
   const king: Moment = { kind: 'king', startTick: 0, variant: 'king' }
-  const kingRoom = Math.ceil(KING_WIDTH / SLIME_WIDTH)
+  const kingRoom = 2
+  expect(slimeColumns(kingRoom - 1)).toBeLessThan(KING_WIDTH)
+  expect(slimeColumns(kingRoom)).toBeGreaterThanOrEqual(KING_WIDTH)
   expect(nextMoment(stage, encounter, damage, stage.maxRoom)).toBe(encounter)
   expect(nextMoment(stage, encounter, levelUp, stage.maxRoom)).toBe(levelUp)
   expect(nextMoment(stage, levelUp, king, kingRoom - 1)).toBe(levelUp)
