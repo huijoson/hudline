@@ -292,6 +292,7 @@ takes the whole stage from the Rest and then hands it back. One Moment holds
 the stage at a time. The kinds are the **King Slime show** (after a long task),
 the quest **battle** (after a completed reply), the **level-up** (on compaction),
 the **encounter** (when a session starts) and the **damage** flicker (when a tool
-fails). The King Slime show crowns one of two Kings, picked at random: the King Slime or the Metal King Slime.
+fails). The King Slime show crowns one of two Kings, picked at random: the King
+Slime or the Metal King Slime.
 
 _Avoid_: event, animation

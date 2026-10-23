@@ -106,8 +106,8 @@ values as the image above; [reproduce them](docs/showcase/README.md#the-mod-imag
 
 Pick **quest** under **Stage theme** (`stage`, **slimes** by default) in `/config`
 for a walking hero. After a completed main-agent reply, a random slime, bat,
-ghost or skeleton scrolls in. The hero uses slash, fireball or thunder, picked separately
-at random. Battles need room beside the branch and give way to the compaction
+ghost or skeleton scrolls in. The hero uses slash, fireball or thunder, picked
+separately at random. Battles need room beside the branch and give way to the compaction
 level-up. Replies during a battle or level-up do not start another battle.
 The hero walks in at session start, flickers when a tool fails and hops with a
 gold flash on compaction. Turning off **Slimes breathe** stops the resting walk
@@ -119,7 +119,8 @@ Install it from a terminal session of Claude Code 2.1.294 or newer:
 /plugin install pixel-hud --marketplace huijoson/hudline
 ```
 
-Answer `y` to add the marketplace and pick the **user** scope.
+Answer `y` to add the marketplace and pick the **user** scope. It is active at
+once, and a desktop app Code tab on the same machine loads it too.
 
 Every field means what it means on the status line: `5H` and `7D` are quota
 **remaining**, `SENT`/`CR`/`OUT`/`TH` are read from the same transcript, and the
@@ -141,9 +142,9 @@ and need at least two of them for the King Slime. The quest stage needs 46
 columns beside the branch and is hidden when they do not fit. Both stages are 16
 pixels tall, packed into 8 terminal rows, so the mod needs a band of 10 rows
 including the meters. They are drawn in full colour in a terminal; the desktop
-app's Code tab draws them resting, one colour each. The branch shrinks to a `▶ BRANCH` chip when the band is narrow or short, and is
-hidden outside a git repository. A dirty worktree adds a red pixel `*`, or a
-red `!` beside the chip. Run the mod *or* the status line: with both,
+app's Code tab draws them resting, one colour each. The branch shrinks to a
+`▶ BRANCH` chip when the band is narrow or short, and is hidden outside a git
+repository. A dirty worktree adds a red pixel `*`, or a red `!` beside the chip. Run the mod *or* the status line: with both,
 everything but the branch is shown twice. Uninstall with
 `/plugin uninstall pixel-hud`. Its source is [`plugins/pixel-hud/`](plugins/pixel-hud);
 [ADR-0011](docs/adr/0011-claude-code-also-ships-as-a-mod.md) records why it exists.
@@ -302,7 +303,8 @@ Other notes worth knowing:
   and a conversation is one transcript: `/clear` starts a fresh count,
   `--resume` continues one. Claude Code totals cover the supplied transcript;
   they do not include separate subagent transcripts. Compacting empties the
-  context window without ending the conversation, so `{ctx}` drops to near zero while `{tot}` keeps climbing.
+  context window without ending the conversation, so `{ctx}` drops to near zero
+  while `{tot}` keeps climbing.
   Both are right; they answer different questions.
 - Token totals mean the same thing everywhere but arrive differently: Claude
   Code needs the transcript read (its payload's `context_window` is current
@@ -464,7 +466,8 @@ your CLI will print, in the theme it will print it in.
 
 Before writing it shows you a diff and asks. After confirmation it backs up an
 existing file, then changes only the `statusLine` key. If your settings file
-contains comments it will not rewrite it at all — it prints the snippet for you to paste.
+contains comments it will not rewrite it at all — it prints the snippet for
+you to paste.
 
 ## Troubleshooting
 
