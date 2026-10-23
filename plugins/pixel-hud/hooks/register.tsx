@@ -287,7 +287,7 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
     if (summoned === 'busy') return { text: 'But the hero is already fighting!' }
     moment = summoned
     const skill = summoned.skill[0]!.toUpperCase() + summoned.skill.slice(1)
-    return { text: `A ${MONSTERS[summoned.monster].name} draws near! The hero casts ${skill}.` }
+    return { text: `A ${MONSTERS[summoned.monster].name} draws near! The hero uses ${skill}!` }
   })
 
   on('turn.complete', async ($, e, next) => {

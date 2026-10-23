@@ -97,7 +97,7 @@ for (const { args, monster, skill } of cases) {
     await clock.advance(FRAME_MS * startTick)
     const command = { command: 'quest-battle', args }
     const skillName = skill[0]!.toUpperCase() + skill.slice(1)
-    expect((await $.command.run(command)).text).toBe(`A ${MONSTERS[monster].name} draws near! The hero casts ${skillName}.`)
+    expect((await $.command.run(command)).text).toBe(`A ${MONSTERS[monster].name} draws near! The hero uses ${skillName}!`)
     const battle = { kind: 'battle', startTick, monster, skill } as const
     expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, startTick, battle, 'still'))
     const end = QUEST_STAGE.momentEndTick(battle, room, 'still')
@@ -137,7 +137,7 @@ for (const stage of ['quest', 'slimes']) {
         expect(blits.length).toBe(before)
       } else {
         const reply = (await $.command.run({ command: 'quest-battle' })).text
-        expect(reply).toBe(`A ${MONSTERS[randomMonster].name} draws near! The hero casts ${randomSkill[0]!.toUpperCase() + randomSkill.slice(1)}.`)
+        expect(reply).toBe(`A ${MONSTERS[randomMonster].name} draws near! The hero uses ${randomSkill[0]!.toUpperCase() + randomSkill.slice(1)}!`)
         await clock.advance(FRAME_MS * BATTLE_APPROACH_TICKS)
         expect(blits.at(-1)).toBe(QUEST_STAGE.cells(QUEST_STAGE.maxRoom, 100 + BATTLE_APPROACH_TICKS, { kind: 'battle', startTick: 100, monster: randomMonster, skill: randomSkill }, 'still'))
       }
