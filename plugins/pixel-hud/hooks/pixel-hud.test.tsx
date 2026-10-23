@@ -22,6 +22,7 @@ import {
   canCrown,
   DAMAGE_COOLDOWN_TICKS,
   DAMAGE_TICKS,
+  ENCOUNTER,
   ENCOUNTER_ARRIVAL_TICKS,
   ENCOUNTER_FALL_TICKS,
   ENCOUNTER_STAGGER_TICKS,
@@ -36,7 +37,9 @@ import {
   HOP_RISE_TICKS,
   HOP_SETTLE_TICKS,
   HOP_TICKS,
+  KING as KING_SPRITE,
   KING_DEFEAT_TICKS,
+  KING_DROP,
   KING_DROP_FALL_TICKS,
   KING_DROP_SQUASH_TICKS,
   KING_DROP_TICKS,
@@ -122,6 +125,8 @@ function slimePixels(cells: string, rows = SLIME_ROWS) {
 }
 
 const SPRITE_ROW = '█   █'
+// The stage beside the title, with the meter below it.
+const FULL_ROWS = SLIME_ROWS + METER_ROWS
 const MAIN_TITLE = ['█▄ ▄█ ▄▀▀▀▄  ▀█▀  █   █', '█ █ █ █▄▄▄█   █   █▀▄ █', '█   █ █   █   █   █  ▀█', '▀   ▀ ▀   ▀  ▀▀▀  ▀   ▀']
 const DEV_TITLE = ['█▀▀▀▄ █▀▀▀▀ █   █', '█   █ █▄▄▄  █   █', '█   █ █     ▀▄ ▄▀', '▀▀▀▀  ▀▀▀▀▀   ▀  ']
 const FEATURE_TITLE = ['█▀▀▀▀ █▀▀▀▀ ▄▀▀▀▄ ▀▀█▀▀ █   █ █▀▀▀▄ █▀▀▀▀     █ ▄▀▀▀▀ █      ▀█▀  █▄ ▄█ █▀▀▀▀ ▄▀▀▀▀', '█▄▄▄  █▄▄▄  █▄▄▄█   █   █   █ █▄▄▄▀ █▄▄▄    ▄▀  ▀▄▄▄  █       █   █ █ █ █▄▄▄  ▀▄▄▄ ', '█     █     █   █   █   █   █ █ ▀▄  █     ▄▀        █ █       █   █   █ █         █', '▀     ▀▀▀▀▀ ▀   ▀   ▀    ▀▀▀  ▀   ▀ ▀▀▀▀▀ ▀     ▀▀▀▀  ▀▀▀▀▀  ▀▀▀  ▀   ▀ ▀▀▀▀▀ ▀▀▀▀ ']
@@ -256,7 +261,7 @@ test('draws the branch in pixel glyphs above the neon meter', async ($, on) => {
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
 
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await mount($, surface, 10, 120)
+    const ui = await mount($, surface, FULL_ROWS, 120)
     for (const line of MAIN_TITLE) {
       expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
     }
@@ -293,6 +298,10 @@ for (const [theme, rows] of [['slimes', SLIME_ROWS], ['quest', QUEST_ROWS]] as c
           : blank
         expect((await ui.find({ type: 'Box', key: `row-${row}` }))?.text.startsWith(prefix)).toBe(true)
       }
+      // Every title row gets a gradient colour, whatever the font's height.
+      for (const line of MAIN_TITLE) {
+        expect(typeof (await ui.find({ type: 'Text', text: line }))?.props.color).toBe('string')
+      }
       expect(await ui.find({ type: 'Box', key: `row-${height}` })).toBeUndefined()
       await ui.unmount()
     })
@@ -323,10 +332,10 @@ test('reads token flow from the transcript the classic hooks name', async ($, on
   await $.classic.SessionStart({ source: 'startup', transcript_path: '/t.jsonl' } as never)
 
   // The read runs beside the hook, never ahead of the prompt: draw until it lands.
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   for (let i = 0; i < 20 && (await ui.find({ type: 'Text', text: ' 1.2M' })) === undefined; i += 1) {
     await ui.unmount()
-    ui = await mount($, 'terminal', 10, 120)
+    ui = await mount($, 'terminal', FULL_ROWS, 120)
   }
   expect(await ui.find({ type: 'Text', text: ' 1.2M' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: ' 98%' })).toBeDefined()
@@ -351,7 +360,7 @@ test('shows only the meter outside a git repo', async ($, on) => {
   answers(on, { name: '', porcelain: '', isRepo: false })
   await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
 
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   expect(await ui.find({ type: 'Text', text: ' Opus 5.5 ' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: SPRITE_ROW })).toBeUndefined()
   await ui.unmount()
@@ -366,7 +375,7 @@ test('picks up a branch switched outside Claude Code on the next poll', async ($
   git.name = 'dev'
   await clock.advance(3000)
 
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   for (const line of DEV_TITLE) {
     expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
   }
@@ -665,7 +674,7 @@ for (const slimesIdle of [true, false]) {
     answers(on, { name: 'main', porcelain: '', isRepo: true })
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
 
-    const ui = await mount($, 'terminal', 10, 120)
+    const ui = await mount($, 'terminal', FULL_ROWS, 120)
     const raster = await ui.find({ type: 'Raster', key: 'slimes' })
     expect(raster?.props.columns).toBe(slimeColumns(4))
     expect(raster?.props.rows).toBe(SLIME_ROWS)
@@ -677,7 +686,7 @@ for (const slimesIdle of [true, false]) {
     expect(new Set(blits).size).toBeGreaterThan(1)
     await ui.unmount()
 
-    const desk = await mount($, 'desktop', 10, 120)
+    const desk = await mount($, 'desktop', FULL_ROWS, 120)
     expect(await desk.find({ type: 'Raster' })).toBeUndefined()
     expect(await desk.find({ type: 'Text', text: '███████' })).toBeDefined()
     await desk.unmount()
@@ -695,9 +704,9 @@ test('the encounter waits for a stage, plays once, and expires before resting ho
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const beforeSeatingTicks = 12
   await clock.advance(FRAME_MS * beforeSeatingTicks)
-  const desktop = await mount($, 'desktop', 10, 120)
+  const desktop = await mount($, 'desktop', FULL_ROWS, 120)
   await desktop.unmount()
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   const encounter: Moment = { kind: 'encounter', startTick: beforeSeatingTicks }
   const count = FAMILY.length
   const initial = (await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells
@@ -715,7 +724,7 @@ test('the encounter waits for a stage, plays once, and expires before resting ho
   }
   const remountTick = expiredTick + HOP_TICKS
   await ui.unmount()
-  ui = await mount($, 'terminal', 10, 120)
+  ui = await mount($, 'terminal', FULL_ROWS, 120)
   expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells).toBe(slimeCells(count, remountTick, null, 'hop'))
   await ui.unmount()
 })
@@ -730,17 +739,17 @@ test('a failure without a seated stage spends neither cooldown nor target', { op
   on('classic.PostToolUseFailure', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const tick = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
   await clock.advance(FRAME_MS * tick)
   await ui.unmount()
-  const desktop = await mount($, 'desktop', 10, 120)
+  const desktop = await mount($, 'desktop', FULL_ROWS, 120)
   const beforeFailure = blits.length
   await $.classic.PostToolUseFailure(failure as never)
   expect(blits.length).toBe(beforeFailure)
   await desktop.unmount()
-  ui = await mount($, 'terminal', 10, 120)
+  ui = await mount($, 'terminal', FULL_ROWS, 120)
   await $.classic.PostToolUseFailure(failure as never)
   const damage: Moment = { kind: 'damage', startTick: tick, target: 0 }
   expect(blits.at(-1)).toBe(slimeCells(count, tick, damage, 'still'))
@@ -759,13 +768,13 @@ test('session.start resets the damage cooldown and target rotation', { options: 
   const count = FAMILY.length
   const encounterTicks = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   await clock.advance(FRAME_MS * encounterTicks)
   await $.classic.PostToolUseFailure(failure as never)
   expect(blits.at(-1)).toBe(slimeCells(count, encounterTicks, { kind: 'damage', startTick: encounterTicks, target: 0 }, 'still'))
   await ui.unmount()
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  ui = await mount($, 'terminal', 10, 120)
+  ui = await mount($, 'terminal', FULL_ROWS, 120)
   await clock.advance(FRAME_MS * encounterTicks)
   // The new encounter ends before the previous session's cooldown would.
   const tick = encounterTicks * 2
@@ -784,7 +793,7 @@ test('the next damage target stays in range after the terminal seats fewer kin',
   on('classic.PostToolUseFailure', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns).toBe(slimeColumns(count))
   let tick = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
@@ -799,7 +808,7 @@ test('the next damage target stays in range after the terminal seats fewer kin',
   await ui.unmount()
   const narrowerCount = 2
   const narrowerColumns = (BRANCH_SPRITE[0] ?? '').length + 2 + pixelWidth('main'.length) + 2 + slimeColumns(narrowerCount)
-  ui = await mount($, 'terminal', 10, narrowerColumns)
+  ui = await mount($, 'terminal', FULL_ROWS, narrowerColumns)
   expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns).toBe(slimeColumns(narrowerCount))
   await $.classic.PostToolUseFailure(failure as never)
   const damage: Moment = { kind: 'damage', startTick: tick, target: 1 }
@@ -817,7 +826,7 @@ test('failures flicker rotating kin after encounter expiry, with interrupt and c
   on('classic.PostToolUseFailure', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
   await clock.advance(FRAME_MS * encounterEnds)
@@ -854,7 +863,7 @@ test('damage yields to encounter and King without consuming a target or cooldown
   on('classic.PostToolUseFailure', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const encounter: Moment = { kind: 'encounter', startTick: 0 }
   const encounterEnds = momentEndTick(encounter, count, 'still')
@@ -892,7 +901,7 @@ test('damage returns to grounded hopping, expires, and admits the next failure',
   on('classic.PostToolUseFailure', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'hop')
   await clock.advance(FRAME_MS * encounterEnds)
@@ -925,7 +934,7 @@ test('compaction levels up in gold over the encounter and damage, but not over t
   on('classic.PostCompact', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const midEncounterTick = ENCOUNTER_STAGGER_TICKS
   await clock.advance(FRAME_MS * midEncounterTick)
@@ -973,7 +982,7 @@ test('a second compaction during a level-up is ignored, and the first ends on ti
   on('classic.PostCompact', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
   await clock.advance(FRAME_MS * encounterEnds)
@@ -1005,7 +1014,7 @@ test('level-up returns to grounded hopping, expires, and admits lower-priority d
   on('classic.PostCompact', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'hop')
   await clock.advance(FRAME_MS * encounterEnds)
@@ -1037,7 +1046,7 @@ test('clear, polls and remounts do not replay an encounter displaced by the King
   on('session.end', async (_$, e) => ({ sessionId: e.sessionId }))
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   await $.command.run(KING)
   const kingFinishedTick = KING_SHOW_TICKS + 1
   await clock.advance(FRAME_MS * kingFinishedTick)
@@ -1048,12 +1057,12 @@ test('clear, polls and remounts do not replay an encounter displaced by the King
   const pollWindowMs = POLL_MS * 2
   await clock.advance(pollWindowMs)
   await ui.unmount()
-  ui = await mount($, 'terminal', 10, 120)
+  ui = await mount($, 'terminal', FULL_ROWS, 120)
   expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells).toBe(slimeCells(4, 0, null, 'still'))
   expect(blits.length).toBe(0)
   await ui.unmount()
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  ui = await mount($, 'terminal', 10, 120)
+  ui = await mount($, 'terminal', FULL_ROWS, 120)
   expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells).not.toBe(slimeCells(4, 0, null, 'still'))
   await ui.unmount()
 })
@@ -1067,7 +1076,7 @@ test('each blit changes the seated cells, during encounter, hops and the King sh
   })
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
   cells.push(raster?.props.cells as string)
   await clock.advance(FRAME_MS)
@@ -1089,13 +1098,13 @@ test('a denied blit unseats the stage until a render seats it again', { options:
   })
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   await clock.advance(FRAME_MS * 10)
   expect(blits.length).toBe(1)
   expect((await $.command.run(KING)).text).toBe('But there was no room for a King Slime! Widen the terminal.')
   await ui.unmount()
 
-  const remount = await mount($, 'terminal', 10, 120)
+  const remount = await mount($, 'terminal', FULL_ROWS, 120)
   const raster = await remount.find({ type: 'Raster', key: 'slimes' })
   await clock.advance(FRAME_MS * 10)
   expect(blits.length).toBe(2)
@@ -1112,7 +1121,7 @@ test('by default the slimes breathe without repainting unchanged cells', async (
   })
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, 4, 'breathe')
   await clock.advance(FRAME_MS * encounterEnds)
   blits.length = 0
@@ -1142,7 +1151,7 @@ test('with breath off the slimes sit still, and the King Slime still plays', { o
   on('turn.complete', async () => ({ text: 'done' }))
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, 4, 'still')
   await clock.advance(FRAME_MS * encounterEnds)
   expect(blits.at(-1)).toBe(slimeCells(4, 0, null, 'still'))
@@ -1166,7 +1175,7 @@ test('slimes give up their room before the branch name does', async ($, on) => {
   answers(on, { name: 'feature/slimes', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const columns = BRANCH_SPRITE[0]!.length + 2 + pixelWidth('feature/slimes'.length)
-  const ui = await mount($, 'terminal', 10, columns)
+  const ui = await mount($, 'terminal', FULL_ROWS, columns)
   for (const line of FEATURE_TITLE) {
     expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
   }
@@ -1251,8 +1260,9 @@ describe('slime moments', () => {
         const standing = slimeFace(stage(count, null), i)
         const emptyRow = Array<null>(SLIME_WIDTH).fill(null)
         const dropTick = i * ENCOUNTER_STAGGER_TICKS
-        // First visible tick: bottom five rows; next tick: bottom eleven rows.
-        for (const [offset, visibleRows] of [[1, 5], [2, 11]] as const) {
+        // Each falling tick shows the rows below the stage top.
+        for (const offset of [1, 2]) {
+          const visibleRows = SLIME_ROWS * 2 - ENCOUNTER[offset]!.lift
           const actual = slimeFace(slimePixels(slimeCells(count, dropTick + offset, encounter, 'still')), i)
           const expected = [...standing.slice(-visibleRows), ...Array(SLIME_ROWS * 2 - visibleRows).fill(emptyRow)]
           expect(actual).toEqual(expected)
@@ -1428,7 +1438,7 @@ describe('King Slime', () => {
       null, ...Array(12).fill(FAMILY[i]?.shade), null,
     ])
     const launchTips = kingStage(4, launch, null)[STRETCH_TIP_ROW]
-    expect(launchTips?.flatMap((p, x) => p === null ? [] : [x])).toEqual(FAMILY.map((_, i) => i * SLIME_WIDTH + 6))
+    expect(launchTips?.flatMap((p, x) => p === null ? [] : [x])).toEqual(FAMILY.map((_, i) => i * SLIME_WIDTH + TIP_COLUMN))
     expect(kingStage(4, rise, null)[floorRow]?.every(p => p === null)).toBe(true)
     expect(kingStage(4, land, null).slice(0, CROUCH_EMPTY_ROWS).flat().every(p => p === null)).toBe(true)
     const fall = hopFall
@@ -1449,10 +1459,10 @@ describe('King Slime', () => {
     const poofStarts = defeatStarts + KING_DEFEAT_TICKS
     const width = (pixels: (number | null)[][]) => new Set(pixels.flatMap(row => row.flatMap((p, x) => p === null ? [] : [x]))).size
     const height = (pixels: (number | null)[][]) => pixels.filter(row => row.some(p => p !== null)).length
-    // Falling in from above, only the King's lowest six rows show.
-    expect(height(kingStage(4, dropStarts, null))).toBe(6)
+    // Falling in from above, only the King's rows below the stage top show.
+    expect(height(kingStage(4, dropStarts, null))).toBe(SLIME_ROWS * 2 - KING_DROP[0]!.lift)
     expect(kingStage(4, dropStarts, null)[floorRow]?.every(p => p === null)).toBe(true)
-    expect(height(kingStage(4, squashStarts, null))).toBe(15)
+    expect(height(kingStage(4, squashStarts, null))).toBe(KING_SPRITE.length - 1)
     expect(width(kingStage(4, squashStarts, null))).toBe(KING_WIDTH + 2)
     expect(width(kingStage(2, squashStarts, null))).toBe(KING_WIDTH + 2)
     expect(kingStage(4, rebound, null)[floorRow]?.every(p => p === null)).toBe(true)
@@ -1619,7 +1629,7 @@ test('a long task crowns a King Slime, and the slimes come back after', { option
   on('turn.complete', async () => ({ text: 'done' }))
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
 
   // A quick answer is no occasion.
   await $.turn.complete({ answer: 'ok', durationMs: 3_000, isAborted: false, turnId: 't1', reason: 'answer' })
@@ -1655,10 +1665,10 @@ async function step($: Parameters<TestBody>[0], e: { effort?: 'high'; agentId?: 
 
 // Reflow runs beside the hook that started it: draw until the band shows it.
 async function drawUntil($: Parameters<TestBody>[0], text: string, isShown = true) {
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   for (let i = 0; i < 20 && ((await ui.find({ type: 'Text', text })) !== undefined) !== isShown; i += 1) {
     await ui.unmount()
-    ui = await mount($, 'terminal', 10, 120)
+    ui = await mount($, 'terminal', FULL_ROWS, 120)
   }
   return ui
 }
@@ -1679,7 +1689,7 @@ test('the King show holds grounded kin until each can rejoin the global hop', { 
   })
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = Number((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns) / SLIME_WIDTH
   const showStart = 12
   await clock.advance(FRAME_MS * showStart)
@@ -1711,7 +1721,7 @@ test('/slime-king is registered, and crowns the slimes while they are on stage',
   // Nothing drawn yet: no stage for a king.
   expect((await $.command.run(KING)).text).toBe('But there was no room for a King Slime! Widen the terminal.')
 
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   expect((await $.command.run(KING)).text).toBe('The slimes band together... A King Slime appears!')
   // Asking again mid-show is not a question of room.
   expect((await $.command.run(KING)).text).toBe('The King Slime is already here!')
@@ -1730,7 +1740,7 @@ test('/slime-king on the quest stage says the hero walks on, with or without roo
   const reply = 'But there are no slimes here. The hero walks on.'
   expect((await $.command.run(KING)).text).toBe(reply)
   for (const columns of [120, 30]) {
-    const ui = await mount($, 'terminal', 10, columns)
+    const ui = await mount($, 'terminal', FULL_ROWS, columns)
     expect((await $.command.run(KING)).text).toBe(reply)
     await ui.unmount()
   }
@@ -1739,7 +1749,7 @@ test('/slime-king on the quest stage says the hero walks on, with or without roo
 test('/slime-king finds no room when the band only fits the branch', async ($, on) => {
   answers(on, { name: 'feature/slimes', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 30)
+  const ui = await mount($, 'terminal', FULL_ROWS, 30)
   expect(await ui.find({ type: 'Raster', key: 'slimes' })).toBeUndefined()
   expect((await $.command.run(KING)).text).toBe('But there was no room for a King Slime! Widen the terminal.')
   await ui.unmount()
@@ -1755,7 +1765,7 @@ test('only the main loop answering after a long task crowns the king', async ($,
   on('turn.complete', async () => ({ text: 'done' }))
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
 
   const long = { answer: 'ok', durationMs: 60_000, isAborted: false, turnId: 't1' } as const
   await $.turn.complete({ ...long, reason: 'answer', agentId: 'sub' } as never)
@@ -1780,7 +1790,7 @@ test('cuts a branch name too long for the band, after the slimes have left', asy
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const clipped = 'feat..'
   const columns = BRANCH_SPRITE[0]!.length + 2 + pixelWidth(clipped.length)
-  const ui = await mount($, 'terminal', 10, columns)
+  const ui = await mount($, 'terminal', FULL_ROWS, columns)
   for (const line of CLIPPED_TITLE) {
     expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
   }
@@ -1798,7 +1808,7 @@ test('gives the band back to the engine while a survey is up', async ($, on) => 
     plugin: 'pixel-hud',
     surface: 'terminal',
     component: 'AbovePrompt',
-    props: { hasSurvey: true, isWorking: false, maxRows: 10, bodyColumns: 120 } as never,
+    props: { hasSurvey: true, isWorking: false, maxRows: FULL_ROWS, bodyColumns: 120 } as never,
   })
   expect(await ui.find({ type: 'Text', text: 'survey' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: ' Opus 5.5 ' })).toBeUndefined()
@@ -1816,7 +1826,7 @@ test('a new reading from the engine redraws the meter, reset times and alarm', a
     changed: [],
   } as never)
 
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   expect(await ui.find({ type: 'Text', text: ' ▰▰▰▰▱ 88%' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: ' ▰▰▰▰▱ 70%' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: ' (07:05)' })).toBeDefined()
@@ -1838,7 +1848,7 @@ test('rereads the branch shortly after /clear', async ($, on) => {
   await $.session.end({ reason: 'clear', sessionId: 's1' } as never)
   await clock.advance(200)
 
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   expect(await ui.find({ type: 'Text', text: DEV_TITLE[0] })).toBeDefined()
   await ui.unmount()
 })
@@ -1875,7 +1885,7 @@ test('responses keep the counts live, the effort shows, and a subagent is left o
   usage = { ...(usage as object), input_tokens: 9_000_000, output_tokens: 9_000_000 }
   await step($, { agentId: 'sub' })
 
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   expect(await ui.find({ type: 'Text', text: ':high' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: ' 2.0k' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: ' 500' })).toBeDefined()
@@ -1942,7 +1952,7 @@ test('the quest hero stays still with idle off even when slime hopping is on', {
   })
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const end = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, QUEST_STAGE.maxRoom, 'still')
   await clock.advance(FRAME_MS * end)
   expect(blits.at(-1)).toBe(QUEST_STAGE.cells(QUEST_STAGE.maxRoom, end, null, 'still'))
@@ -1964,7 +1974,7 @@ test('quest failures flicker the hero and compaction takes over in gold', { opti
   on('classic.PostCompact', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const room = QUEST_STAGE.maxRoom
   const tick = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, room, 'still')
   await clock.advance(FRAME_MS * tick)
@@ -2000,7 +2010,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     })
     answers(on, { name: 'main', porcelain: '', isRepo: true })
     await $.session.start({ cwd: '/repo', surface, isInteractive: true })
-    const ui = await mount($, surface, 10, 40)
+    const ui = await mount($, surface, FULL_ROWS, 40)
     expect(await ui.find({ type: 'Raster', key: 'slimes' })).toBe(undefined)
     expect(JSON.stringify(await ui.drawn()).includes(`"color":"#${HERO_PALETTE.B.toString(16).padStart(6, '0')}"`)).toBe(false)
     await clock.advance(FRAME_MS * DAMAGE_COOLDOWN_TICKS)
@@ -2021,7 +2031,7 @@ test('the quest stage claims only its own columns beside the branch at the showc
   })
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, SHOWCASE_COLUMNS)
+  const ui = await mount($, 'terminal', FULL_ROWS, SHOWCASE_COLUMNS)
   expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns).toBe(QUEST_MIN_COLUMNS)
   await clock.advance(FRAME_MS * QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, QUEST_STAGE.maxRoom, 'still'))
   expect(slimePixels(blits.at(-1)!, QUEST_STAGE.rows).flat()).toContain(HERO_PALETTE.B)
@@ -2042,7 +2052,7 @@ for (const columns of [40, 120]) {
     const answer = { answer: 'ok', durationMs: 1, isAborted: false, turnId: 't', reason: 'answer' } as const
     // A stage must be seated before any battle is admitted.
     await $.turn.complete(answer)
-    const ui = await mount($, 'terminal', 10, columns)
+    const ui = await mount($, 'terminal', FULL_ROWS, columns)
     const encounterEnd = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, QUEST_STAGE.maxRoom, 'still')
     await clock.advance(FRAME_MS * encounterEnd)
     blits.length = 0
@@ -2075,7 +2085,7 @@ test('the desktop quest fallback includes all eight rows', { options: { stage: '
   mock.clock(on)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true })
-  const ui = await mount($, 'desktop', 10, 120)
+  const ui = await mount($, 'desktop', FULL_ROWS, 120)
   for (const row of QUEST_STAGE.text(QUEST_STAGE.maxRoom)) {
     expect(await ui.find({ type: 'Text', text: row[0]!.text })).toBeDefined()
   }

@@ -64,7 +64,8 @@ function battleArt(pixels: Pixels, frame: number, moment: Battle) {
   }
   if (frame >= burstStart && frame < burstStart + BATTLE_BURST_TICKS) {
     const foeWidth = MONSTERS[moment.monster].frames[0]!.sprite[0]!.length
-    paint(pixels, POOF, BATTLE_MONSTER_X + Math.floor((foeWidth - POOF[0]!.length) / 2), 0, { W: 0xfcfcfc })
+    const centred = BATTLE_MONSTER_X + Math.floor((foeWidth - POOF[0]!.length) / 2)
+    paint(pixels, POOF, Math.min(centred, width - POOF[0]!.length), 0, { W: 0xfcfcfc })
   }
 }
 

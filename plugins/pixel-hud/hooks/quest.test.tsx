@@ -2,6 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import {
   BATTLE_APPROACH_TICKS,
+  BATTLE_BURST_TICKS,
   BATTLE_SKILL_START,
   BATTLE_HIT_TICKS,
   BATTLE_MONSTER_X,
@@ -20,11 +21,14 @@ import {
 } from './quest'
 import { MONSTERS, SKILLS } from './quest-foes'
 import type { Monster, Skill } from './quest-foes'
-import { HERO_PALETTE, QUEST_ROWS } from './quest-hero'
+import { ATTACK, HERO_PALETTE, QUEST_ROWS } from './quest-hero'
+import { POOF } from './slime'
 import { FRAME_MS, nextMoment } from './stage'
 import { selectStage } from './stages'
 
 const FLOOR = QUEST_ROWS * 2 - 1
+// Read from the drawn sword rather than ATTACK_BLADE_LIFT, which places the fireball.
+const BLADE_ROW = ATTACK.findIndex(row => row.includes('W'))
 const GROUND = 0x686878
 const BOOT = 0x6a4020
 
@@ -200,14 +204,27 @@ test('skills reach from the attacking sword into the monster without overlapping
     } else if (skill === 'fireball') {
       // The white core rides the blade's two rows from just past the tip.
       for (let tick = 0; tick < SKILLS.fireball.frames.length; tick += 1) {
-        for (const row of [7, 8]) {
+        for (const row of [BLADE_ROW, BLADE_ROW + 1]) {
           expect(frame(effectStart + tick)[row]?.slice(attackTip + tick + 2, attackTip + tick + 4)).toEqual([0xfcfcfc, 0xfcfcfc])
         }
       }
-      expect(frame(effectStart + SKILLS.fireball.frames.length - 1)[7]?.[BATTLE_MONSTER_X + 4]).toBe(0xfcfcfc)
+      expect(frame(effectStart + SKILLS.fireball.frames.length - 1)[BLADE_ROW]?.[BATTLE_MONSTER_X + 4]).toBe(0xfcfcfc)
     } else {
       expect(frame(effectStart)[0]?.[BATTLE_MONSTER_X + 5]).toBe(0xfcd848)
       expect(frame(effectStart + SKILLS.thunder.frames.length - 1)[12]?.[BATTLE_MONSTER_X]).toBe(0xfcd848)
+    }
+  }
+})
+
+test('the defeat poof stays whole inside the stage for every monster', () => {
+  const quest = selectStage('quest')
+  const sparks = POOF.join('').split('').filter(ch => ch === 'W').length
+  for (const monster of Object.keys(MONSTERS) as Monster[]) {
+    const moment = { kind: 'battle', startTick: 0, monster, skill: 'slash' } as const
+    const burstStart = BATTLE_SKILL_START + BATTLE_SKILL_TICKS.slash + BATTLE_HIT_TICKS
+    for (let tick = burstStart; tick < burstStart + BATTLE_BURST_TICKS; tick += 1) {
+      const picture = pixels(quest.cells(quest.maxRoom, tick, moment, 'still'))
+      expect(picture.flat().filter(p => p === 0xfcfcfc).length).toBe(sparks)
     }
   }
 })
@@ -218,14 +235,14 @@ test('battle freezes the ground during combat and rejoins its scroll cycle for e
     for (let startTick = 0; startTick < WALK_CYCLE_TICKS; startTick += 1) {
       const moment = { kind: 'battle', startTick, monster: 'slime', skill } as const
       const end = quest.momentEndTick(moment, quest.maxRoom, 'breathe')
-      const ground = (tick: number) => pixels(quest.cells(quest.maxRoom, tick, moment, 'breathe'))[QUEST_ROWS * 2 - 1]?.slice(0, 2)
+      const ground = (tick: number) => pixels(quest.cells(quest.maxRoom, tick, moment, 'breathe'))[FLOOR]?.slice(0, 2)
       const stopped = ground(startTick + BATTLE_APPROACH_TICKS)
       const resumeStart = end - BATTLE_RESUME_TICKS
       for (let tick = startTick + BATTLE_APPROACH_TICKS; tick < resumeStart; tick += 1) {
         expect(ground(tick)).toEqual(stopped)
       }
       for (let tick = end - GROUND_STEP_TICKS; tick <= end + GROUND_STEP_TICKS; tick += 1) {
-        expect(ground(tick)).toEqual(pixels(quest.cells(quest.maxRoom, tick, null, 'breathe'))[QUEST_ROWS * 2 - 1]?.slice(0, 2))
+        expect(ground(tick)).toEqual(pixels(quest.cells(quest.maxRoom, tick, null, 'breathe'))[FLOOR]?.slice(0, 2))
       }
     }
   }

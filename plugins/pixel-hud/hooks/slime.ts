@@ -260,17 +260,19 @@ export const KING = [
   '.DDDDBBBBKKKKKKBBBBDDDD.',
   '..DDDDDDDDDDDDDDDDDDDD..',
 ]
-const CROWN: Palette = { Y: 0xfcbc3c, J: 0xf83800 }
+const CROWN: Palette = { Y: GOLD, J: 0xf83800 }
 // No squash was drawn: the landing loses the crown's points and spreads one
 // pixel wider on each side where the body meets the edge.
 const KING_SQUASH = KING.slice(1).map(row => row[0] + row + row.at(-1))
 export const KING_DROP_FALL_TICKS = 2
 export const KING_DROP_SQUASH_TICKS = 2
+// The King falls from five eighths of the stage, halving its height, and rebounds one eighth.
+const KING_DROP_LIFT = SLIME_PIXELS * 5 / 8
 export const KING_DROP: readonly Pose[] = ([
-  { sprite: KING, lift: 10, ticks: KING_DROP_FALL_TICKS / 2 },
-  { sprite: KING, lift: 5, ticks: KING_DROP_FALL_TICKS / 2 },
+  { sprite: KING, lift: KING_DROP_LIFT, ticks: KING_DROP_FALL_TICKS / 2 },
+  { sprite: KING, lift: KING_DROP_LIFT / 2, ticks: KING_DROP_FALL_TICKS / 2 },
   { sprite: KING_SQUASH, lift: 0, ticks: KING_DROP_SQUASH_TICKS },
-  { sprite: KING, lift: 2, ticks: HOP_REBOUND_TICKS },
+  { sprite: KING, lift: SLIME_PIXELS / 8, ticks: HOP_REBOUND_TICKS },
   { sprite: KING, lift: 0, ticks: HOP_SETTLE_TICKS },
 ] satisfies Beat[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
 const KING_BLINK = KING.map(row => row.replaceAll('W', 'B'))
@@ -319,6 +321,9 @@ const TWINKLES = [
   [[-3, 0], [KING_WIDTH + 2, SLIME_PIXELS / 2], [-2, SLIME_PIXELS - 2]],
   [[-2, SLIME_PIXELS / 2], [KING_WIDTH + 1, 0], [KING_WIDTH + 2, SLIME_PIXELS - 2]],
 ]
+
+// Lifted STAND keeps the falling collision airborne without clipping STRETCH.
+export const KING_COLLISION: Pose = { sprite: STAND, lift: STAND_AIR_LIFT }
 
 export const KING_SCATTER_AIR_TICKS = HOP_AIR_TICKS + HOP_FALL_TICKS
 export const SCATTER: readonly Pose[] = ([
@@ -451,10 +456,9 @@ function gather(pixels: Pixels, count: number, frame: number) {
   // Advance once per airborne Rise/Hang tick, finishing before the Fall.
   const progress = Math.min(1, Math.max(0, step - (HOP_RISE_START - 1)) / HOP_AIR_TICKS)
   const p = HOP[step] as Pose
-  // Lifted STAND keeps the falling collision airborne without clipping STRETCH.
   const collision = second && step === HOP_FALL_START
   paintFamily(pixels, count, second ? HALFWAY + progress * (COLLIDE - HALFWAY) : progress * HALFWAY,
-    collision ? { sprite: STAND, lift: STAND_AIR_LIFT } : p)
+    collision ? KING_COLLISION : p)
 }
 
 function whiteOf(sprite: readonly string[]): Palette {

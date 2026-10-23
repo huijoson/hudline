@@ -5,7 +5,7 @@ import { QUEST_ROWS } from './quest-hero'
 
 const LEFT = 2
 // The widest foe, the bat, with two empty columns on each side.
-const COLUMNS = LEFT + 16 + LEFT
+const COLUMNS = LEFT + MONSTERS.bat.frames[0]!.sprite[0]!.length + LEFT
 
 function blank(columns = COLUMNS): (number | null)[][] {
   return Array.from({ length: QUEST_ROWS * 2 }, () => Array<number | null>(columns).fill(null))
@@ -122,7 +122,8 @@ test('fireball travels right one pixel per tick, flickering between two poses on
       [null, null, O, null, O, null],
     ],
   ]
-  // The ATTACK blade fills pixel rows 7 and 8; the ball's white core sits on them.
+  // The ATTACK blade fills pixel rows 7 and 8 and the ball's white core sits on
+  // them. A literal, because the code derives the lift from the same blade.
   const top = 5
   for (let frame = 0; frame < FIREBALL_TICKS; frame += 1) {
     const pixels = blank()
@@ -158,7 +159,7 @@ test('thunder drops a yellow zigzag from the top for three ticks', () => {
   for (let frame = 0; frame < THUNDER_TICKS; frame += 1) {
     const pixels = blank()
     paintSkill(pixels, 'thunder', LEFT, frame)
-    expect(silhouette(pixels)).toEqual(bolt.map((row, y) => y < [4, 8, 16][frame]! ? row : '.'.repeat(COLUMNS)))
+    expect(silhouette(pixels)).toEqual(bolt.map((row, y) => y < [bolt.length / 4, bolt.length / 2, bolt.length][frame]! ? row : '.'.repeat(COLUMNS)))
     expect(new Set(pixels.flat().filter(p => p !== null))).toEqual(new Set([0xfcd848, 0xfcfcfc]))
   }
   const ended = blank()

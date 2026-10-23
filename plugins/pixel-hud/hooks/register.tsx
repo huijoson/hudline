@@ -491,22 +491,25 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
         {glyphs && git ? (
           <Box key="branch">
             <Box flexDirection="column">
-              {Array.from({ length: branchRows }, (_, row) => (
-                <Box key={`row-${row}`}>
-                  <Text color={SPRITE_COLOR}>{paddedRow(SPRITE, row - titleTop, BRANCH_SPRITE[0]!.length)}</Text>
-                  <Text>{GAP}</Text>
-                  <Text color={ROW_COLORS[row - titleTop]} bold>
-                    {paddedRow(glyphs, row - titleTop, glyphs[0]!.length)}
-                  </Text>
-                  {git.isDirty ? <Text color={DIRTY_COLOR}>{GAP + paddedRow(dirty, row - titleTop, pixelWidth(1))}</Text> : null}
-                  {still ? <Text>{GAP}</Text> : null}
-                  {still?.[row]?.map((s, i) => (
-                    <Text key={`slime-${i}`} color={s.color}>
-                      {s.text}
+              {Array.from({ length: branchRows }, (_, row) => {
+                const titleRow = row - titleTop
+                return (
+                  <Box key={`row-${row}`}>
+                    <Text color={SPRITE_COLOR}>{paddedRow(SPRITE, titleRow, BRANCH_SPRITE[0]!.length)}</Text>
+                    <Text>{GAP}</Text>
+                    <Text color={ROW_COLORS[titleRow]} bold>
+                      {paddedRow(glyphs, titleRow, glyphs[0]!.length)}
                     </Text>
-                  ))}
-                </Box>
-              ))}
+                    {git.isDirty ? <Text color={DIRTY_COLOR}>{GAP + paddedRow(dirty, titleRow, pixelWidth(1))}</Text> : null}
+                    {still ? <Text>{GAP}</Text> : null}
+                    {still?.[row]?.map((s, i) => (
+                      <Text key={`slime-${i}`} color={s.color}>
+                        {s.text}
+                      </Text>
+                    ))}
+                  </Box>
+                )
+              })}
             </Box>
             {Raster ? <Text>{GAP}</Text> : null}
             {Raster ? (
