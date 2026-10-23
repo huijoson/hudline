@@ -277,7 +277,8 @@ The row of pixel-art slimes the pixel-hud mod draws beside the branch name, one
 and its own rhythm on it. Each Kin has its own palette and sprite set: the
 slime, she-slime and metal slime share an onion shape, the bubble slime a puddle,
 and the liquid metal slime a flowing silver mound. These five Kin are each 11
-pixels wide in the 16-pixel-tall stage; the merged blob is 17 wide and Kings 22.
+pixels wide, separated by 2 empty columns, in the 16-pixel-tall stage; the
+merged blob is 17 wide and Kings 22.
 
 ## Rest
 

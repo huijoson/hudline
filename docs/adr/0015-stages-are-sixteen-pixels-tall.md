@@ -8,6 +8,10 @@ Accepted. Changes the stage sizes stated in
 [ADR-0013](0013-one-moment-owns-the-stage.md) and in
 `docs/specs/quest-stage.md`.
 
+The later [slime art and motion spec](../specs/dq-slime-motion.md) supersedes
+the slime widths below: kin are 11 columns wide with 2-column gaps, so four
+kin occupy 50 columns. The stage remains 16 pixels tall.
+
 ## Context
 
 The slime stage was 6 pixels tall (3 text rows) and the quest stage 8 pixels

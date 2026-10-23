@@ -6,10 +6,10 @@ ADR 0015 enlarged the stage to 16 pixels (8 text rows). The dimensions and
 motion below describe the current 11-column kin on that stage; the original
 7-pixel drafts have been superseded.
 
-The faces were later redrawn closer to Dragon Quest: round white eyes around a
-centred pupil, looking straight ahead, and a wide crescent grin with a salmon
-mouth. The King is 22 pixels wide under a crown of gold, purple and green. The
-merge crowns a King Slime, a Gold King Slime or a Metal King Slime, picked at
+The faces were later redrawn closer to Dragon Quest: 3×3 white eye blocks around a
+centred pupil, with white above, below and on both sides, looking straight ahead.
+The wide crescent grin has a salmon mouth and corners outside the eyes. The
+King is 22 pixels wide under a crown of gold, purple and green. The merge crowns a King Slime, a Gold King Slime or a Metal King Slime, picked at
 random each time; each has its own body colours, and the Gold King's crown band is
 silver. The replies below name whichever King it is.
 
@@ -23,8 +23,8 @@ are salmon, dark purple and red for the onion kin, with dark grins for both
 puddle-shaped kin. The merged blob stays 17 wide and all Kings stay 22 wide.
 The Gold and Metal Kings wear a plated sprite with banded metal shading; the
 blue King Slime keeps its own. A clean `main` heading uses 32 columns, so the
-55-column family fits from 87 columns. The README family showcase uses that
-minimum width; at 84 columns only four kin fit under the branch-first fit rule.
+63-column family (five 11-column kin and four 2-column gaps) fits from 95 columns.
+The README family showcase uses that minimum width; at 84 columns only four kin fit under the branch-first fit rule.
 
 ## Problem Statement
 
@@ -72,8 +72,8 @@ The HUD's numbers stay first. Motion marks moments; it never narrates.
    stays the same.
 3. As a developer, I want each kin's lower edge drawn in a darker shade of its
    body, so that the slimes look round rather than flat.
-4. As a developer, I want each kin to use an 11-column slot on the 8-text-row
-   stage, giving up slots before shortening the branch name, so that the
+4. As a developer, I want each kin to use an 11-column sprite with 2 empty
+   columns between neighbours on the 8-text-row stage, giving up slots before shortening the branch name, so that the
    branch name keeps its room.
 5. As a developer, I want the slimes to breathe at rest by default with a
    gentle squish every few seconds, so that the HUD feels alive without
@@ -179,10 +179,11 @@ jewel), P (purple crown fabric) and G (green crown fabric):
   kin's entry
 
 Each kin has 11-pixel-wide stand, blink, squash, wide and stretch sprites,
-with its feet on the floor of the 16-pixel stage. Stand heights are 10 pixels
-for the onion kin, 9 for the bubble slime and 8 for the liquid metal slime;
-stretch heights are 12, 12 and 10 respectively. Airborne stand poses lift by
-the unused stage height (6, 7 and 8 pixels), keeping each tip at the top.
+with its feet on the floor of the 16-pixel stage. Stand heights are 11 pixels
+for the onion kin, 10 for the bubble slime and 9 for the liquid metal slime;
+stretch heights are 13, 13 and 11 respectively. Neighbouring kin have a 2-column
+gap, with no gap at the outer ends. Airborne stand poses lift by
+the unused stage height (5, 6 and 7 pixels), keeping each tip at the top.
 The authoritative pixel rows are the `ONION`, `PUDDLE` and `LIQUID` sprite
 sets in the slime module.
 
@@ -271,8 +272,8 @@ it):
 
 **King Slime show** (the trigger rules are unchanged: a main-loop answer
 after a task of 20 seconds or more, or `/slime-king`; and it needs two
-slimes' worth of room, 22 columns; the 24-column landing squash is clipped
-to those slots at the minimum under the existing stage-clipping policy):
+slimes' worth of room, 24 columns including their gap; both the 22-column King
+and its 24-column landing squash fit at that minimum):
 
 | Phase | Ticks (about) | What happens |
 |---|---|---|
@@ -386,7 +387,7 @@ to those slots at the minimum under the existing stage-clipping policy):
 - The branch glyphs, the meter, the HUD's layout and the rules for when
   slimes give up their room.
 - Additional kin beyond the five documented here, or further changes to the
-  11-column slots and 16-pixel stage height.
+  11-column sprites, 2-column gaps and 16-pixel stage height.
 - Sound, and any on-screen text message for moments other than the
   `/slime-king` replies.
 - Moments for other events, such as turn start, subagents or permission

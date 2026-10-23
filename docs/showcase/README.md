@@ -42,13 +42,14 @@ same `payload.json` and `transcript.jsonl`. It needs the `claude` CLI (2.1.294
 or newer) besides Pillow and the font:
 
 ```sh
-/tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --columns 87
+/tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --columns 95
 /tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --king
 /tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --gif
 /tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --sheet
 ```
 
-The first draws all five kin at 87 columns, the minimum beside clean `main`.
+The first draws all five kin at 95 columns, the minimum beside clean `main`
+(32 heading + 63 family columns).
 Other images keep the default 84 columns.
 The second draws `pixel-hud-king.png`: a task of a minute ends, and the image
 catches the King Slime halfway through its reign, using the exported phase

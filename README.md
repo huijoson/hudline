@@ -71,8 +71,9 @@ pixel letters on top. It needs no Node.js and no `statusLine` setting.
 
 Beside the branch sits a slime family: a slime, a she-slime, a metal slime, a
 bubble slime and a liquid metal slime, each modelled on its Dragon Quest namesake.
-All five are 11 pixels wide, with round white eyes and a wide grin. A clean
-`main` branch needs 87 columns to show all five; at 84 columns four fit. At
+All five are 11 pixels wide, with 2-pixel gaps, centred pupils in 3×3 white
+eyes and a wide grin. A clean
+`main` branch needs 95 columns to show all five; at 84 columns four fit. At
 session start they drop in one by one, then settle into their resting motion. When a task of 20 seconds or more finishes, they leap toward
 each other in two hops and collide in mid-air. They splat together, then a crowned
 **King Slime**, plated **Gold King Slime** or plated **Metal King Slime**, picked
