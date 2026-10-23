@@ -22,9 +22,10 @@ export const ONION: KinSprites = {
     '.BHBBBBBBB.',
     'BBWWWBWWWBB',
     'BBWKWBWKWBB',
-    'BBKBBBBBKBB',
-    'DBBKMMMKBBD',
-    '.DDDKKKDDD.',
+    'BBWWWBWWWBB',
+    'BKBBBBBBBKB',
+    'DBKMMMMMKBD',
+    '.DDKKKKKDD.',
     '..DDDDDDD..',
   ],
   blink: [
@@ -34,9 +35,10 @@ export const ONION: KinSprites = {
     '.BHBBBBBBB.',
     'BBBBBBBBBBB',
     'BBKKKBKKKBB',
-    'BBKBBBBBKBB',
-    'DBBKMMMKBBD',
-    '.DDDKKKDDD.',
+    'BBBBBBBBBBB',
+    'BKBBBBBBBKB',
+    'DBKMMMMMKBD',
+    '.DDKKKKKDD.',
     '..DDDDDDD..',
   ],
   squash: [
@@ -45,9 +47,10 @@ export const ONION: KinSprites = {
     '.BHBBBBBBB.',
     'BBWWWBWWWBB',
     'BBWKWBWKWBB',
-    'BBKBBBBBKBB',
-    'DBBKMMMKBBD',
-    '.DDDKKKDDD.',
+    'BBWWWBWWWBB',
+    'BKBBBBBBBKB',
+    'DBKMMMMMKBD',
+    '.DDKKKKKDD.',
   ],
   wide: [
     '.....B.....',
@@ -55,9 +58,10 @@ export const ONION: KinSprites = {
     '..BHBBBBB..',
     'BBWWWBWWWBB',
     'BBWKWBWKWBB',
-    'BBKBBBBBKBB',
-    'DBBKMMMKBBD',
-    '.DDDKKKDDD.',
+    'BBWWWBWWWBB',
+    'BKBBBBBBBKB',
+    'DBKMMMMMKBD',
+    '.DDKKKKKDD.',
     '..DDDDDDD..',
   ],
   stretch: [
@@ -68,6 +72,7 @@ export const ONION: KinSprites = {
     '..BHBBBBB..',
     '.BWWWBWWWB.',
     '.BWKWBWKWB.',
+    '.BWWWBWWWB.',
     '.BKBBBBBKB.',
     '.BBKMMMKBB.',
     '..DBKKKBD..',
@@ -84,9 +89,10 @@ export const PUDDLE: KinSprites = {
     '...BHHBB...',
     '.BWWWBWWWB.',
     '.BWKWBWKWB.',
-    '.BKBBBBBKB.',
-    'BBBKMMMKBBB',
-    'DDBBBBBBBDD',
+    '.BWWWBWWWB.',
+    'BKBBBBBBBKB',
+    'BBKMMMMMKBB',
+    'DDBKKKKKBDD',
     '.DDDDDDDDD.',
   ],
   blink: [
@@ -95,9 +101,10 @@ export const PUDDLE: KinSprites = {
     '...BHHBB...',
     '.BBBBBBBBB.',
     '.BKKKBKKKB.',
-    '.BKBBBBBKB.',
-    'BBBKMMMKBBB',
-    'DDBBBBBBBDD',
+    '.BBBBBBBBB.',
+    'BKBBBBBBBKB',
+    'BBKMMMMMKBB',
+    'DDBKKKKKBDD',
     '.DDDDDDDDD.',
   ],
   squash: [
@@ -106,8 +113,9 @@ export const PUDDLE: KinSprites = {
     '...BHHBB...',
     'BBWWWBWWWBB',
     'BBWKWBWKWBB',
-    'BBBKMMMKBBB',
-    'DDBBBBBBBDD',
+    'BBWWWBWWWBB',
+    'BBKMMMMMKBB',
+    'DDBKKKKKBDD',
     '.DDDDDDDDD.',
   ],
   wide: [
@@ -116,8 +124,9 @@ export const PUDDLE: KinSprites = {
     '...BHHBB...',
     'BBWWWBWWWBB',
     'BBWKWBWKWBB',
-    'BBBKMMMKBBB',
-    'DDBBBBBBBDD',
+    'BBWWWBWWWBB',
+    'BBKMMMMMKBB',
+    'DDBKKKKKBDD',
     '.DDDDDDDDD.',
   ],
   stretch: [
@@ -128,6 +137,7 @@ export const PUDDLE: KinSprites = {
     '...BHBBB...',
     '.BWWWBWWWB.',
     '.BWKWBWKWB.',
+    '.BWWWBWWWB.',
     '.BKBBBBBKB.',
     '.BBKMMMKBB.',
     'BBBBBBBBBBB',
@@ -143,9 +153,10 @@ export const LIQUID: KinSprites = {
     '..BHHBBBB..',
     '.BWWWBWWWB.',
     '.BWKWBWKWB.',
-    '.BKBBBBBKB.',
-    'BBBKMMMKBBB',
-    'BHHBBBBBHHB',
+    '.BWWWBWWWB.',
+    'BKBBBBBBBKB',
+    'BBKMMMMMKBB',
+    'BHHKKKKKHHB',
     'DDDDDDDDDDD',
   ],
   blink: [
@@ -153,27 +164,30 @@ export const LIQUID: KinSprites = {
     '..BHHBBBB..',
     '.BBBBBBBBB.',
     '.BKKKBKKKB.',
-    '.BKBBBBBKB.',
-    'BBBKMMMKBBB',
-    'BHHBBBBBHHB',
+    '.BBBBBBBBB.',
+    'BKBBBBBBBKB',
+    'BBKMMMMMKBB',
+    'BHHKKKKKHHB',
     'DDDDDDDDDDD',
   ],
   squash: [
     '..BHHHBBB..',
     '.BWWWBWWWB.',
     'BBWKWBWKWBB',
-    'BBKBBBBBKBB',
-    'BHHKMMMKHHB',
-    'DDDDDDDDDDD',
+    'BBWWWBWWWBB',
+    'BKBBBBBBBKB',
+    'BHKMMMMMKHB',
+    'DDDKKKKKDDD',
   ],
   wide: [
     '.....HB....',
     '.BBHHBBBBB.',
     'BBWWWBWWWBB',
     'BBWKWBWKWBB',
-    'BBKBBBBBKBB',
-    'BHHKMMMKHHB',
-    'DDDDDDDDDDD',
+    'BBWWWBWWWBB',
+    'BKBBBBBBBKB',
+    'BHKMMMMMKHB',
+    'DDDKKKKKDDD',
   ],
   stretch: [
     '.....B.....',
@@ -182,6 +196,7 @@ export const LIQUID: KinSprites = {
     '..BHBBBB...',
     '.BWWWBWWWB.',
     '.BWKWBWKWB.',
+    '.BWWWBWWWB.',
     '.BKBBBBBKB.',
     '.BBKMMMKBB.',
     'BHHBBBBBHHB',
@@ -218,7 +233,12 @@ export const FAMILY: readonly Kin[] = [
 
 export const SLIME_ROWS = 8
 export const SLIME_WIDTH = ONION.stand[0]!.length
+export const SLIME_GAP = 2
 const SLIME_PIXELS = SLIME_ROWS * 2
+
+export function kinHomeX(i: number): number {
+  return i * (SLIME_WIDTH + SLIME_GAP)
+}
 
 // 'air' lifts a kin until its tip touches the top of the stage; sprite heights
 // differ between kin, so it resolves per kin.
@@ -269,7 +289,7 @@ const BOTTOM_HALF = 0x2584
 const SPACE = 0x20
 
 export function slimeColumns(count: number): number {
-  return count * SLIME_WIDTH
+  return count > 0 ? count * SLIME_WIDTH + (count - 1) * SLIME_GAP : 0
 }
 
 function blank(count: number): Pixels {
@@ -337,14 +357,14 @@ function hopRejoinTick(i: number, endpoint: number): number {
 // Hold one kin through its endpoint, then rejoin Rest or a fresh Crouch.
 function paintRejoiningKin(pixels: Pixels, i: number, tick: number, rest: Rest, endpointTick: number) {
   const held = tick <= endpointTick || (rest === 'hop' && tick < hopRejoinTick(i, endpointTick))
-  paintKin(pixels, i, pose(i, held ? null : tick, rest), i * SLIME_WIDTH)
+  paintKin(pixels, i, pose(i, held ? null : tick, rest), kinHomeX(i))
 }
 
 // The stage's pixels for `count` slimes at `tick`: a color per pixel, or null.
 export function stage(count: number, tick: number | null, rest: Rest = 'breathe'): Pixels {
   const pixels = blank(count)
   for (let i = 0; i < count; i += 1) {
-    paintKin(pixels, i, pose(i, tick, rest), i * SLIME_WIDTH)
+    paintKin(pixels, i, pose(i, tick, rest), kinHomeX(i))
   }
   return pixels
 }
@@ -600,7 +620,7 @@ export function nextMoment(active: Moment | null, incoming: Moment, count: numbe
 function paintFamily(pixels: Pixels, count: number, progress: number, familyPose: Pose) {
   const middle = Math.floor((slimeColumns(count) - SLIME_WIDTH) / 2)
   for (let i = 0; i < count; i += 1) {
-    const home = i * SLIME_WIDTH
+    const home = kinHomeX(i)
     const x = home + (middle - home) * progress
     paintKin(pixels, i, familyPose, home < middle ? Math.floor(x) : Math.ceil(x))
   }
@@ -716,7 +736,7 @@ function levelUpStage(moment: Moment, count: number, tick: number, rest: Rest): 
   for (let i = 0; i < count; i += 1) {
     if (frame < LEVEL_UP_ENDPOINT) {
       const { palette } = kinOf(i)
-      paintKin(pixels, i, HOP[frame]!, i * SLIME_WIDTH, isGold ? { ...palette, B: GOLD, H: WHITE } : palette)
+      paintKin(pixels, i, HOP[frame]!, kinHomeX(i), isGold ? { ...palette, B: GOLD, H: WHITE } : palette)
     } else {
       paintRejoiningKin(pixels, i, tick, rest, endpointTick)
     }
@@ -731,7 +751,7 @@ function encounterStage(count: number, frame: number, tick: number, rest: Rest):
     const step = frame - i * ENCOUNTER_STAGGER_TICKS
     if (step < 0) continue
     if (step < ENCOUNTER.length) {
-      paintKin(pixels, i, ENCOUNTER[step]!, i * SLIME_WIDTH)
+      paintKin(pixels, i, ENCOUNTER[step]!, kinHomeX(i))
     } else {
       paintRejoiningKin(pixels, i, tick, rest, startTick + encounterEndpoint(i))
     }
@@ -789,7 +809,7 @@ export function slimeText(count: number): { text: string; color: string }[][] {
   const pixels = stage(count, null)
   return Array.from({ length: SLIME_ROWS }, (_, row) =>
     Array.from({ length: count }, (_, i) => {
-      const text = halfBlockText(pixels, row, i * SLIME_WIDTH, (i + 1) * SLIME_WIDTH)
+      const text = halfBlockText(pixels, row, kinHomeX(i), i + 1 < count ? kinHomeX(i + 1) : slimeColumns(count))
       return { text, color: `#${kinOf(i).palette.B.toString(16).padStart(6, '0')}` }
     }),
   )

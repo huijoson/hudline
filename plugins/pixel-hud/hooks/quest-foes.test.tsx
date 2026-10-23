@@ -24,7 +24,6 @@ test('the quest slime is a green, grounded silhouette with eyes', () => {
     '....................',
     '....................',
     '....................',
-    '....................',
     '.......#............',
     '......###...........',
     '.....#####..........',
@@ -33,8 +32,10 @@ test('the quest slime is a green, grounded silhouette with eyes', () => {
     '..###########.......',
     '..###########.......',
     '..###########.......',
+    '..###########.......',
     '...#########........',
     '....#######.........',
+
   ])
   expect(pixels.flat()).toContain(0x38c838)
   expect(pixels.flat()).toContain(0x0b0a0d)
@@ -183,7 +184,7 @@ test('painting clips at either edge and preserves transparent pixels and other r
   paintMonster(background, 'slime', LEFT, 0)
   expect(background[0]?.[LEFT]).toBe(0x123456)
   expect(background[2]?.[LEFT]).toBe(0x123456)
-  expect(background[7]?.[LEFT + 4]).toBe(0xb8f818)
+  expect(background[6]?.[LEFT + 4]).toBe(0xb8f818)
   paintSkill(background, 'thunder', COLUMNS - 6, THUNDER_TICKS - 1)
   expect(background[0]?.[COLUMNS - 1]).toBe(0xfcd848)
   expect(background.every(row => row.length === COLUMNS)).toBe(true)
