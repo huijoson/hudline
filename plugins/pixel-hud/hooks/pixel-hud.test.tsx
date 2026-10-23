@@ -52,10 +52,12 @@ import {
   KING_SCATTER_TICKS,
   KING_SHOW_TICKS,
   KING_WIDTH,
+  KINGS,
   kingStage,
   LEAP,
   momentEndTick,
   nextMoment,
+  pickKing,
   slimeCells,
   slimeColumns,
   slimeText,
@@ -63,7 +65,7 @@ import {
   stage,
   SLIME_ROWS,
 } from './slime'
-import type { Moment } from './slime'
+import type { KingVariant, Moment } from './slime'
 
 const failure = { tool_name: 'Bash', tool_input: {}, tool_use_id: 'failed-tool', error: 'failed' }
 const compaction = { compact_summary: 'The conversation so far, compacted.' }
@@ -460,7 +462,7 @@ describe('slime family', () => {
       const standing = stage(count, null)
       const crouching = kingStage(count, kingLandingTick, null)
       for (let startTick = 0; startTick < 200; startTick += 1) {
-        const king: Moment = { kind: 'king', startTick }
+        const king: Moment = { kind: 'king', startTick, variant: 'king' }
         const endpoint = startTick + KING_SHOW_TICKS
         expect(slimeCells(count, endpoint, king, 'hop')).toBe(slimeCells(count, 0, null, 'still'))
         const joined = Array<boolean>(count).fill(false)
@@ -880,8 +882,7 @@ test('damage yields to encounter and King without consuming a target or cooldown
   await $.classic.PostToolUseFailure(failure as never)
   const firstDamage: Moment = { kind: 'damage', startTick: encounterEnds, target: 0 }
   expect(blits.at(-1)).toBe(slimeCells(count, encounterEnds, firstDamage, 'still'))
-  await $.command.run(KING)
-  const king: Moment = { kind: 'king', startTick: encounterEnds }
+  const king: Moment = { kind: 'king', startTick: encounterEnds, variant: await crownKing($) }
   const kingEnds = momentEndTick(king, count, 'still')
   const lastKingTick = kingEnds - 1
   await clock.advance(FRAME_MS * (lastKingTick - encounterEnds))
@@ -963,8 +964,7 @@ test('compaction levels up in gold over the encounter and damage, but not over t
   const manualLevelUp: Moment = { kind: 'level-up', startTick: midDamageTick }
   expect(blits.at(-1)).toBe(slimeCells(count, midDamageTick, manualLevelUp, 'still'))
 
-  await $.command.run(KING)
-  const king: Moment = { kind: 'king', startTick: midDamageTick }
+  const king: Moment = { kind: 'king', startTick: midDamageTick, variant: await crownKing($) }
   const beforeCompaction = blits.length
   await $.classic.PostCompact({ ...compaction, trigger: 'auto' } as never)
   expect(blits.length).toBe(beforeCompaction)
@@ -1370,7 +1370,7 @@ describe('slime moments', () => {
     const squashTicks = HOP_LAND_TICKS
     const reboundTicks = HOP_REBOUND_TICKS
     const standing = slimeCells(count, 0, null, 'still')
-    const crouching = slimeCells(count, kingLandingTick, { kind: 'king', startTick: 0 }, 'still')
+    const crouching = slimeCells(count, kingLandingTick, { kind: 'king', startTick: 0, variant: 'king' }, 'still')
     const empty = slimeCellFace(slimeCells(count, 0, encounter, 'still'), count, 0)
     const launchTick = HOP_CROUCH_TICKS
     const stretching = slimeCells(count, launchTick, null, 'hop')
@@ -1399,7 +1399,7 @@ describe('slime moments', () => {
 
   test('King replaces another moment only when there is room, and renders from its start tick', () => {
     const damage: Moment = { kind: 'damage', startTick: 1, target: 0 }
-    const king: Moment = { kind: 'king', startTick: 100 }
+    const king: Moment = { kind: 'king', startTick: 100, variant: 'king' }
     expect(nextMoment(damage, king, 1)).toEqual(damage)
     expect(nextMoment(null, king, 1)).toBe(null)
     const active = nextMoment(damage, king, 2)
@@ -1414,7 +1414,7 @@ describe('slime moments', () => {
       { kind: 'damage', startTick: 1, target: 2 },
       { kind: 'encounter', startTick: 2 },
       { kind: 'level-up', startTick: 3 },
-      { kind: 'king', startTick: 4 },
+      { kind: 'king', startTick: 4, variant: 'king' },
     ]
     for (const [i, incoming] of moments.entries()) {
       expect(nextMoment(null, incoming, 4)).toEqual(incoming)
@@ -1615,6 +1615,31 @@ describe('King Slime', () => {
     }
   })
 
+  test('an injected random crowns the King, Gold King or Metal King, each in its own body and crown', () => {
+    const reigns = ([[0, 'king'], [0.5, 'gold'], [0.99, 'metal']] as const).map(([pick, variant]) => {
+      expect(pickKing(() => pick)).toBe(variant)
+      const { body, crown } = KINGS[variant]
+      const merged = kingStage(2, KING_GATHER_TICKS + KING_MERGE_TICKS / 2, null, 'breathe', variant)
+      expect(merged.flat()).toContain(body.B)
+      const reign = kingStage(2, kingReignStarts, null, 'breathe', variant)
+      expect(reign.flat()).toContain(body.B)
+      expect(reign.flat()).toContain(body.D)
+      // The crown's band is all crown metal.
+      expect(new Set(reign[2]?.filter(p => p !== null))).toEqual(new Set([crown.Y]))
+      return reign
+    })
+    expect(new Set(Object.values(KINGS).map(king => king.body.B)).size).toBe(3)
+    for (const [i, reign] of reigns.entries()) {
+      const others = Object.values(KINGS).filter((_, k) => k !== i)
+      for (const other of others) expect(reign.flat()).not.toContain(other.body.B)
+    }
+    expect(KINGS.king.name).toBe('King Slime')
+    expect(KINGS.gold.name).toBe('Gold King Slime')
+    expect(KINGS.metal.name).toBe('Metal King Slime')
+    // The King and the Metal King wear gold; the Gold King's crown is silver.
+    expect([KINGS.king, KINGS.gold, KINGS.metal].map(king => king.crown.Y)).toEqual([GOLD, 0xd0d8e0, GOLD])
+  })
+
   test('the show lasts 6.5 to 7 seconds at 80 ms per frame', () => {
     expect(FRAME_MS).toBe(80)
     expect(KING_SHOW_TICKS * FRAME_MS).toBeGreaterThanOrEqual(6500)
@@ -1689,6 +1714,19 @@ const KING = {
   presentation: { isFullscreen: false, columns: 120 },
 } as const
 
+// The King the command names as it crowns one, read back from its reply.
+async function crownKing($: Parameters<TestBody>[0]): Promise<KingVariant> {
+  const { text } = await $.command.run(KING)
+  const variant = (Object.keys(KINGS) as KingVariant[]).find(v => text === `The slimes band together... A ${KINGS[v].name} appears!`)
+  expect(variant).toBeDefined()
+  return variant ?? 'king'
+}
+
+function colorIn(cells: string, color: number): boolean {
+  const words = new Uint32Array(Uint8Array.from(atob(cells), c => c.charCodeAt(0)).buffer)
+  return words.some((w, i) => i % 3 !== 0 && w === color)
+}
+
 test('the King show holds grounded kin until each can rejoin the global hop', { options: { slimesHop: true } }, async ($, on) => {
   const clock = mock.clock(on)
   const blits: string[] = []
@@ -1702,10 +1740,9 @@ test('the King show holds grounded kin until each can rejoin the global hop', { 
   const count = Number((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns) / SLIME_WIDTH
   const showStart = 12
   await clock.advance(FRAME_MS * showStart)
-  await $.command.run(KING)
+  const king: Moment = { kind: 'king', startTick: showStart, variant: await crownKing($) }
   await clock.advance(FRAME_MS * KING_SHOW_TICKS)
   expect(blits[blits.length - 1]).toBe(slimeCells(count, 0, null, 'still'))
-  const king: Moment = { kind: 'king', startTick: showStart }
   for (let offset = 1; offset <= HOP_TICKS; offset += 1) {
     const tick = showStart + KING_SHOW_TICKS + offset
     await clock.advance(FRAME_MS)
@@ -1731,14 +1768,19 @@ test('/slime-king is registered, and crowns the slimes while they are on stage',
   expect((await $.command.run(KING)).text).toBe('But there was no room for a King Slime! Widen the terminal.')
 
   const ui = await mount($, 'terminal', FULL_ROWS, 120)
-  expect((await $.command.run(KING)).text).toBe('The slimes band together... A King Slime appears!')
-  // Asking again mid-show is not a question of room.
-  expect((await $.command.run(KING)).text).toBe('The King Slime is already here!')
+  const variant = await crownKing($)
+  // Asking again mid-show is not a question of room, and names the King that reigns.
+  expect((await $.command.run(KING)).text).toBe(`The ${KINGS[variant].name} is already here!`)
+  await clock.advance(FRAME_MS * (kingReignStarts + 1))
+  // The named King reigns in its own body colour, and no other King's.
+  for (const [other, king] of Object.entries(KINGS)) {
+    expect(colorIn(blits.at(-1)!, king.body.B!)).toBe(other === variant)
+  }
   await clock.advance(FRAME_MS * KING_SHOW_TICKS)
   expect(blits.some(goldIn)).toBe(true)
   // The show over, the next ask crowns again.
   await clock.advance(FRAME_MS * 2)
-  expect((await $.command.run(KING)).text).toBe('The slimes band together... A King Slime appears!')
+  await crownKing($)
   await ui.unmount()
 })
 

@@ -23,6 +23,8 @@ import type { Role } from './format'
 import { BRANCH_SPRITE, GLYPH_ADVANCE, pack, pixelText, pixelWidth } from './pixel'
 import { DAMAGE_COOLDOWN_TICKS, FRAME_MS, nextMoment } from './stage'
 import type { Moment, Rest, Stage } from './stage'
+import { KINGS, pickKing } from './slime'
+import type { KingVariant } from './slime'
 import { selectStage } from './stages'
 
 const branch = atom({ plugin: 'pixel-hud', key: 'branch' } as const, null)
@@ -169,7 +171,7 @@ async function repaint(theme: Stage, $: EngineInterface, drawn: DrawnStage | nul
   }
 }
 
-// The battle picker is injectable; the slime stage does not consume it.
+// The battle and King pickers are injectable.
 export const register = (on: Parameters<Register>[0], options: Parameters<Register>[1], random: () => number = Math.random) => {
   const theme = selectStage(options.stage)
   const rest = theme.rest(options.slimesIdle !== false, options.slimesHop === true)
@@ -195,11 +197,13 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
     if (denied && stage === denied) stage = null
   }
   // Starts the show unless one is playing or there is no room for the king.
-  const crown = (): 'crowned' | 'reigning' | 'no-room' => {
-    if (currentMoment()?.kind === 'king') return 'reigning'
+  const crown = (): { isNew: boolean; variant: KingVariant } | 'no-room' => {
+    const active = currentMoment()
+    if (active?.kind === 'king') return { isNew: false, variant: active.variant }
     if (!stage || !theme.accepts('king', stage.slimes)) return 'no-room'
-    moment = nextMoment(theme, moment, { kind: 'king', startTick: tick }, stage.slimes)
-    return 'crowned'
+    const variant = pickKing(random)
+    moment = nextMoment(theme, moment, { kind: 'king', startTick: tick, variant }, stage.slimes)
+    return { isNew: true, variant }
   }
 
   on('session.start', async ($, e, next) => {
@@ -228,16 +232,13 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
     return next(e)
   })
 
-  const KING_SAYS = {
-    crowned: 'The slimes band together... A King Slime appears!',
-    reigning: 'The King Slime is already here!',
-    'no-room': 'But there was no room for a King Slime! Widen the terminal.',
-  } as const
-  on('command.run', { command: KING_COMMAND }, async () => ({
-    text: theme.accepts('king', theme.maxRoom)
-      ? KING_SAYS[crown()]
-      : 'But there are no slimes here. The hero walks on.',
-  }))
+  on('command.run', { command: KING_COMMAND }, async () => {
+    if (!theme.accepts('king', theme.maxRoom)) return { text: 'But there are no slimes here. The hero walks on.' }
+    const crowning = crown()
+    if (crowning === 'no-room') return { text: 'But there was no room for a King Slime! Widen the terminal.' }
+    const { name } = KINGS[crowning.variant]
+    return { text: crowning.isNew ? `The slimes band together... A ${name} appears!` : `The ${name} is already here!` }
+  })
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)

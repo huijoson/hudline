@@ -183,7 +183,7 @@ test('quest admission rejects the King and only lets a higher-priority moment ta
   expect(nextMoment(quest, encounter, levelUp, quest.maxRoom)).toBe(levelUp)
   expect(nextMoment(quest, levelUp, encounter, quest.maxRoom)).toBe(levelUp)
   expect(nextMoment(quest, levelUp, { ...levelUp, startTick: 3 }, quest.maxRoom)).toBe(levelUp)
-  expect(nextMoment(quest, levelUp, { kind: 'king', startTick: 3 }, quest.maxRoom)).toBe(levelUp)
+  expect(nextMoment(quest, levelUp, { kind: 'king', startTick: 3, variant: 'king' }, quest.maxRoom)).toBe(levelUp)
 })
 
 

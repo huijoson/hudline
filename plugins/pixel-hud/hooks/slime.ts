@@ -261,6 +261,23 @@ export const KING = [
   '.DDDDDDDDDDDDDDDDDDDD.',
 ]
 const CROWN: Palette = { Y: GOLD, J: 0xf83800, P: 0x8838d0, G: 0x28a848 }
+const SLIME = FAMILY[0] as Kin
+
+export type KingVariant = 'king' | 'gold' | 'metal'
+type King = { name: string; body: Palette; crown: Palette }
+
+// The Gold King's crown is silver: a gold one would vanish into its body.
+export const KINGS: Record<KingVariant, King> = {
+  king: { name: 'King Slime', body: { B: SLIME.body, H: SLIME.highlight, D: SLIME.shade }, crown: CROWN },
+  gold: { name: 'Gold King Slime', body: { B: 0xf8d830, H: 0xfcfcc0, D: 0xc87800 }, crown: { ...CROWN, Y: 0xd0d8e0 } },
+  metal: { name: 'Metal King Slime', body: { B: 0xb8c4d0, H: 0xffffff, D: 0x6c7888 }, crown: CROWN },
+}
+
+export function pickKing(random: () => number): KingVariant {
+  const variants = Object.keys(KINGS) as KingVariant[]
+  return variants[Math.floor(random() * variants.length)]!
+}
+
 // No squash was drawn: the landing loses the crown's points and spreads one
 // pixel wider on each side where the body meets the edge.
 const KING_SQUASH = KING.slice(1).map(row => row[0] + row + row.at(-1))
@@ -401,8 +418,8 @@ const MOMENT_MOTION: Partial<Record<Moment['kind'], MomentMotion>> = {
     priority: 5,
     minColumns: KING_WIDTH,
     endpoint: () => KING_SHOW_TICKS,
-    stage: (moment, count, tick, rest) => canCrown(count)
-      ? kingStage(count, tick - moment.startTick, tick, rest)
+    stage: (moment, count, tick, rest) => canCrown(count) && moment.kind === 'king'
+      ? kingStage(count, tick - moment.startTick, tick, rest, moment.variant)
       : stage(count, tick, rest),
   },
   encounter: {
@@ -467,11 +484,12 @@ function whiteOf(sprite: readonly string[]): Palette {
 
 // The stage `frame` ticks into the King Slime show; `tick` poses the slimes
 // after the exact resting frame at the end of the show.
-export function kingStage(count: number, frame: number, tick: number | null, rest: Rest = 'breathe'): Pixels {
+export function kingStage(count: number, frame: number, tick: number | null, rest: Rest = 'breathe', variant: KingVariant = 'king'): Pixels {
   const pixels = blank(count)
   const kingX = Math.floor((slimeColumns(count) - KING_WIDTH) / 2)
   const poofX = Math.floor((slimeColumns(count) - POOF[0]!.length) / 2)
-  const king: Palette = { ...kinPalette(0), ...CROWN }
+  const body: Palette = { ...kinPalette(0), ...KINGS[variant].body }
+  const king: Palette = { ...body, ...KINGS[variant].crown }
   let f = frame
   if (f < KING_GATHER_TICKS) {
     gather(pixels, count, f)
@@ -480,7 +498,7 @@ export function kingStage(count: number, frame: number, tick: number | null, res
   f -= KING_GATHER_TICKS
   if (f < KING_MERGE_TICKS) {
     const blob = MERGED[Math.floor(f / KING_MERGE_POSE_TICKS)] as string[]
-    paint(pixels, blob, Math.floor((slimeColumns(count) - (blob[0] ?? '').length) / 2), 0, kinPalette(0))
+    paint(pixels, blob, Math.floor((slimeColumns(count) - (blob[0] ?? '').length) / 2), 0, body)
     return pixels
   }
   f -= KING_MERGE_TICKS
@@ -522,7 +540,7 @@ export function kingStage(count: number, frame: number, tick: number | null, res
   }
   f -= KING_POOF_TICKS
   if (f >= SCATTER.length) {
-    const endpoint = momentEndTick({ kind: 'king', startTick: 0 }, count, 'still') - 1
+    const endpoint = momentEndTick({ kind: 'king', startTick: 0, variant }, count, 'still') - 1
     if (tick === null) return stage(count, null)
     const endpointTick = tick - frame + endpoint
     const pixels = blank(count)
