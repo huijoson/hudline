@@ -9,16 +9,82 @@ export type { Moment, Rest } from './stage'
 // the bottom one in the background).
 
 // B body, H highlight, W white, K pupil, M mouth, D shade, '.' transparent.
-// Each frame is 7 wide in a 6-pixel-tall stage (3 text rows), feet on the floor unless it is airborne.
-export const STAND = ['...B...', '..BHB..', '.BWBWB.', 'BBKBKBB', 'DDMMMDD']
-export const SQUASH = ['..BHB..', '.BWBWB.', 'BBKBKBB', 'DDDMDDD']
-export const WIDE = ['..BHB..', 'BWBBBWB', 'BKBBBKB', 'DDMMMDD']
-export const STRETCH = ['...B...', '..BHB..', '.BWBWB.', '.BKBKB.', '.BMMMB.', '..DDD..']
-export const BLINK = STAND.map(row => row.replaceAll('W', 'B'))
+// Each frame is 14 wide in a 16-pixel-tall stage (8 text rows), feet on the floor unless it is airborne.
+export const STAND = [
+  '......BB......',
+  '.....BHB......',
+  '....BHHBB.....',
+  '...BHHBBBB....',
+  '..BHBBBBBBBB..',
+  '..BWWBBBWWBB..',
+  '.BWWKBBWWKBBB.',
+  '.BBWKBBBWKBBB.',
+  'BBBBBBBBBBBBBB',
+  'BBKBBBBBBBBKBB',
+  'DBBKMMMMMMKBBD',
+  '.DDDKMMMMKDDD.',
+]
+export const SQUASH = [
+  '.....BB.......',
+  '...BHHBBB.....',
+  '.BHHBBBBBBBB..',
+  '.BWWKBBWWKBBB.',
+  'BBBWKBBBWKBBBB',
+  'BBBBBBBBBBBBBB',
+  'DBBKMMMMMMKBBD',
+  'DDDDKMMMMKDDDD',
+  '.DDDDDDDDDDDD.',
+]
+export const WIDE = [
+  '......BB......',
+  '....BHHBB.....',
+  '..BHHBBBBBB...',
+  '.BHBBBBBBBBBB.',
+  '.BWWBBBBWWBBB.',
+  'BWWKBBBBWWKBBB',
+  'BBWKBBBBBWKBBB',
+  'BBBBBBBBBBBBBB',
+  'BBKBBBBBBBBBKB',
+  'DBBKMMMMMMMKBD',
+  '.DDDKMMMMMKDD.',
+]
+export const STRETCH = [
+  '......B.......',
+  '......BB......',
+  '.....BHB......',
+  '.....BHBB.....',
+  '....BHBBBB....',
+  '....BWWBWWB...',
+  '...BWWKBWWKB..',
+  '...BBWKBBWKB..',
+  '...BBBBBBBBB..',
+  '...BKBBBBBKB..',
+  '...BBKMMMKBB..',
+  '....DDMMMDD...',
+  '.....DDDDD....',
+  '......DD......',
+]
+export const BLINK = [
+  '......BB......',
+  '.....BHB......',
+  '....BHHBB.....',
+  '...BHHBBBB....',
+  '..BHBBBBBBBB..',
+  '..BBBBBBBBBB..',
+  '.BBBBBBBBBBBB.',
+  '.BKKKBBBKKKBB.',
+  'BBBBBBBBBBBBBB',
+  'BBKBBBBBBBBKBB',
+  'DBBKMMMMMMKBBD',
+  '.DDDKMMMMKDDD.',
+]
 
-export const SLIME_ROWS = 3
-export const SLIME_WIDTH = 7
+export const SLIME_ROWS = 8
+export const SLIME_WIDTH = STAND[0]!.length
 const SLIME_PIXELS = SLIME_ROWS * 2
+// Airborne, a kin rises until its tip touches the top of the stage.
+const STAND_AIR_LIFT = SLIME_PIXELS - STAND.length
+const STRETCH_AIR_LIFT = SLIME_PIXELS - STRETCH.length
 
 type Pose = { sprite: readonly string[]; lift: number }
 type Beat = Pose & { ticks: number }
@@ -43,7 +109,7 @@ const HOP_FALL_START = HOP_RISE_START + HOP_AIR_TICKS
 export const HOP: readonly Pose[] = ([
   { sprite: SQUASH, lift: 0, ticks: HOP_CROUCH_TICKS },
   { sprite: STRETCH, lift: 0, ticks: HOP_LAUNCH_TICKS },
-  { sprite: STAND, lift: 1, ticks: HOP_AIR_TICKS },
+  { sprite: STAND, lift: STAND_AIR_LIFT, ticks: HOP_AIR_TICKS },
   { sprite: STRETCH, lift: 0, ticks: HOP_FALL_TICKS },
   { sprite: SQUASH, lift: 0, ticks: HOP_LAND_TICKS },
   { sprite: STRETCH, lift: 0, ticks: HOP_REBOUND_TICKS },
@@ -95,9 +161,8 @@ export type Pixels = (number | null)[][]
 export type Palette = Partial<Record<string, number>>
 
 const WHITE = 0xfcfcfc
-const MOUTH = 0x981828
+const MOUTH = 0xd83838
 const GOLD = 0xfcbc3c
-const JEWEL = 0xf83800
 
 function blank(count: number): Pixels {
   return Array.from({ length: SLIME_PIXELS }, () => Array<number | null>(slimeColumns(count)).fill(null))
@@ -174,59 +239,92 @@ export function stage(count: number, tick: number | null, rest: Rest = 'breathe'
   return pixels
 }
 
-// The King Slime: crowned, as wide as two slimes less one, the whole stage tall.
-// B body, H highlight, Y gold crown, R red jewel, W white eyes,
+// The King Slime: crowned, the whole stage tall, and too wide for one slot.
+// B body, H highlight, Y gold crown, J red jewel, W white eyes,
 // K pupils and grin corners, M red mouth, D lower shade, '.' transparent.
-const KING = [
-  '....Y.R.Y....',
-  '....YYYYY....',
-  '..BBWHBHWBB..',
-  '..BBKBBBKBB..',
-  '.BBKMMMMMKBB.',
-  'DDDDDDDDDDDDD',
+export const KING = [
+  '.....Y..J..Y..J..Y......',
+  '.....YY.Y.YYY.Y.YY......',
+  '.....YYYYYYYYYYYYY......',
+  '.....YJYYYJYYYJYYY......',
+  '...BBBBBBBHHBBBBBBBB....',
+  '..BBBBBBBHHHBBBBBBBBB...',
+  '.BBBWWWBBHBBBBWWWBBBBB..',
+  '.BBWWWKKBBBBBBWWWKKBBB..',
+  'BBBWWWKKBBBBBBWWWKKBBBB.',
+  'BBBBBBBBBBBBBBBBBBBBBBB.',
+  'BBBKBBBBBBBBBBBBBBBBKBBB',
+  'BBBBKMMMMMMMMMMMMMMKBBBB',
+  'DBBBBKMMMMMMMMMMMMKBBBBD',
+  'DDBBBBKKMMMMMMMMKKBBBBDD',
+  '.DDDDBBBBKKKKKKBBBBDDDD.',
+  '..DDDDDDDDDDDDDDDDDDDD..',
 ]
-const KING_SQUASH = [
-  '.....Y.R.Y.....',
-  '...BBWHBHWBB...',
-  '...BBKBBBKBB...',
-  '..BBKMMMMMKBB..',
-  'DDDDDDDDDDDDDDD',
-]
+const CROWN: Palette = { Y: 0xfcbc3c, J: 0xf83800 }
+// No squash was drawn: the landing loses the crown's points and spreads one
+// pixel wider on each side where the body meets the edge.
+const KING_SQUASH = KING.slice(1).map(row => row[0] + row + row.at(-1))
 export const KING_DROP_FALL_TICKS = 2
 export const KING_DROP_SQUASH_TICKS = 2
-const KING_DROP: readonly Pose[] = ([
-  { sprite: KING, lift: 4, ticks: KING_DROP_FALL_TICKS / 2 },
-  { sprite: KING, lift: 2, ticks: KING_DROP_FALL_TICKS / 2 },
+export const KING_DROP: readonly Pose[] = ([
+  { sprite: KING, lift: 10, ticks: KING_DROP_FALL_TICKS / 2 },
+  { sprite: KING, lift: 5, ticks: KING_DROP_FALL_TICKS / 2 },
   { sprite: KING_SQUASH, lift: 0, ticks: KING_DROP_SQUASH_TICKS },
-  { sprite: KING, lift: 1, ticks: HOP_REBOUND_TICKS },
+  { sprite: KING, lift: 2, ticks: HOP_REBOUND_TICKS },
   { sprite: KING, lift: 0, ticks: HOP_SETTLE_TICKS },
 ] satisfies Beat[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
 const KING_BLINK = KING.map(row => row.replaceAll('W', 'B'))
-export const KING_WIDTH = 13
+export const KING_WIDTH = KING[0]!.length
 // The slimes landing on one another: a splat, then a blob bouncing up.
-const MERGED = [
-  ['...BWHBHWB...', '.BBBKBBBKBBB.', 'DDDDDMMMDDDDD'],
-  ['....BHB....', '..BBBBBBB..', '.BBBWBWBBB.', '.BBBKBKBBB.', 'DDDDMMMDDDD'],
+const MERGED_SPLAT = [
+  '.......BBHHBBBB.......',
+  '....BBBBWWBBBWWBBBB...',
+  '..BBBBBWKBBBBWKBBBBBB.',
+  '.BBBBBBBBBBBBBBBBBBBBB',
+  'DDBBBBKMMMMMMKBBBBBDDD',
+  '.DDDDDDDKKKKKDDDDDDDD.',
 ]
+const MERGED_BLOB = [
+  '........BB..........',
+  '.......BHHB.........',
+  '......BHHBBB........',
+  '....BBHBBBBBBB......',
+  '...BBBBBBBBBBBBB....',
+  '..BBBWWBBBBBWWBBB...',
+  '..BBWWKBBBBWWKBBB...',
+  '.BBBWWKBBBBWWKBBBB..',
+  '.BBBBBBBBBBBBBBBBB..',
+  'BBBKBBBBBBBBBBBKBBB.',
+  'DBBBKMMMMMMMMMKBBBD.',
+  '.DDDDKMMMMMMMKDDDD..',
+  '..DDDDDDDDDDDDDD....',
+]
+export const MERGED = [MERGED_SPLAT, MERGED_BLOB]
 export const POOF = [
-  '..W...W..W...',
-  'W...W....W..W',
-  '...W..W.W....',
-  '.W.........W.',
-  'W..W.W..W...W',
-  '..W....W..W..',
+  '....W.....W....W....',
+  '.W.....W......W...W.',
+  '...W......W.W.......',
+  'W.....W.........W...',
+  '...W.....W..W.....W.',
+  '.W...W.........W....',
+  '.......W...W......W.',
+  'W..W..........W.....',
+  '.....W....W.....W..W',
+  '..W......W...W......',
+  'W.....W.......W...W.',
+  '....W....W.W........',
 ]
 // Twinkles about the king, two sets in turn: [x from the king's left, row].
 const TWINKLES = [
-  [[-3, 0], [15, 2], [-2, 4]],
-  [[-2, 2], [14, 0], [15, 4]],
+  [[-3, 0], [KING_WIDTH + 2, SLIME_PIXELS / 2], [-2, SLIME_PIXELS - 2]],
+  [[-2, SLIME_PIXELS / 2], [KING_WIDTH + 1, 0], [KING_WIDTH + 2, SLIME_PIXELS - 2]],
 ]
 
 export const KING_SCATTER_AIR_TICKS = HOP_AIR_TICKS + HOP_FALL_TICKS
-const SCATTER: readonly Pose[] = ([
-  { sprite: STRETCH, lift: 1, ticks: HOP_RISE_TICKS },
-  { sprite: STAND, lift: 1, ticks: HOP_HANG_TICKS },
-  { sprite: STRETCH, lift: 1, ticks: HOP_FALL_TICKS },
+export const SCATTER: readonly Pose[] = ([
+  { sprite: STRETCH, lift: STRETCH_AIR_LIFT, ticks: HOP_RISE_TICKS },
+  { sprite: STAND, lift: STAND_AIR_LIFT, ticks: HOP_HANG_TICKS },
+  { sprite: STRETCH, lift: STRETCH_AIR_LIFT, ticks: HOP_FALL_TICKS },
   { sprite: SQUASH, lift: 0, ticks: HOP_LAND_TICKS },
 ] satisfies Beat[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
 
@@ -271,10 +369,10 @@ const LEVEL_UP_ENDPOINT = HOP_TICKS - HOP_SETTLE_TICKS
 
 export const ENCOUNTER_STAGGER_TICKS = 3
 export const ENCOUNTER_FALL_TICKS = 3
-export const ENCOUNTER_START_LIFT = 6
-const ENCOUNTER: readonly Pose[] = ([
+export const ENCOUNTER_START_LIFT = SLIME_PIXELS
+export const ENCOUNTER: readonly Pose[] = ([
   ...Array.from({ length: ENCOUNTER_FALL_TICKS }, (_, i) => ({
-    sprite: STAND, lift: ENCOUNTER_START_LIFT - i * ENCOUNTER_START_LIFT / ENCOUNTER_FALL_TICKS, ticks: 1,
+    sprite: STAND, lift: Math.round(ENCOUNTER_START_LIFT * (1 - i / ENCOUNTER_FALL_TICKS)), ticks: 1,
   })),
   { sprite: SQUASH, lift: 0, ticks: HOP_LAND_TICKS },
   { sprite: STRETCH, lift: 0, ticks: HOP_REBOUND_TICKS },
@@ -356,7 +454,7 @@ function gather(pixels: Pixels, count: number, frame: number) {
   // Lifted STAND keeps the falling collision airborne without clipping STRETCH.
   const collision = second && step === HOP_FALL_START
   paintFamily(pixels, count, second ? HALFWAY + progress * (COLLIDE - HALFWAY) : progress * HALFWAY,
-    collision ? { sprite: STAND, lift: 1 } : p)
+    collision ? { sprite: STAND, lift: STAND_AIR_LIFT } : p)
 }
 
 function whiteOf(sprite: readonly string[]): Palette {
@@ -368,7 +466,8 @@ function whiteOf(sprite: readonly string[]): Palette {
 export function kingStage(count: number, frame: number, tick: number | null, rest: Rest = 'breathe'): Pixels {
   const pixels = blank(count)
   const kingX = Math.floor((slimeColumns(count) - KING_WIDTH) / 2)
-  const king: Palette = { ...kinPalette(0), Y: GOLD, R: JEWEL }
+  const poofX = Math.floor((slimeColumns(count) - POOF[0]!.length) / 2)
+  const king: Palette = { ...kinPalette(0), ...CROWN }
   let f = frame
   if (f < KING_GATHER_TICKS) {
     gather(pixels, count, f)
@@ -393,7 +492,7 @@ export function kingStage(count: number, frame: number, tick: number | null, res
     return pixels
   }
   if (f < KING_FLASH_TICKS) {
-    paint(pixels, POOF, kingX, 0, { W: WHITE })
+    paint(pixels, POOF, poofX, 0, { W: WHITE })
     return pixels
   }
   f -= KING_FLASH_TICKS
@@ -414,7 +513,7 @@ export function kingStage(count: number, frame: number, tick: number | null, res
   }
   f -= KING_DEFEAT_TICKS
   if (f < KING_POOF_TICKS) {
-    paint(pixels, POOF, kingX, 0, { W: WHITE })
+    paint(pixels, POOF, poofX, 0, { W: WHITE })
     return pixels
   }
   f -= KING_POOF_TICKS

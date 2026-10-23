@@ -10,7 +10,7 @@ export type Moment =
   | { kind: 'damage'; startTick: number; target: number }
   | { kind: 'battle'; startTick: number; monster: Monster; skill: Skill }
 
-// Room is the number of seven-column slots granted beside the branch.
+// Room is the number of SLIME_WIDTH-column slots granted beside the branch.
 export interface Stage {
   rows: number
   taskMoment: (tick: number, random: () => number) => Moment | null

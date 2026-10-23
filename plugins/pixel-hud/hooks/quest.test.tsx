@@ -73,10 +73,10 @@ test('the quest hero stands near the left over a dotted ground with a matching t
   expect(frame[7]?.slice(12, 20)).toEqual([0x686878, null, 0x686878, null, 0x686878, null, 0x686878, null])
   expect(quest.text(quest.maxRoom).flat().map(span => span.color)).toEqual(Array(QUEST_ROWS).fill(`#${HERO_PALETTE.B.toString(16).padStart(6, '0')}`))
   expect(quest.text(quest.maxRoom).map(row => row.map(span => span.text).join(''))).toEqual([
-    '   ▄████▄ █                 ',
-    '  ▄██████ █                 ',
-    '  ███████▀█▀                ',
-    '▄ ▄▀██▄██ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ',
+    '   ▄████▄ █                                             ',
+    '  ▄██████ █                                             ',
+    '  ███████▀█▀                                            ',
+    '▄ ▄▀██▄██ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ',
   ])
 })
 
