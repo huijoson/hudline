@@ -50,15 +50,17 @@ or newer) besides Pillow and the font:
 
 The first draws all five kin at 95 columns, the minimum beside clean `main`
 (32 heading + 63 family columns).
-Other images keep the default 84 columns.
+Other images keep the default 84 columns. Both stages are 16 pixels tall,
+packed into 8 terminal rows above the two meter rows.
 The second draws `pixel-hud-king.png`: a task of a minute ends, and the image
 catches the King Slime halfway through its reign, using the exported phase
 lengths.
 The mod picks the King at random; the renderer hands it a fixed pick, the King
 Slime unless `--variant metal` asks for the Metal King Slime. The committed
-images use the King Slime.
+images use the King Slime. Its open eyes are white crosses with black centres;
+the dash eyes during its reign are blink frames.
 The third draws `pixel-hud-king.gif`, the README's demo: the same task, one
-frame for each tick of the slimes' exported `FRAME_MS` clock, from the slimes
+frame for each tick of the stages' exported `FRAME_MS` clock, from the slimes
 at rest through the whole show and home again. Pillow folds repeated frames
 into one.
 The fourth draws a contact sheet of the same frames, four across at full size,
@@ -80,12 +82,13 @@ The mod writes reset times in the machine's local zone, and the test host does
 not take `TZ`. The script shifts the sample instants by the local offset, so the
 image shows the same UTC times as `hudline.png`.
 
-Choose the quest hero for a resting PNG with `--stage quest`. Use
+Choose the quest hero for `pixel-hud-quest.png` with `--stage quest`. Use
 `--output /path/to/image.png` to inspect a scratch image without changing the
 committed showcases. The renderer selects the real Stage and waits for that
 theme's encounter to finish before drawing the sample.
 
-Add `--sheet` for a contact sheet with one battle per skill: slash against a
+Add `--sheet` for `pixel-hud-quest-sheet.png` in the system temp directory,
+a contact sheet with one battle per skill: slash against a
 slime, fireball against a bat, and thunder against a skeleton. The test host
 uses fixed picks and checks every battle frame against the selected Stage.
 Add `--gif` instead for `pixel-hud-quest.gif`: one slash battle, from the walk

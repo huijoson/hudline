@@ -11,11 +11,11 @@ wrapped at 84 columns. Reset times in this image use UTC.*
 Fields without data disappear automatically. [Reproduce this image](docs/showcase/README.md).
 
 In Claude Code, the same line can also be drawn **above** the prompt as a mod,
-with the git branch in 8-bit pixel letters and a family of slimes breathing
-beside it.
-See [Claude Code: as a mod](#claude-code-as-a-mod).
+with the git branch in 8-bit pixel letters and a family of slimes beside it.
+**When a long task finishes, the slimes merge into a King Slime**, then burst
+apart again. See [Claude Code: as a mod](#claude-code-as-a-mod).
 
-![pixel-hud, the Claude Code mod: the branch name main in 8-bit pixel letters with five pixel-art slimes beside it, above the same neon line, with the same sample values.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
+![pixel-hud after a long task: the slimes leap together, merge into a crowned King Slime beside the branch, then burst apart and arc home.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-king.gif)
 
 | What to watch | How to read it |
 |---|---|
@@ -76,7 +76,8 @@ centres and two-row U smiles. The onion kin have a three-pixel stem, sloped
 shoulders and a rounded bottom, with body colours taken from the SFC reference.
 The blue slime, merged poses and both Kings share an orange-red mouth (`0xe85820`).
 A clean `main` branch needs 95 columns to show all five; at 84 columns four fit. At
-session start they drop in one by one, then settle into their resting motion. When a task of 20 seconds or more finishes, they leap toward
+session start they drop in one by one, then settle into their resting motion.
+When a main-agent task of 20 seconds or more ends with a reply, they leap toward
 each other in two hops and collide in mid-air. They splat together, then a crowned
 **King Slime** or plated **Metal King Slime**, picked
 at random, drops in with a squash and rebound. It reigns for a few seconds,
@@ -88,14 +89,13 @@ Interrupting a tool does not count, and failures within two seconds of a flicker
 do not start another. The King, a level-up and the encounter take priority.
 
 When the conversation compacts, by hand or automatically, the family levels up:
-they hop once all together, the only time they hop in step, and flash gold at
-the top of the hop. A level-up replaces the encounter or a flicker, and gives
-way to the King.
+they hop once all together and flash gold at the top of the hop. A level-up
+replaces the encounter or a flicker, and gives way to the King.
 
 They breathe and blink at rest. To make them hop instead, each in its own time,
-turn on **Slimes hop** for pixel-hud in `/config` (the `slimesHop` option). With
-hopping off, turn off **Slimes breathe** (`slimesIdle`) to keep them perfectly
-still.
+turn on **Slimes hop** for pixel-hud in `/config` (the `slimesHop` option, off
+by default). With hopping off, turn off **Slimes breathe** (`slimesIdle`, on by
+default) to keep them perfectly still.
 
 ![pixel-hud after a long task: the slimes leap together, merge into a crowned King Slime beside the branch, then burst apart and arc home.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-king.gif)
 
@@ -104,7 +104,14 @@ values as the image above; [reproduce them](docs/showcase/README.md#the-mod-imag
 
 ![pixel-hud's quest stage: a blue-armoured hero walks beside the branch, a monster scrolls in, the hero strikes it with a skill, and it bursts.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud-quest.gif)
 
-Pick **quest** under **Stage theme** (`stage`) in `/config` for a hero who fights a monster each time a task finishes.
+Pick **quest** under **Stage theme** (`stage`, **slimes** by default) in `/config`
+for a walking hero. After a completed main-agent reply, a random slime, bat,
+ghost or skeleton scrolls in. The hero uses slash, fireball or thunder, picked
+separately at random. Battles need room beside the branch and give way to the compaction
+level-up. Replies during a battle or level-up do not start another battle.
+The hero walks in at session start, flickers when a tool fails and hops with a
+gold flash on compaction. Turning off **Slimes breathe** stops the resting walk
+and scrolling ground. **Slimes hop** only affects the slime family.
 
 Install it from a terminal session of Claude Code 2.1.294 or newer:
 
@@ -123,17 +130,21 @@ colours follow the same ramps. What the mod does not have:
   when you want to choose the fields.
 - **Transcripts over 4 MiB.** A mod may not read a larger file. `SENT`, `CR`
   and `OUT` keep counting from the responses themselves, but thinking is only in
-  the transcript, so `TH` disappears.
+  the transcript, so `TH` disappears. If the transcript is already too large
+  when the mod loads, earlier token totals cannot be recovered.
+- **Cost** comes directly from Claude Code. The mod does not check for a
+  substituted model rate before showing it.
 - **Effort** appears after the first reply, and the narration has no
   `agent_running` line.
 
 The slimes give up their room one by one before the branch name is shortened,
 and need at least two of them for the King Slime. The quest stage needs 46
-columns beside the branch and is hidden when they do not fit. Both stages are 8
-rows tall, so the mod needs a band of 10 rows. They are drawn in full colour in a
-terminal; the desktop app's Code tab draws them resting, one colour each. The
-branch shrinks to a `▶ BRANCH` chip when the band is narrow or short, and is
-hidden outside a git repository. Run the mod *or* the status line: with both,
+columns beside the branch and is hidden when they do not fit. Both stages are 16
+pixels tall, packed into 8 terminal rows, so the mod needs a band of 10 rows
+including the meters. They are drawn in full colour in a terminal; the desktop
+app's Code tab draws them resting, one colour each. The branch shrinks to a
+`▶ BRANCH` chip when the band is narrow or short, and is hidden outside a git
+repository. A dirty worktree adds a red pixel `*`, or a red `!` beside the chip. Run the mod *or* the status line: with both,
 everything but the branch is shown twice. Uninstall with
 `/plugin uninstall pixel-hud`. Its source is [`plugins/pixel-hud/`](plugins/pixel-hud);
 [ADR-0011](docs/adr/0011-claude-code-also-ships-as-a-mod.md) records why it exists.
@@ -153,7 +164,7 @@ they do not measure a spending rate or predict when quota will run out.
 | `CTX ▰▰▱▱▱ 42%` | how full the context window is **right now**. **Full is bad.** Occupancy can drop when the conversation compacts. |
 | `5H ▰▰▰▱▱ 61% (18:30)` | 5-hour quota **remaining** (not used), and its reset time. Full is good. |
 | `7D ▰▰▰▰▱ 83% (09/13)` | weekly quota remaining, and its reset **date** (`MM/DD`). Full is good. |
-| `$1.23` | what this conversation has cost so far, as the CLI reckons it: the tokens it moved, priced at list rates. A price, not a bill — on a subscription this number is not money you paid. The default theme writes it exactly as the CLI does, so it matches `/cost`; under fifty cents that means four decimals. A model the CLI has no price for is billed at a rate belonging to some other model, and then the number is not shown at all. |
+| `$1.23` | what this conversation has cost so far, as the CLI reckons it: the tokens it moved, priced at list rates. A price, not a bill — on a subscription this number is not money you paid. The default theme writes it exactly as the CLI does, so it matches `/cost`; at or below fifty cents that means four decimals. A model the CLI has no price for is billed at a rate belonging to some other model, and then the number is not shown at all. |
 | `SENT 1.2M` | every token sent to the model, summed over the whole conversation. Each turn resends the conversation, so this climbs far past the context window — see below. |
 | `CR 98%` | of that `SENT`, the share served from **cache read**. The remainder consists of cache writes and uncached input. A higher share means more of the input came from cache. |
 | `OUT 21.1k` | tokens the model produced. Per token these are the most expensive on the line. |
@@ -236,7 +247,7 @@ their own text with them and nothing else moves.
 
 ## Fields
 
-`hudline --list-fields` prints this table with live sample values and marks what
+`hudline --list-fields` prints this table with sample values and marks what
 your CLI cannot supply. Add `--host=qwen-code` to see it for another CLI.
 
 | field | means |
@@ -252,13 +263,13 @@ your CLI cannot supply. Add `--host=qwen-code` to see it for another CLI.
 | `{quota}` `{quota_reset}` | single model quota remaining / when it resets — Antigravity |
 | `{branch}` | current git branch |
 | `{cwd}` | shell directory you are in, follows `/add-dir` |
-| `{dir}` | project root the session started in |
+| `{dir}` | host-reported project directory; Copilot uses the current directory |
 | `{added}` | how many extra directories are in scope |
 | `{cost}` | what this conversation has cost so far |
 | `{lines_add}` `{lines_del}` | lines added / removed this session |
 | `{agent}` | name of the subagent running now |
 | `{style}` | active output style |
-| `{session}` | name you gave this session |
+| `{session}` | session name, or session identifier on Qwen Code |
 | `{ver}` | CLI version |
 | `{vim}` | vim mode, `INSERT` or `NORMAL` |
 | `{pr}` | pull request number, inside a PR worktree |
@@ -285,14 +296,15 @@ Other notes worth knowing:
   A breakdown never joins the sum, which is why they are shown as shares — a
   cache read is not a number to add to anything, it is a fraction of what you
   already sent.
-- **They measure volume, not money.** `{sent}` is 98% cache reads on any
-  conversation that has been running a while, and cache reads are the cheapest
-  tokens there are. For cost, use `{cost}`; for headroom, `{5h}` and `{7d}`.
+- **They measure volume, not money.** `{sent}` can be mostly cache reads,
+  which are cheaper than uncached input. For cost, use `{cost}`; for headroom,
+  `{5h}` and `{7d}`.
 - **Compaction does not reset them.** A token total covers one conversation,
   and a conversation is one transcript: `/clear` starts a fresh count,
-  `--resume` continues one, and a subagent's turns belong to the conversation
-  that spawned it. Compacting empties the context window without ending the
-  conversation, so `{ctx}` drops to near zero while `{tot}` keeps climbing.
+  `--resume` continues one. Claude Code totals cover the supplied transcript;
+  they do not include separate subagent transcripts. Compacting empties the
+  context window without ending the conversation, so `{ctx}` drops to near zero
+  while `{tot}` keeps climbing.
   Both are right; they answer different questions.
 - Token totals mean the same thing everywhere but arrive differently: Claude
   Code needs the transcript read (its payload's `context_window` is current
@@ -307,7 +319,7 @@ Other notes worth knowing:
   other way: with no transcript to read, `{cost}` is shown rather than
   withdrawn, because a file that cannot be read says nothing about whether the
   model could be priced.
-- `wk` still works as an alias for `7d`.
+- `wk` and `wk_reset` still work as aliases for `7d` and `7d_reset`.
 
 ## Themes
 
@@ -452,9 +464,10 @@ on your current line.
 You are editing the real line, not a list of checkboxes — what you see is what
 your CLI will print, in the theme it will print it in.
 
-Before writing anything it takes a backup, shows you a diff, and asks. It only
-ever touches the `statusLine` key. If your settings file contains comments it
-will not rewrite it at all — it prints the snippet for you to paste.
+Before writing it shows you a diff and asks. After confirmation it backs up an
+existing file, then changes only the `statusLine` key. If your settings file
+contains comments it will not rewrite it at all — it prints the snippet for
+you to paste.
 
 ## Troubleshooting
 
@@ -470,7 +483,7 @@ a status line has no other output channel. `payload is not valid JSON` means the
 CLI sent something unexpected; `unknown theme x` and format errors name the
 problem and the column.
 
-**A field prints as `{ctx}` instead of a value.** That key does not exist. A
+**A field prints as `{ctz}` instead of a value.** That key does not exist. A
 typo is passed through literally so it is visible rather than silently dropped.
 `--list-fields` has the spellings.
 
@@ -480,8 +493,9 @@ typo is passed through literally so it is visible rather than silently dropped.
 **Everything is one colour.** The terminal is reporting 8-colour support.
 `COLORTERM=truecolor` if you know better, or `--theme=plain` if you do not.
 
-**It got slow.** Only token fields read the transcript. Drop `{sent}` `{cr}`
-`{cw}` `{out}` `{th}` `{tot}` from your Format and nothing is read at all.
+**It got slow.** On Claude Code, token fields and `{cost}` read the transcript.
+Drop `{sent}` `{cr}` `{cw}` `{out}` `{th}` `{tot}` and `{cost}` from your Format
+to avoid that read.
 
 **My line says `{in}` after upgrading from 0.4.x.** `{in}` is gone. It counted
 only the input that missed the cache both ways — a couple of tokens per request
@@ -493,7 +507,8 @@ instead of reporting a number three orders of magnitude off. `{cr}` `{cw}`
 
 **It is painted and I want it plain.** `neon` is the default theme. A Format
 says what to show and a theme says how, so `--theme=plain` changes only the
-appearance — same fields, no colour, no meters.
+appearance: same fields, no meters, basic threshold colours and plain narration.
+Add `--no-color` to remove colour too.
 
 ## Full manual
 

@@ -5,7 +5,7 @@ Glossary for `hudline`. Terms only — no implementation detail, no spec.
 ## Status line
 
 The single line of text this package writes to stdout. Claude Code renders it
-verbatim beneath the prompt. It is the entire product surface.
+verbatim beneath the prompt. The pixel-hud mod draws above the prompt instead.
 
 ## Host
 
@@ -14,16 +14,16 @@ its stdout** — Claude Code, GitHub Copilot CLI, Antigravity CLI, Qwen Code,
 Cursor CLI, Factory Droid. Every Host uses that same mechanism and a different
 Payload shape. A Host is the thing a Status line is installed *into*.
 
-Being an agent CLI is not enough to be a Host. Codex CLI and opencode render
-their status lines from a fixed set of built-in items and run no command at
-all, so nothing here can be installed into them — a limit of the CLI, not a gap
-in this package.
+Being an agent CLI is not enough to be a Host. Codex CLI uses built-in status
+items and opencode has no custom status line. Neither runs a command for it, so
+hudline cannot be installed as a status line in either CLI.
 
 ## Payload
 
 The JSON object a Host writes to this package's stdin on every refresh. The
-sole source of live data while rendering. This package never reads a Host's
-settings file in order to render.
+source of host-reported data while rendering. Token totals can also come from
+the transcript. This package never reads a Host's settings file in order to
+render.
 
 ## Adapter
 
@@ -56,8 +56,8 @@ does not reduce or reset the other.
 
 The span every token total is counted over. Its boundary is one transcript:
 `/clear` starts a new Conversation and the totals begin again at zero,
-`--resume` continues an existing one, and a subagent's turns belong to the
-Conversation that spawned it.
+`--resume` continues an existing one. Claude Code totals cover the supplied
+transcript and exclude separate subagent transcripts.
 
 Compaction does **not** end a Conversation. This is the one consequence a
 reader will guess wrong: after a compaction the context window empties while
@@ -290,8 +290,9 @@ default: a small squish and an occasional blink), **hop**, or **still**.
 A one-off animation set off by something that happened in the session, which
 takes the whole stage from the Rest and then hands it back. One Moment holds
 the stage at a time. The kinds are the **King Slime show** (after a long task),
-the **level-up** (on compaction), the **encounter** (when a session starts) and
-the **damage** flicker (when a tool fails). The King Slime show crowns one of
-two Kings, picked at random: the King Slime or the Metal King Slime.
+the quest **battle** (after a completed reply), the **level-up** (on compaction),
+the **encounter** (when a session starts) and the **damage** flicker (when a tool
+fails). The King Slime show crowns one of two Kings, picked at random: the King
+Slime or the Metal King Slime.
 
 _Avoid_: event, animation

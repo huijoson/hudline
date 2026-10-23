@@ -22,12 +22,12 @@ Nothing to install. The command in your CLI's settings does the work:
 npx -y hudline
 ```
 
-`npx` downloads and caches the package the first time, so it needs network once.
-Every later run is served from cache.
+`npx` downloads and caches the package. Later runs may still need network
+access to resolve the package version.
 
 ### Installed globally
 
-Slightly faster to start, and works offline from the first run:
+Slightly faster to start, and works offline after installation:
 
 ```sh
 npm install -g hudline
@@ -41,7 +41,7 @@ Then use `hudline` on its own wherever this manual says `npx -y hudline`.
 npx -y hudline init
 ```
 
-Pick your CLI, pick a starting line, edit it, confirm the diff. Done.
+Pick your CLI and theme, pick a starting line, edit it, confirm the diff. Done.
 
 **Run this in a plain terminal, not inside the CLI you are configuring.** A
 full-screen editor inside another full-screen editor cannot work; hudline
@@ -51,10 +51,11 @@ editor.
 What `init` does, in order:
 
 1. asks which CLI, showing which ones it cannot support and why
-2. shows four starting lines, each rendered with sample data
-3. opens the editor on the one you pick
-4. shows you a diff of the settings file
-5. asks before writing, backs the file up, then writes only the `statusLine` key
+2. asks which theme to use in the full-screen flow
+3. shows the starting lines, each rendered with sample data
+4. opens the editor on the one you pick
+5. shows you a diff of the settings file
+6. asks before writing, backs up an existing file, then writes only the `statusLine` key
 
 If your settings file contains comments it will not rewrite it at all — it
 prints the snippet for you to paste, because silently deleting your comments to
@@ -101,7 +102,7 @@ both. What the mod cannot do is listed in the
 | | |
 |---|---|
 | WSL / Linux / macOS | `~/.copilot/config.json` — or `~/.copilot/settings.json`, whichever you already have |
-| Windows | `%USERPROFILE%\.copilot\config.json` |
+| Windows | `%USERPROFILE%\.copilot\config.json`, or `settings.json` in the same folder if it already exists |
 
 ```json
 {
@@ -163,8 +164,8 @@ Note the extra nesting under `ui`:
 
 ### CLIs that are not supported
 
-**Codex CLI and opencode cannot run hudline at all.** Both build their status
-lines from a fixed list of built-in items and never run an external command.
+**Codex CLI and opencode cannot run hudline as a status line.** Codex uses a
+fixed list of built-in items; opencode has no custom status line.
 This is not something a future release here can fix
 ([openai/codex#17827](https://github.com/openai/codex/issues/17827),
 [anomalyco/opencode#30295](https://github.com/anomalyco/opencode/issues/30295)).
@@ -181,7 +182,7 @@ Restart your CLI after editing its settings.
 npx -y hudline --list-fields
 ```
 
-prints every field with a live sample value, what it means, and what your CLI
+prints every field with a sample value, what it means, and what your CLI
 cannot supply. Add `--host=…` to see it for a different CLI.
 
 To change the line, either run `npx -y hudline edit`, or write a Format
@@ -276,9 +277,9 @@ Restart the CLI. For Copilot CLI, also check the feature flag; for Antigravity,
 check the key is camelCase.
 
 **`init` opens a plain typed list instead of the editor.**
-You are running it inside an agent CLI, over SSH without a TTY, or in CI.
-Run it in a plain terminal for the full-screen editor. `--no-tui` forces the
-typed flow deliberately.
+hudline detected an agent CLI or could not use raw terminal input. Run it in a
+plain terminal for the full-screen editor. Without a TTY, it prints examples
+and a settings snippet instead. `--no-tui` forces the typed flow deliberately.
 
 **Colours look wrong, or you are piping the output somewhere.**
 `--no-color`, or set `NO_COLOR=1`.
@@ -289,13 +290,14 @@ launches from. A Windows `node.exe` cannot be executed from a Linux process.
 
 ## Upgrading
 
-With `npx -y hudline`, you get the latest version automatically. Your Format
+With `npx -y hudline`, the package version is unpinned. Your Format
 is stored expanded in your settings file, so **which fields you see never
 changes under you** when the package updates.
 
 How they *look* can: the default theme decides colour, meters and the wording
-of the narration, and `--theme=plain` opts out of all three without touching
-which fields you see.
+of the narration. `--theme=plain` uses basic threshold colours, percentages
+without meters, and plain narration without changing which fields you see.
+Add `--no-color` to remove colour too.
 
 What a field *means* can change too, but only in a major release and never
 silently — a field whose meaning changes is removed and replaced under a new
@@ -316,13 +318,14 @@ then restart Claude Code.
 
 ## Uninstalling
 
-Delete the `statusLine` key from your CLI's settings file and restart it. If you
-installed globally, `npm uninstall -g hudline`. The Claude Code mod:
+Delete the `statusLine` key (`ui.statusLine` on Qwen Code) from your CLI's
+settings file and restart it. If you installed globally, `npm uninstall -g hudline`.
+The Claude Code mod:
 `/plugin uninstall pixel-hud`.
 
-hudline writes nothing else: no state files, no hooks, no network calls beyond
-`npx` fetching the package. The only file it ever touches is the settings file
-you point it at, and only after showing you the diff.
+The status-line renderer writes no files and makes no network calls. The
+wizard writes the settings file and a backup of an existing file, after showing
+you the diff and getting confirmation. `npx` manages its own package cache.
 
 ## Coming from cc-token-statusline
 
@@ -337,4 +340,5 @@ restart. Three things to expect:
   ways — a couple of tokens per request — and `{sent}` replaces it, counting
   everything sent to the model. `{cr}` `{cw}` `{th}` are now shares of their own
   layer rather than raw counts. A Format still naming `{in}` prints it literally.
-- the line is painted by default; `--theme=plain` turns that off
+- the line uses neon by default; `--theme=plain` keeps only basic threshold
+  colours, and `--no-color` removes those too
