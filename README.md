@@ -122,7 +122,9 @@ colours follow the same ramps. What the mod does not have:
   `agent_running` line.
 
 The slimes give up their room one by one before the branch name is shortened,
-and need at least two of them for the King Slime. They are drawn in full colour in a
+and need at least two of them for the King Slime. The quest stage needs 46
+columns beside the branch and is hidden when they do not fit. Both stages are 8
+rows tall, so the mod needs a band of 10 rows. They are drawn in full colour in a
 terminal; the desktop app's Code tab draws them resting, one colour each. The
 branch shrinks to a `▶ BRANCH` chip when the band is narrow or short, and is
 hidden outside a git repository. Run the mod *or* the status line: with both,

@@ -2,6 +2,10 @@
 
 Status: ready for agent · 2026-10-18 · shaped with `/impeccable shape`
 
+ADR 0015 later redrew the slimes 14 pixels wide on a 16-pixel stage (8 text
+rows) and doubled the lifts. The sizes, lifts and pixel drafts below are the
+original 7-pixel ones.
+
 ## Problem Statement
 
 The slime family beside the branch in the pixel-hud mod reads as generic pixel
