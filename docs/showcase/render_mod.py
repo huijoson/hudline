@@ -49,12 +49,12 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   return nextResolve(specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier) ? `${specifier}.ts` : specifier, context)
 } })
 const { MONSTERS, SKILLS, paintMonster, paintSkill } = await import(MODULE)
-const { STAGE_ROWS } = await import(STAGE_MODULE)
+const { QUEST_STAGE: stage } = await import(STAGE_MODULE)
 const groups = []
 for (const [table, painter] of [[MONSTERS, paintMonster], [SKILLS, paintSkill]]) {
   for (const [name, art] of Object.entries(table)) {
     const frames = art.frames.map((_, frame) => {
-      const pixels = Array.from({ length: STAGE_ROWS * 2 }, () => Array(14).fill(null))
+      const pixels = Array.from({ length: stage.rows * 2 }, () => Array(14).fill(null))
       painter(pixels, name, 2, frame)
       return pixels
     })
@@ -62,7 +62,7 @@ for (const [table, painter] of [[MONSTERS, paintMonster], [SKILLS, paintSkill]])
   }
 }
 console.log(JSON.stringify(groups))
-""".replace("STAGE_MODULE", json.dumps((MOD / "hooks" / "stage.ts").as_uri())).replace("MODULE", json.dumps((MOD / "hooks" / "quest-foes.ts").as_uri()))
+""".replace("STAGE_MODULE", json.dumps((MOD / "hooks" / "quest.ts").as_uri())).replace("MODULE", json.dumps((MOD / "hooks" / "quest-foes.ts").as_uri()))
     run = subprocess.run(["node", "--experimental-strip-types", "--input-type=module", "-e", source],
                          text=True, capture_output=True, check=True)
     groups = json.loads(run.stdout)

@@ -15,8 +15,9 @@ import {
   usd,
 } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { HERO_PALETTE, QUEST_STAGE } from './quest'
-import { POLL_MS } from './register'
+import { QUEST_STAGE } from './quest'
+import { HERO_PALETTE, QUEST_ROWS } from './quest-hero'
+import { METER_ROWS, POLL_MS } from './register'
 import {
   canCrown,
   DAMAGE_COOLDOWN_TICKS,
@@ -57,7 +58,7 @@ import {
   slimeText,
   SLIME_WIDTH,
   stage,
-  STAGE_ROWS,
+  SLIME_ROWS,
 } from './slime'
 import type { Moment } from './slime'
 
@@ -93,18 +94,18 @@ function slimeFace(pixels: (number | null)[][], i: number) {
 function slimeCellFace(cells: string, count: number, i: number) {
   const binary = atob(cells)
   const bytesPerSlime = SLIME_WIDTH * 3 * Uint32Array.BYTES_PER_ELEMENT
-  return Array.from({ length: STAGE_ROWS }, (_, row) => {
+  return Array.from({ length: SLIME_ROWS }, (_, row) => {
     const start = (row * count + i) * bytesPerSlime
     return binary.slice(start, start + bytesPerSlime)
   })
 }
 
 // Decode the public Raster output back to pixels for clipping assertions.
-function slimePixels(cells: string) {
+function slimePixels(cells: string, rows = SLIME_ROWS) {
   const bytes = Uint8Array.from(atob(cells), ch => ch.charCodeAt(0))
   const words = new Uint32Array(bytes.buffer)
-  const width = words.length / (STAGE_ROWS * 3)
-  return Array.from({ length: STAGE_ROWS * 2 }, (_, row) =>
+  const width = words.length / (rows * 3)
+  return Array.from({ length: rows * 2 }, (_, row) =>
     Array.from({ length: width }, (_, col) => {
       const offset = (Math.floor(row / 2) * width + col) * 3
       const glyph = words[offset]
@@ -594,12 +595,12 @@ describe('slime family', () => {
 
   test('packs a frame into three rows of Raster cells', () => {
     const bytes = atob(slimeCells(3, 0)).length
-    expect(bytes).toBe(slimeColumns(3) * 3 * 3 * 4)
+    expect(bytes).toBe(slimeColumns(3) * SLIME_ROWS * 3 * 4)
   })
 
   test('draws a resting frame as text where there is no Raster', () => {
     const rows = slimeText(4)
-    expect(rows.length).toBe(3)
+    expect(rows.length).toBe(SLIME_ROWS)
     for (let i = 0; i < 4; i += 1) {
       expect(rows.map(row => row[i]?.text)).toEqual(['   ▄   ', ' ▄███▄ ', '███████'])
     }
@@ -621,7 +622,7 @@ for (const slimesIdle of [true, false]) {
     const ui = await mount($, 'terminal', 10, 120)
     const raster = await ui.find({ type: 'Raster', key: 'slimes' })
     expect(raster?.props.columns).toBe(slimeColumns(4))
-    expect(raster?.props.rows).toBe(3)
+    expect(raster?.props.rows).toBe(SLIME_ROWS)
     const hopAirborneTick = 3
     const encounter: Moment = { kind: 'encounter', startTick: 0 }
     await clock.advance(FRAME_MS * hopAirborneTick)
@@ -1134,7 +1135,7 @@ const hopFall = hopTop + HOP_HANG_TICKS
 const hopLanding = hopFall + HOP_FALL_TICKS
 const hopRebound = hopLanding + HOP_LAND_TICKS
 const hopSettle = hopRebound + HOP_REBOUND_TICKS
-const floorRow = STAGE_ROWS * 2 - 1
+const floorRow = SLIME_ROWS * 2 - 1
 const kingDropStarts = KING_GATHER_TICKS + KING_MERGE_TICKS
 const kingReignStarts = KING_GATHER_TICKS + KING_MERGE_TICKS + KING_DROP_TICKS + KING_FLASH_TICKS
 
@@ -1163,7 +1164,7 @@ describe('slime moments', () => {
   test('level-up hops every kin in unison, gold and white at the top, and ends standing', () => {
     const startTick = HOP_TICKS * 2 + 1
     const settleTick = HOP_TICKS - HOP_SETTLE_TICKS
-    const floorRow = STAGE_ROWS * 2 - 1
+    const floorRow = SLIME_ROWS * 2 - 1
     // Blue's own hop from its first crouch is the shape every kin shares.
     const hopShape = (frame: number) => shape(slimeFace(stage(1, frame, 'hop'), 0))
     const blueHang = slimeFace(stage(1, hopTop, 'hop'), 0)
@@ -1206,7 +1207,7 @@ describe('slime moments', () => {
         // First visible tick: bottom two rows; next tick: bottom four rows.
         for (const [offset, visibleRows] of [[1, 2], [2, 4]] as const) {
           const actual = slimeFace(slimePixels(slimeCells(count, dropTick + offset, encounter, 'still')), i)
-          const expected = [...standing.slice(-visibleRows), ...Array(STAGE_ROWS * 2 - visibleRows).fill(emptyRow)]
+          const expected = [...standing.slice(-visibleRows), ...Array(SLIME_ROWS * 2 - visibleRows).fill(emptyRow)]
           expect(actual).toEqual(expected)
         }
       }
@@ -1891,7 +1892,7 @@ test('the quest hero stays still with idle off even when slime hopping is on', {
   const end = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, QUEST_STAGE.maxRoom, 'still')
   await clock.advance(FRAME_MS * end)
   expect(blits.at(-1)).toBe(QUEST_STAGE.cells(QUEST_STAGE.maxRoom, end, null, 'still'))
-  expect(slimePixels(blits.at(-1)!).flat()).toContain(HERO_PALETTE.B)
+  expect(slimePixels(blits.at(-1)!, QUEST_STAGE.rows).flat()).toContain(HERO_PALETTE.B)
   blits.length = 0
   await clock.advance(FRAME_MS * DAMAGE_COOLDOWN_TICKS)
   expect(blits).toEqual([])
@@ -1919,7 +1920,7 @@ test('quest failures flicker the hero and compaction takes over in gold', { opti
   await $.classic.PostToolUseFailure(failure as never)
   const damage: Moment = { kind: 'damage', startTick: tick, target: 0 }
   expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, tick, damage, 'still'))
-  expect(slimePixels(blits.at(-1)!).slice(0, -1).flat().every(pixel => pixel === null)).toBe(true)
+  expect(slimePixels(blits.at(-1)!, QUEST_STAGE.rows).slice(0, -1).flat().every(pixel => pixel === null)).toBe(true)
   await clock.advance(FRAME_MS)
   expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, tick + 1, damage, 'still'))
   await $.classic.PostCompact({ ...compaction, trigger: 'auto' } as never)
@@ -1982,3 +1983,39 @@ for (const columns of [40, 120]) {
     await ui.unmount()
   })
 }
+
+for (const [theme, rows] of [['quest', QUEST_ROWS], ['slimes', SLIME_ROWS]] as const) {
+  test(`${theme} seats a ${rows}-row Raster on each render`, { options: { stage: theme } }, async ($, on) => {
+    mock.clock(on)
+    answers(on, { name: 'main', porcelain: '', isRepo: true })
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+    for (let render = 0; render < 2; render += 1) {
+      const ui = await mount($, 'terminal', rows + METER_ROWS, 120)
+      const raster = await ui.find({ type: 'Raster', key: 'slimes' })
+      expect(raster?.props.rows).toBe(rows)
+      expect(new Uint32Array(Uint8Array.from(atob(String(raster?.props.cells)), ch => ch.charCodeAt(0)).buffer).length).toBe(Number(raster?.props.columns) * rows * 3)
+      await ui.unmount()
+    }
+  })
+}
+
+test('the desktop quest fallback includes all four rows', { options: { stage: 'quest' } }, async ($, on) => {
+  mock.clock(on)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true })
+  const ui = await mount($, 'desktop', 10, 120)
+  for (const row of QUEST_STAGE.text(QUEST_STAGE.maxRoom)) {
+    expect(await ui.find({ type: 'Text', text: row[0]!.text })).toBeDefined()
+  }
+  await ui.unmount()
+})
+
+test('a five-row band uses the chip instead of clipping the quest stage', { options: { stage: 'quest' } }, async ($, on) => {
+  mock.clock(on)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', QUEST_ROWS + METER_ROWS - 1, 120)
+  expect(await ui.find({ type: 'Raster', key: 'slimes' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: ' ▶ MAIN ' })).toBeDefined()
+  await ui.unmount()
+})

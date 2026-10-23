@@ -1,13 +1,14 @@
 import { expect, mock, test } from 'claude-code/testing'
 
 import { BATTLE_APPROACH_TICKS, QUEST_STAGE } from './quest'
-import { FRAME_MS, STAGE_ROWS } from './stage'
+import { QUEST_ROWS } from './quest-hero'
+import { FRAME_MS } from './stage'
 
 function slimePixels(cells: string) {
   const bytes = Uint8Array.from(atob(cells), ch => ch.charCodeAt(0))
   const words = new Uint32Array(bytes.buffer)
-  const width = words.length / (STAGE_ROWS * 3)
-  return Array.from({ length: STAGE_ROWS * 2 }, (_, row) =>
+  const width = words.length / (QUEST_ROWS * 3)
+  return Array.from({ length: QUEST_ROWS * 2 }, (_, row) =>
     Array.from({ length: width }, (_, col) => {
       const offset = (Math.floor(row / 2) * width + col) * 3
       const glyph = words[offset]
