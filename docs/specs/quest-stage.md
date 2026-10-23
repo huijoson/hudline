@@ -103,9 +103,9 @@ Original pixel art in the NES palette the slimes use. Do not copy any
 published game's sprites. The quest stage is 16 pixels tall (8 text rows),
 like the slime stage.
 
-- **Hero**: the Loto hero, 20 wide by 16 tall (26 wide when attacking). Blue
-  armour, a winged helmet with the gold Loto crest, a crest shield, and a sword
-  with a winged hilt.
+- **Hero**: 20 wide by 16 tall (26 wide when attacking), after the horned SFC
+  hero: a blue helmet with red horns, a gold crest and a red jewel, gold-trimmed
+  blue armour, a red cape, a round blue shield with a red jewel, and a sword.
   Poses: WALK_A and WALK_B (legs apart, legs together), STAND, ATTACK (sword
   forward), HURT (for flicker), CHEER (sword up, for level-up). The hero
   stands near the left of the stage, about column 2.
@@ -114,7 +114,10 @@ like the slime stage.
 - **Monsters**, up to 16 wide and 11 to 16 tall: `slime` (a green
   quest-slime, not one of the slime family's kin), `bat` (purple, wings
   flapping between two frames), `skeleton` (bone white), `ghost` (pale blue,
-  bobbing two pixels).
+  bobbing two pixels). Twelve more join them, after the Dragon Quest II
+  monster sheet: `metalSlime`, `healslime`, `eyeball`, `mage`, `gremlin`,
+  `mummy`, `cobra`, `flame`, `treeface`, `cyclops`, `gargoyle` and
+  `maneater`. Each has a display name for battle messages.
 - **Skills**:
   - `slash`: the hero steps forward one pixel in ATTACK, and a white
     diagonal streak appears over the monster for 2 ticks.
