@@ -32,12 +32,12 @@ test('the quest hero stands near the left over a dotted ground with a matching t
   const quest = selectStage('quest')
   expect(quest.columns(4)).toBe(slimeColumns(4))
   const frame = pixels(quest.cells(4, 0, null, 'still'))
-  expect(frame[0]?.slice(2, 7)).toEqual([null, 0x0058f8, 0x0058f8, null, null])
+  expect(frame[1]?.slice(2, 8)).toEqual([null, 0x0058f8, 0x0058f8, 0x0058f8, null, 0xfcfcfc])
   expect(frame[5]?.slice(8, 16)).toEqual([0x686878, null, 0x686878, null, 0x686878, null, 0x686878, null])
   expect(quest.text(4).map(row => row.map(span => span.text).join(''))).toEqual([
-    '   ██▄                      ',
-    '  ▄██▄▀                     ',
-    '▄ ▄███▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ',
+    '   ▄▄▄ █                    ',
+    '  ▄███▄█                    ',
+    '▄ ████▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ',
   ])
 })
 

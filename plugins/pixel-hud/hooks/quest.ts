@@ -3,26 +3,26 @@ import type { Palette, Pixels } from './slime'
 import { STAGE_ROWS } from './stage'
 import type { Moment, Rest, Stage } from './stage'
 
-// B blue armour, F face, S skin, W sword, '.' transparent.
-export const STAND = ['.BB..', '.BFS.', '.BB.W', 'BBBB.', '.BBB.', '.B.B.']
-export const WALK_A = ['.BB..', '.BFS.', '.BB.W', 'BBBB.', '.BBB.', 'B...B']
-export const WALK_B = STAND
+// H helmet, F face, K eye, R cape, B armour, S hand, Y hilt, W blade, L legs.
+export const STAND = ['.....W', '.HHH.W', '.HFK.W', 'RBBBSY', 'RBBB..', '.L.L..']
+export const WALK_A = ['.....W', '.HHH.W', '.HFK.W', 'RBBBSY', 'RBBB..', 'L...L.']
+export const WALK_B = ['.....W', '.HHH.W', '.HFK.W', 'RBBBSY', 'RBBB..', '..L...']
 export const WALK_POSE_TICKS = 4
 export const WALK_CYCLE_TICKS = WALK_POSE_TICKS * 2
 export const GROUND_STEP_TICKS = 2
 export const QUEST_ENCOUNTER_TICKS = 12
 export const QUEST_DAMAGE_TICKS = 6
-export const HURT = ['.BB..', '.BFS.', 'BBB.W', '.BBB.', '.BB..', 'B..B.']
-export const ATTACK = ['.BB...', '.BFS..', '.BBBWW', 'BBBB..', '.BBB..', 'B...B.']
-export const CHEER = ['....W', '.BB.W', '.BFS.', 'BBBB.', '.B.B.']
+export const HURT = ['......', 'HHH...', 'HFF..W', 'RBBBSY', 'RBBB..', 'L..L..']
+export const ATTACK = ['........', '.HHH....', '.HFK....', 'RBBBSYWW', 'RBBB....', '.L..L...']
+export const CHEER = ['....W.', '.HHHW.', '.HFKY.', 'RBBBS.', 'RBBB..', '.L.L..']
 const LEVEL_UP_LIFTS = [0, 0, 1, 1, 1, 1, 0, 0]
 export const QUEST_LEVEL_UP_TICKS = LEVEL_UP_LIFTS.length
 export const LEVEL_UP_FLASH_START = 3
 export const LEVEL_UP_FLASH_TICKS = 2
 export const HERO_X = 2
 export const QUEST_MIN_COLUMNS = 17
-export const HERO_PALETTE = { B: 0x0058f8, F: 0xfcd8a8, S: 0xfc9838, W: 0xfcfcfc }
-const GOLD_PALETTE = { ...HERO_PALETTE, B: 0xfcbc3c, F: 0xfcfcfc, S: 0xfcfcfc }
+export const HERO_PALETTE = { H: 0x0058f8, F: 0xfcd8a8, K: 0x181818, R: 0xd82800, B: 0x0078f8, S: 0xfcd8a8, Y: 0xac7c00, W: 0xfcfcfc, L: 0x0000bc }
+const GOLD_PALETTE = { ...HERO_PALETTE, H: 0xfcbc3c, B: 0xfcbc3c, L: 0xfcbc3c, R: 0xfcfcfc, F: 0xfcfcfc, S: 0xfcfcfc }
 const GROUND = 0x686878
 
 function questColumns(room: number): number {
