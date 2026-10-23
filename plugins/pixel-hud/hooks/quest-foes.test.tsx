@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { FIREBALL_TICKS, MONSTERS, paintMonster, paintSkill, SLASH_TICKS, THUNDER_TICKS } from './quest-foes'
+import type { Monster } from './quest-foes'
 import { QUEST_ROWS } from './quest-hero'
 
 const LEFT = 2
@@ -48,21 +49,24 @@ test('the quest slime is a green, grounded silhouette with eyes', () => {
   expect(pixels.flat()).toContain(0xf87858)
 })
 
-for (const monster of ['bat', 'skeleton', 'ghost'] as const) {
+for (const monster of Object.keys(MONSTERS) as Monster[]) {
   test(`${monster} paints a bounded NES-colour silhouette`, () => {
-    const pixels = blank()
-    paintMonster(pixels, monster, LEFT, 0)
-    expect(pixels.flat().some(p => p !== null)).toBe(true)
-    expect(pixels.length).toBe(QUEST_ROWS * 2)
-    expect(pixels.every(row => row.length === COLUMNS)).toBe(true)
-    const width = MONSTERS[monster].frames[0]!.sprite[0]!.length
-    expect(pixels.every(row => row.slice(0, LEFT).every(p => p === null) && row.slice(LEFT + width).every(p => p === null))).toBe(true)
-    const body = { bat: 0x8058e0, skeleton: 0xf0f0e8, ghost: 0xd8f4fc }[monster]
-    expect(pixels.flat()).toContain(body)
+    for (let frame = 0; frame < MONSTERS[monster].frames.length; frame += 1) {
+      const pixels = blank()
+      const pose = MONSTERS[monster].frames[frame]!
+      paintMonster(pixels, monster, LEFT, frame)
+      expect(pixels.flat().some(p => p !== null)).toBe(true)
+      expect(pixels.flat().filter(p => p !== null).length).toBe([...pose.sprite.join('')].filter(p => p !== '.').length)
+      expect(pixels.flat()).toContain(MONSTERS[monster].palette.B)
+      expect(pixels.length).toBe(QUEST_ROWS * 2)
+      expect(pixels.every(row => row.length === COLUMNS)).toBe(true)
+      const width = MONSTERS[monster].frames[0]!.sprite[0]!.length
+      expect(pixels.every(row => row.slice(0, LEFT).every(p => p === null) && row.slice(LEFT + width).every(p => p === null))).toBe(true)
+    }
   })
 }
 
-for (const monster of ['bat', 'ghost'] as const) {
+for (const monster of (Object.keys(MONSTERS) as Monster[]).filter(monster => MONSTERS[monster].frames.length === 2)) {
   test(`${monster} alternates two poses and repeats`, () => {
     const first = blank()
     const second = blank()
