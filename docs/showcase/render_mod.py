@@ -50,11 +50,12 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 } })
 const { MONSTERS, SKILLS, paintMonster, paintSkill } = await import(MODULE)
 const { QUEST_STAGE: stage } = await import(STAGE_MODULE)
+const width = 2 + Math.max(...[MONSTERS, SKILLS].flatMap(table => Object.values(table).flatMap(art => art.frames.map(pose => pose.sprite[0].length + (pose.offset ?? 0)))))
 const groups = []
 for (const [table, painter] of [[MONSTERS, paintMonster], [SKILLS, paintSkill]]) {
   for (const [name, art] of Object.entries(table)) {
     const frames = art.frames.map((_, frame) => {
-      const pixels = Array.from({ length: stage.rows * 2 }, () => Array(14).fill(null))
+      const pixels = Array.from({ length: stage.rows * 2 }, () => Array(width).fill(null))
       painter(pixels, name, 2, frame)
       return pixels
     })
@@ -67,7 +68,7 @@ console.log(JSON.stringify(groups))
                          text=True, capture_output=True, check=True)
     groups = json.loads(run.stdout)
     scale, gap, label_height = 10, 20, 32
-    tile_width, tile_height = 14 * scale, len(groups[0]["frames"][0]) * scale
+    tile_width, tile_height = len(groups[0]["frames"][0][0]) * scale, len(groups[0]["frames"][0]) * scale
     columns = max(len(group["frames"]) for group in groups)
     sheet = Image.new("RGB", (gap + columns * (tile_width + gap),
                               gap + len(groups) * (tile_height + label_height + gap)), "#101116")
@@ -125,7 +126,7 @@ SHOWCASE_TEST = """
 import { mock, test } from 'claude-code/testing'
 import { selectStage } from './stages'
 import { QUEST_STAGE, WALK_CYCLE_TICKS } from './quest'
-import { FRAME_MS, SLIME_WIDTH, KING_GATHER_TICKS, KING_MERGE_TICKS, KING_DROP_TICKS, KING_FLASH_TICKS, KING_REIGN_TICKS, KING_SHOW_TICKS } from './slime'
+import { FRAME_MS, KING_GATHER_TICKS, KING_MERGE_TICKS, KING_DROP_TICKS, KING_FLASH_TICKS, KING_REIGN_TICKS, KING_SHOW_TICKS } from './slime'
 
 test('showcase', { options: { stage: THEME_OPTION } }, async ($, on) => {
   const theme = selectStage(THEME_OPTION)
@@ -163,7 +164,7 @@ test('showcase', { options: { stage: THEME_OPTION } }, async ($, on) => {
   }
   // Let the once-per-session encounter finish before the resting sample.
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
-  const count = Number(raster?.props.columns) / SLIME_WIDTH
+  const count = Array.from({ length: theme.maxRoom + 1 }, (_, room) => room).findLast(room => theme.columns(room) === Number(raster?.props.columns)) ?? 0
   await clock.advance(FRAME_MS * theme.momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'breathe'))
   await ui.unmount()
   ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
@@ -217,7 +218,7 @@ export const register: Register = (on, options) => {
     frame_count = "0"
     if args.gif or args.sheet:
         frame_count = (
-            "QUEST_STAGE.momentEndTick({ kind: 'battle', startTick: 0, monster: 'slime', skill: 'fireball' }, 4, 'breathe') + WALK_CYCLE_TICKS"
+            "QUEST_STAGE.momentEndTick({ kind: 'battle', startTick: 0, monster: 'slime', skill: 'fireball' }, QUEST_STAGE.maxRoom, 'breathe') + WALK_CYCLE_TICKS"
             if args.stage == "quest" else "KING_SHOW_TICKS + 6"
         )
     source = (SHOWCASE_TEST

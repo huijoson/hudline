@@ -15,7 +15,7 @@ with the git branch in 8-bit pixel letters and a family of slimes breathing
 beside it.
 See [Claude Code: as a mod](#claude-code-as-a-mod).
 
-![pixel-hud, the Claude Code mod: the branch name main in 8-bit pixel letters with four pixel-art slimes beside it, above the same neon line, with the same sample values.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
+![pixel-hud, the Claude Code mod: the branch name main in 8-bit pixel letters with three pixel-art slimes beside it, above the same neon line, with the same sample values.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
 
 | What to watch | How to read it |
 |---|---|
@@ -67,7 +67,7 @@ Claude Code can also run hudline as a **mod**: a plugin that draws the line
 **above** the prompt, in the same neon look, and adds the git branch in 8-bit
 pixel letters on top. It needs no Node.js and no `statusLine` setting.
 
-![pixel-hud: the branch main in 8-bit pixel letters, four pixel-art slimes beside it, above hudline's neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
+![pixel-hud: the branch main in 8-bit pixel letters, three pixel-art slimes beside it, above hudline's neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
 
 Beside the branch sits a slime family: a slime, a she-slime, a metal slime and a
 bubble slime. At session start they drop in one by one, then settle into their
