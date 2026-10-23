@@ -74,11 +74,11 @@ const GHOST = [
 const GHOST_PAL = { B: 0xd8f4fc, H: 0x8cc8e8, K: 0x0b0a0d }
 
 export const MONSTERS = {
-  slime: { palette: SLIME_PAL, frames: [{ sprite: QUEST_SLIME, lift: 0 }] },
-  bat: { palette: BAT_PAL, frames: [BAT_UP, BAT_DOWN].map(sprite => ({ sprite, lift: 0 })) },
-  skeleton: { palette: SKELETON_PAL, frames: [{ sprite: SKELETON, lift: 0 }] },
-  ghost: { palette: GHOST_PAL, frames: [0, 2].map(lift => ({ sprite: GHOST, lift })) },
-} satisfies Record<string, { palette: Palette; frames: readonly Pose[] }>
+  slime: { name: 'Slime', palette: SLIME_PAL, frames: [{ sprite: QUEST_SLIME, lift: 0 }] },
+  bat: { name: 'Dracky', palette: BAT_PAL, frames: [BAT_UP, BAT_DOWN].map(sprite => ({ sprite, lift: 0 })) },
+  skeleton: { name: 'Skeleton', palette: SKELETON_PAL, frames: [{ sprite: SKELETON, lift: 0 }] },
+  ghost: { name: 'Ghost', palette: GHOST_PAL, frames: [0, 2].map(lift => ({ sprite: GHOST, lift })) },
+} satisfies Record<string, { name: string; palette: Palette; frames: readonly Pose[] }>
 
 export type Monster = keyof typeof MONSTERS
 
