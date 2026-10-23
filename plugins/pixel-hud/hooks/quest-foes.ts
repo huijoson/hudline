@@ -522,6 +522,7 @@ const SKILL_PAL = { W: 0xfcfcfc, w: 0x8cc8fc, O: 0xf85818, Y: 0xfcd848 }
 
 export const SKILLS = {
   slash: {
+    name: 'Slash',
     heroStep: 1,
     origin: 'monster',
     originOffset: 0,
@@ -529,6 +530,7 @@ export const SKILLS = {
     frames: Array<EffectPose>(2).fill({ sprite: SLASH, lift: 0, offset: 0 }),
   },
   fireball: {
+    name: 'Fireball',
     heroStep: 0,
     origin: 'sword',
     originOffset: 0,
@@ -541,13 +543,14 @@ export const SKILLS = {
     })),
   },
   thunder: {
+    name: 'Thunder',
     heroStep: 0,
     origin: 'monster',
     originOffset: 0,
     palette: SKILL_PAL,
     frames: [BOLT.length / 4, BOLT.length / 2, BOLT.length].map(rows => ({ sprite: BOLT.slice(0, rows), lift: QUEST_ROWS * 2 - rows, offset: 0 })),
   },
-} satisfies Record<string, { heroStep: number; origin: 'monster' | 'sword'; originOffset: number; palette: Palette; frames: readonly EffectPose[] }>
+} satisfies Record<string, { name: string; heroStep: number; origin: 'monster' | 'sword'; originOffset: number; palette: Palette; frames: readonly EffectPose[] }>
 
 export type Skill = keyof typeof SKILLS
 

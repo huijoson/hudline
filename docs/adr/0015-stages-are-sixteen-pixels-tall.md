@@ -47,3 +47,11 @@ wider too. The quest stage needs 46 columns, and four slimes need 56, so a
 narrow band shows fewer slimes or no quest stage sooner. The quest stage
 claims exactly its 46 columns whenever it fits, rather than a multiple of the
 slime slot.
+
+## Amendment — 2026-10-24
+
+The quest hero was redrawn after the horned SFC hero, per the user's reference
+art. It wears a blue helmet with red horns and a gold crest, a red jewel,
+gold-trimmed armour and a red cape, and carries a round shield with a red
+jewel. This replaces the Loto hero's winged helmet and winged hilt above. The
+hero remains 16 pixels tall.
