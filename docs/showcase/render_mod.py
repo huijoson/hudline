@@ -22,6 +22,8 @@ parser.add_argument("--font", default="/usr/share/fonts/truetype/dejavu/DejaVuSa
 parser.add_argument("--stage", choices=["slimes", "quest"], default="slimes",
                     help="choose the stage theme")
 parser.add_argument("--output", type=Path, help="write the image to this path")
+parser.add_argument("--variant", choices=["king", "gold", "metal"], default="king",
+                    help="which King the slimes crown")
 mode = parser.add_mutually_exclusive_group()
 mode.add_argument("--king", action="store_true",
                     help="draw the King Slime show after a long task (pixel-hud-king.png)")
@@ -215,6 +217,15 @@ export const register: Register = (on, options) => {
 }
 """)
         (copy / "hooks" / "hooks.json").write_text(json.dumps({"modules": ["./battle-showcase.ts"]}))
+    else:
+        # A fixed pick in the middle of the variant's third of [0, 1).
+        pick = (["king", "gold", "metal"].index(args.variant) + 0.5) / 3
+        (copy / "hooks" / "king-showcase.ts").write_text(f"""
+import {{ register as registerHud }} from './register'
+import type {{ Register }} from 'claude-code'
+export const register: Register = (on, options) => registerHud(on, options, () => {pick})
+""")
+        (copy / "hooks" / "hooks.json").write_text(json.dumps({"modules": ["./king-showcase.ts"]}))
     frame_count = "0"
     if args.gif or args.sheet:
         frame_count = (
