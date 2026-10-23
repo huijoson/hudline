@@ -1,6 +1,6 @@
 import { paint } from './slime'
 import type { Palette, Pixels } from './slime'
-import { ATTACK, QUEST_ROWS } from './quest-hero'
+import { ATTACK_BLADE_LIFT, QUEST_ROWS } from './quest-hero'
 
 type Pose = { sprite: readonly string[]; lift: number }
 
@@ -42,6 +42,8 @@ export function paintMonster(pixels: Pixels, monster: Monster, x: number, frame:
 
 type EffectPose = Pose & { offset: number }
 
+const FIREBALL = ['.O.', 'OHO', '.O.']
+
 export const SKILLS = {
   slash: {
     heroStep: 1,
@@ -55,7 +57,7 @@ export const SKILLS = {
     origin: 'sword',
     originOffset: 0,
     palette: { O: 0xfca044, H: 0xfcd8a8 },
-    frames: Array.from({ length: 6 }, (_, offset) => ({ sprite: ['.O.', 'OHO', '.O.'], lift: QUEST_ROWS * 2 - ATTACK.findIndex(row => row.includes('W')) - 2, offset })),
+    frames: Array.from({ length: 6 }, (_, offset) => ({ sprite: FIREBALL, lift: ATTACK_BLADE_LIFT - (FIREBALL.length - 1) / 2, offset })),
   },
   thunder: {
     heroStep: 0,

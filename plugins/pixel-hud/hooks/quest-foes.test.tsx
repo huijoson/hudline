@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { FIREBALL_TICKS, MONSTERS, paintMonster, paintSkill, SLASH_TICKS, THUNDER_TICKS } from './quest-foes'
-import { QUEST_ROWS } from './quest'
+import { QUEST_ROWS } from './quest-hero'
 
 function blank(columns = 12): (number | null)[][] {
   return Array.from({ length: QUEST_ROWS * 2 }, () => Array<number | null>(columns).fill(null))

@@ -15,8 +15,9 @@ import {
   usd,
 } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { HERO_PALETTE, QUEST_STAGE } from './quest'
-import { POLL_MS } from './register'
+import { QUEST_STAGE } from './quest'
+import { HERO_PALETTE, QUEST_ROWS } from './quest-hero'
+import { METER_ROWS, POLL_MS } from './register'
 import {
   canCrown,
   DAMAGE_COOLDOWN_TICKS,
@@ -594,12 +595,12 @@ describe('slime family', () => {
 
   test('packs a frame into three rows of Raster cells', () => {
     const bytes = atob(slimeCells(3, 0)).length
-    expect(bytes).toBe(slimeColumns(3) * 3 * 3 * 4)
+    expect(bytes).toBe(slimeColumns(3) * SLIME_ROWS * 3 * 4)
   })
 
   test('draws a resting frame as text where there is no Raster', () => {
     const rows = slimeText(4)
-    expect(rows.length).toBe(3)
+    expect(rows.length).toBe(SLIME_ROWS)
     for (let i = 0; i < 4; i += 1) {
       expect(rows.map(row => row[i]?.text)).toEqual(['   ▄   ', ' ▄███▄ ', '███████'])
     }
@@ -621,7 +622,7 @@ for (const slimesIdle of [true, false]) {
     const ui = await mount($, 'terminal', 10, 120)
     const raster = await ui.find({ type: 'Raster', key: 'slimes' })
     expect(raster?.props.columns).toBe(slimeColumns(4))
-    expect(raster?.props.rows).toBe(3)
+    expect(raster?.props.rows).toBe(SLIME_ROWS)
     const hopAirborneTick = 3
     const encounter: Moment = { kind: 'encounter', startTick: 0 }
     await clock.advance(FRAME_MS * hopAirborneTick)
@@ -1983,13 +1984,13 @@ for (const columns of [40, 120]) {
   })
 }
 
-for (const [theme, rows] of [['quest', 4], ['slimes', 3]] as const) {
+for (const [theme, rows] of [['quest', QUEST_ROWS], ['slimes', SLIME_ROWS]] as const) {
   test(`${theme} seats a ${rows}-row Raster on each render`, { options: { stage: theme } }, async ($, on) => {
     mock.clock(on)
     answers(on, { name: 'main', porcelain: '', isRepo: true })
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
     for (let render = 0; render < 2; render += 1) {
-      const ui = await mount($, 'terminal', 10, 120)
+      const ui = await mount($, 'terminal', rows + METER_ROWS, 120)
       const raster = await ui.find({ type: 'Raster', key: 'slimes' })
       expect(raster?.props.rows).toBe(rows)
       expect(new Uint32Array(Uint8Array.from(atob(String(raster?.props.cells)), ch => ch.charCodeAt(0)).buffer).length).toBe(Number(raster?.props.columns) * rows * 3)
@@ -2013,7 +2014,7 @@ test('a five-row band uses the chip instead of clipping the quest stage', { opti
   mock.clock(on)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 5, 120)
+  const ui = await mount($, 'terminal', QUEST_ROWS + METER_ROWS - 1, 120)
   expect(await ui.find({ type: 'Raster', key: 'slimes' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: ' ▶ MAIN ' })).toBeDefined()
   await ui.unmount()

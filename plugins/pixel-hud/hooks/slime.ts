@@ -18,7 +18,7 @@ export const BLINK = STAND.map(row => row.replaceAll('W', 'B'))
 
 export const SLIME_ROWS = 3
 export const SLIME_WIDTH = 7
-const STAGE_PIXELS = SLIME_ROWS * 2
+const SLIME_PIXELS = SLIME_ROWS * 2
 
 type Pose = { sprite: readonly string[]; lift: number }
 type Beat = Pose & { ticks: number }
@@ -100,7 +100,7 @@ const GOLD = 0xfcbc3c
 const JEWEL = 0xf83800
 
 function blank(count: number): Pixels {
-  return Array.from({ length: STAGE_PIXELS }, () => Array<number | null>(slimeColumns(count)).fill(null))
+  return Array.from({ length: SLIME_PIXELS }, () => Array<number | null>(slimeColumns(count)).fill(null))
 }
 
 // Paints `sprite` with its left edge at `x`, its bottom `lift` pixels off the floor.

@@ -43,8 +43,8 @@ const PUNCT = '#4a454e'
 const CHIP = '#ff1f8f'
 const CHIP_INK = '#0b0a0d'
 const SEP = ' ★ '
-// Big glyphs (3 rows) plus the meter (2 rows).
-const FULL_ROWS = 5
+export const METER_ROWS = 2
+const FULL_ROWS = SPRITE.length + METER_ROWS
 // /clear empties $.state, and a branch switched outside Claude Code raises no
 // event: poll to catch both.
 export const POLL_MS = 3000
@@ -145,6 +145,10 @@ function fitBranch(theme: Stage, name: string, isDirty: boolean, columns: number
     return null
   }
   return { name: name.length <= room ? name : `${name.slice(0, room - 2)}..`, slimes: 0 }
+}
+
+function paddedRow(rows: readonly string[], row: number, width: number): string {
+  return rows[row] ?? ' '.repeat(width)
 }
 
 type DrawnStage = { requestId: string; slimes: number; cells: string }
@@ -359,7 +363,7 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
     const { Box, Text } = $.ui.resolve(e)
 
     // Branch: big glyphs when there is room, else a chunky chip.
-    const fit = git && e.props.maxRows >= Math.max(FULL_ROWS, theme.rows + 2) ? fitBranch(theme, git.name, git.isDirty, e.props.bodyColumns) : null
+    const fit = git && e.props.maxRows >= Math.max(FULL_ROWS, theme.rows + METER_ROWS) ? fitBranch(theme, git.name, git.isDirty, e.props.bodyColumns) : null
     const glyphs = fit === null ? null : pixelText(fit.name)
     const slimes = fit && theme.columns(fit.slimes) > 0 ? fit.slimes : 0
     // The terminal paints them in full color and can make them hop; elsewhere they rest.
@@ -485,12 +489,12 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
             <Box flexDirection="column">
               {Array.from({ length: Math.max(glyphs.length, still?.length ?? 0) }, (_, row) => (
                 <Box key={`row-${row}`}>
-                  <Text color={SPRITE_COLOR}>{SPRITE[row] ?? ' '.repeat(BRANCH_SPRITE[0]!.length)}</Text>
+                  <Text color={SPRITE_COLOR}>{paddedRow(SPRITE, row, BRANCH_SPRITE[0]!.length)}</Text>
                   <Text>{GAP}</Text>
                   <Text color={ROW_COLORS[row]} bold>
-                    {glyphs[row] ?? ' '.repeat(glyphs[0]!.length)}
+                    {paddedRow(glyphs, row, glyphs[0]!.length)}
                   </Text>
-                  {git.isDirty ? <Text color={DIRTY_COLOR}>{GAP + (dirty[row] ?? ' '.repeat(pixelWidth(1)))}</Text> : null}
+                  {git.isDirty ? <Text color={DIRTY_COLOR}>{GAP + paddedRow(dirty, row, pixelWidth(1))}</Text> : null}
                   {still ? <Text>{GAP}</Text> : null}
                   {still?.[row]?.map((s, i) => (
                     <Text key={`slime-${i}`} color={s.color}>

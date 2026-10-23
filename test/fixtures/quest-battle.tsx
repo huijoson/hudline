@@ -1,7 +1,7 @@
-import { QUEST_ROWS } from './quest'
 import { expect, mock, test } from 'claude-code/testing'
 
 import { BATTLE_APPROACH_TICKS, QUEST_STAGE } from './quest'
+import { QUEST_ROWS } from './quest-hero'
 import { FRAME_MS } from './stage'
 
 function slimePixels(cells: string) {

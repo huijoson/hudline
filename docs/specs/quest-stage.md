@@ -26,7 +26,7 @@ slime theme stays the default and does not change.
 2. As a developer who never touches the option, I want the slimes to stay
    exactly as they are, so that upgrading changes nothing for me.
 3. As a developer on the quest stage, I want a hero who walks in place while
-   the ground scrolls left, so that it reads as a journey in a 3-row band.
+   the ground scrolls left, so that it reads as a journey in a 4-row band.
 4. As a developer, I want a monster to appear each time a task finishes, so
    that every finished task gets a small payoff.
 5. As a developer, I want the monster and the skill to be random each time,
@@ -140,7 +140,7 @@ slime stage stays 6 pixels tall (3 text rows).
 | Face-off | 4 | The hero stands. The ground stops. |
 | Skill | 4–8 | The chosen skill plays; its length depends on the skill. |
 | Hit | 6 | The monster flickers hidden and shown, 3 times. |
-| Burst | 2 | The monster becomes the slime module's POOF. |
+| Burst | 2 | The monster becomes the slime module's POOF, unchanged on the 8 px stage. |
 | Resume | 4 | The empty spot scrolls away and the hero walks on. |
 
   The battle's endpoint is the end of Resume. It hands back the walk on its

@@ -3,7 +3,6 @@ import type { Monster, Skill } from './quest-foes'
 import { FAMILY, halfBlockText, paint, pixelCells, POOF, slimeColumns } from './slime'
 import type { Palette, Pixels } from './slime'
 import { ATTACK, CHEER, HERO_PALETTE, HURT, QUEST_ROWS, STAND, WALK_A, WALK_B } from './quest-hero'
-export { ATTACK, CHEER, HERO_PALETTE, HURT, QUEST_ROWS, STAND, WALK_A, WALK_B } from './quest-hero'
 import type { Moment, Rest, Stage } from './stage'
 
 export const WALK_POSE_TICKS = 4

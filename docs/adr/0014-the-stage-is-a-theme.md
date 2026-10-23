@@ -23,7 +23,7 @@ much more frequent.
 - **One `Stage` interface, chosen once.** `plugin.json` declares a `stage`
   option (`slimes` or `quest`, default `slimes`), which `/config` shows as a
   picker. `register` picks the implementation at load and never branches on
-  the theme again. Each theme supplies its columns, cells, text fallback,
+  the theme again. Each theme supplies its rows, columns, cells, text fallback,
   moment endpoints and the moment kinds it accepts. ADR 0013's single-Moment
   rule applies to every theme.
 - **The quest stage battles on every finished task.** This is opt-in: a user
