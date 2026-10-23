@@ -359,7 +359,7 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
     const { Box, Text } = $.ui.resolve(e)
 
     // Branch: big glyphs when there is room, else a chunky chip.
-    const fit = git && e.props.maxRows >= FULL_ROWS ? fitBranch(theme, git.name, git.isDirty, e.props.bodyColumns) : null
+    const fit = git && e.props.maxRows >= Math.max(FULL_ROWS, theme.rows + 2) ? fitBranch(theme, git.name, git.isDirty, e.props.bodyColumns) : null
     const glyphs = fit === null ? null : pixelText(fit.name)
     const slimes = fit && theme.columns(fit.slimes) > 0 ? fit.slimes : 0
     // The terminal paints them in full color and can make them hop; elsewhere they rest.
@@ -483,14 +483,14 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
         {glyphs && git ? (
           <Box key="branch">
             <Box flexDirection="column">
-              {glyphs.map((line, row) => (
+              {Array.from({ length: Math.max(glyphs.length, still?.length ?? 0) }, (_, row) => (
                 <Box key={`row-${row}`}>
-                  <Text color={SPRITE_COLOR}>{SPRITE[row]}</Text>
+                  <Text color={SPRITE_COLOR}>{SPRITE[row] ?? ' '.repeat(BRANCH_SPRITE[0]!.length)}</Text>
                   <Text>{GAP}</Text>
                   <Text color={ROW_COLORS[row]} bold>
-                    {line}
+                    {glyphs[row] ?? ' '.repeat(glyphs[0]!.length)}
                   </Text>
-                  {git.isDirty ? <Text color={DIRTY_COLOR}>{GAP + dirty[row]}</Text> : null}
+                  {git.isDirty ? <Text color={DIRTY_COLOR}>{GAP + (dirty[row] ?? ' '.repeat(pixelWidth(1)))}</Text> : null}
                   {still ? <Text>{GAP}</Text> : null}
                   {still?.[row]?.map((s, i) => (
                     <Text key={`slime-${i}`} color={s.color}>

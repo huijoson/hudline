@@ -100,11 +100,11 @@ function slimeCellFace(cells: string, count: number, i: number) {
 }
 
 // Decode the public Raster output back to pixels for clipping assertions.
-function slimePixels(cells: string) {
+function slimePixels(cells: string, rows = SLIME_ROWS) {
   const bytes = Uint8Array.from(atob(cells), ch => ch.charCodeAt(0))
   const words = new Uint32Array(bytes.buffer)
-  const width = words.length / (SLIME_ROWS * 3)
-  return Array.from({ length: SLIME_ROWS * 2 }, (_, row) =>
+  const width = words.length / (rows * 3)
+  return Array.from({ length: rows * 2 }, (_, row) =>
     Array.from({ length: width }, (_, col) => {
       const offset = (Math.floor(row / 2) * width + col) * 3
       const glyph = words[offset]
@@ -1891,7 +1891,7 @@ test('the quest hero stays still with idle off even when slime hopping is on', {
   const end = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, QUEST_STAGE.maxRoom, 'still')
   await clock.advance(FRAME_MS * end)
   expect(blits.at(-1)).toBe(QUEST_STAGE.cells(QUEST_STAGE.maxRoom, end, null, 'still'))
-  expect(slimePixels(blits.at(-1)!).flat()).toContain(HERO_PALETTE.B)
+  expect(slimePixels(blits.at(-1)!, QUEST_STAGE.rows).flat()).toContain(HERO_PALETTE.B)
   blits.length = 0
   await clock.advance(FRAME_MS * DAMAGE_COOLDOWN_TICKS)
   expect(blits).toEqual([])
@@ -1919,7 +1919,7 @@ test('quest failures flicker the hero and compaction takes over in gold', { opti
   await $.classic.PostToolUseFailure(failure as never)
   const damage: Moment = { kind: 'damage', startTick: tick, target: 0 }
   expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, tick, damage, 'still'))
-  expect(slimePixels(blits.at(-1)!).slice(0, -1).flat().every(pixel => pixel === null)).toBe(true)
+  expect(slimePixels(blits.at(-1)!, QUEST_STAGE.rows).slice(0, -1).flat().every(pixel => pixel === null)).toBe(true)
   await clock.advance(FRAME_MS)
   expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, tick + 1, damage, 'still'))
   await $.classic.PostCompact({ ...compaction, trigger: 'auto' } as never)
@@ -1982,3 +1982,39 @@ for (const columns of [40, 120]) {
     await ui.unmount()
   })
 }
+
+for (const [theme, rows] of [['quest', 4], ['slimes', 3]] as const) {
+  test(`${theme} seats a ${rows}-row Raster on each render`, { options: { stage: theme } }, async ($, on) => {
+    mock.clock(on)
+    answers(on, { name: 'main', porcelain: '', isRepo: true })
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+    for (let render = 0; render < 2; render += 1) {
+      const ui = await mount($, 'terminal', 10, 120)
+      const raster = await ui.find({ type: 'Raster', key: 'slimes' })
+      expect(raster?.props.rows).toBe(rows)
+      expect(new Uint32Array(Uint8Array.from(atob(String(raster?.props.cells)), ch => ch.charCodeAt(0)).buffer).length).toBe(Number(raster?.props.columns) * rows * 3)
+      await ui.unmount()
+    }
+  })
+}
+
+test('the desktop quest fallback includes all four rows', { options: { stage: 'quest' } }, async ($, on) => {
+  mock.clock(on)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true })
+  const ui = await mount($, 'desktop', 10, 120)
+  for (const row of QUEST_STAGE.text(QUEST_STAGE.maxRoom)) {
+    expect(await ui.find({ type: 'Text', text: row[0]!.text })).toBeDefined()
+  }
+  await ui.unmount()
+})
+
+test('a five-row band uses the chip instead of clipping the quest stage', { options: { stage: 'quest' } }, async ($, on) => {
+  mock.clock(on)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 5, 120)
+  expect(await ui.find({ type: 'Raster', key: 'slimes' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: ' ▶ MAIN ' })).toBeDefined()
+  await ui.unmount()
+})

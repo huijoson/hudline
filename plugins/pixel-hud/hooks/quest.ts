@@ -2,33 +2,25 @@ import { MONSTERS, paintMonster, paintSkill, SKILLS } from './quest-foes'
 import type { Monster, Skill } from './quest-foes'
 import { FAMILY, halfBlockText, paint, pixelCells, POOF, slimeColumns } from './slime'
 import type { Palette, Pixels } from './slime'
-import { QUEST_ROWS } from './quest-hero'
-export { QUEST_ROWS } from './quest-hero'
+import { ATTACK, CHEER, HERO_PALETTE, HURT, QUEST_ROWS, STAND, WALK_A, WALK_B } from './quest-hero'
+export { ATTACK, CHEER, HERO_PALETTE, HURT, QUEST_ROWS, STAND, WALK_A, WALK_B } from './quest-hero'
 import type { Moment, Rest, Stage } from './stage'
 
-// H helmet, F face, K eye, R cape, B armour, S hand, Y hilt, W blade, L legs.
-export const STAND = ['.....W', '.HHH.W', '.HFK.W', 'RBBBSY', 'RBBB..', '.L.L..']
-export const WALK_A = ['.....W', '.HHH.W', '.HFK.W', 'RBBBSY', 'RBBB..', 'L...L.']
-export const WALK_B = ['.....W', '.HHH.W', '.HFK.W', 'RBBBSY', 'RBBB..', '..L...']
 export const WALK_POSE_TICKS = 4
 export const WALK_CYCLE_TICKS = WALK_POSE_TICKS * 2
 export const GROUND_STEP_TICKS = 2
 export const QUEST_ENCOUNTER_TICKS = 12
 export const QUEST_DAMAGE_TICKS = 6
-export const HURT = ['......', 'HHH...', 'HFF..W', 'RBBBSY', 'RBBB..', 'L..L..']
-export const ATTACK = ['........', '.HHH....', '.HFK....', 'RBBBSYWW', 'RBBB....', '.L..L...']
-export const CHEER = ['....W.', '.HHHW.', '.HFKY.', 'RBBBS.', 'RBBB..', '.L.L..']
 const LEVEL_UP_LIFTS = [0, 0, 1, 1, 1, 1, 0, 0]
 export const QUEST_LEVEL_UP_TICKS = LEVEL_UP_LIFTS.length
 export const LEVEL_UP_FLASH_START = 3
 export const LEVEL_UP_FLASH_TICKS = 2
 export const HERO_X = 2
-// Leave room for the hero's attack, a two-column gap and a five-column foe.
+// Leave room for the attack, a two-column gap and the widest foe.
 export const HERO_SWORD_END = HERO_X + ATTACK[0]!.length
 export const BATTLE_MONSTER_X = HERO_SWORD_END + 2
-export const QUEST_MIN_COLUMNS = BATTLE_MONSTER_X + 5
-export const HERO_PALETTE = { H: 0x0058f8, F: 0xfcd8a8, K: 0x181818, R: 0xd82800, B: 0x0078f8, S: 0xfcd8a8, Y: 0xac7c00, W: 0xfcfcfc, L: 0x0000bc }
-const GOLD_PALETTE = { ...HERO_PALETTE, H: 0xfcbc3c, B: 0xfcbc3c, L: 0xfcbc3c, R: 0xfcfcfc, F: 0xfcfcfc, S: 0xfcfcfc }
+export const QUEST_MIN_COLUMNS = BATTLE_MONSTER_X + Math.max(...Object.values(MONSTERS).flatMap(art => art.frames.flatMap(pose => pose.sprite.map(row => row.length))))
+const GOLD_PALETTE = { ...HERO_PALETTE, H: 0xfcbc3c, h: 0xfcfcfc, d: 0xac7c00, B: 0xfcbc3c, b: 0xac7c00, L: 0xfcbc3c, O: 0xac7c00, R: 0xfcfcfc, r: 0xfcfcfc, F: 0xfcfcfc, S: 0xfcfcfc }
 const GROUND = 0x686878
 export const BATTLE_APPROACH_TICKS = 8
 export const BATTLE_FACE_OFF_TICKS = 4
