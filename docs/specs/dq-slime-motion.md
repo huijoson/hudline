@@ -13,13 +13,17 @@ merge crowns a King Slime, a Gold King Slime or a Metal King Slime, picked at
 random each time; each has its own body colours, and the Gold King's crown is
 silver. The replies below name whichever King it is.
 
-Each kin was then modelled on its Dragon Quest counterpart and narrowed to 13
+Each kin was then modelled on its Dragon Quest counterpart and narrowed to 11
 pixels. The slime, she-slime and metal slime share one onion-shaped sprite set,
 a thin tip flaring into a round bulb; the bubble slime has its own puddle set, a
-low dome over a melted skirt with bubbles above. Every pose exists in both sets,
-and each kin has its own palette and mouth colour (salmon, dark purple, red, and
-a dark grin for the bubble slime). The Gold and Metal Kings wear a plated sprite
-with banded metal shading; the blue King Slime keeps its own.
+low dome over a melted skirt with bubbles above. The fifth kin, the liquid metal
+slime, has a flowing silver mound sprite set.
+All five poses exist in all three sets. Each kin has its own palette: mouths
+are salmon, dark purple and red for the onion kin, with dark grins for both
+puddle-shaped kin. The merged blob stays 17 wide and all Kings stay 22 wide.
+The Gold and Metal Kings wear a plated sprite with banded metal shading; the
+blue King Slime keeps its own. A clean `main` heading uses 32 columns, so the 55-column family fits from 87 columns; the
+84-column showcase retains four kin under the existing branch-first fit rule.
 
 ## Problem Statement
 
@@ -60,8 +64,9 @@ The HUD's numbers stay first. Motion marks moments; it never narrates.
 1. As a developer, I want the slimes to have Dragon Quest faces (white eyes
    with dark pupils, a wide open grin, a pointed tip), so that I recognise
    them as Dragon Quest slimes at a glance.
-2. As a developer, I want the four kin (slime, she-slime, metal slime, bubble
-   slime) to keep their colours, so that the family I know stays the same.
+2. As a developer, I want the five kin (slime, she-slime, metal slime, bubble
+   slime, liquid metal slime) to keep their colours, so that the family I know
+   stays the same.
 3. As a developer, I want each kin's lower edge drawn in a darker shade of its
    body, so that the slimes look round rather than flat.
 4. As a developer, I want the slimes to keep their 7-column, 3-row footprint,
@@ -197,7 +202,7 @@ These are data tables in the slime module, not logic.
 `slimesIdle: false`):
 
 - STAND for most of the cycle, then WIDE for 2 ticks, then back to STAND.
-- Each slime has its own period: 36, 44, 50 and 40 ticks, so from about 2.9
+- Each slime has its own period: 36, 44, 50, 40 and 46 ticks, so from about 2.9
   to 4 seconds.
 - A BLINK of 1 tick plays roughly every third cycle, at a different offset
   for each slime.
@@ -263,7 +268,8 @@ it):
 
 **King Slime show** (the trigger rules are unchanged: a main-loop answer
 after a task of 20 seconds or more, or `/slime-king`; and it needs two
-slimes' worth of room):
+slimes' worth of room, 22 columns; the 24-column landing squash is clipped
+to those slots at the minimum under the existing stage-clipping policy):
 
 | Phase | Ticks (about) | What happens |
 |---|---|---|
@@ -282,7 +288,7 @@ slimes' worth of room):
 - Keep pixel-hud 0.6.1's fix (PR #3): in every leap and in the Scatter arc,
   each slime's position rounds away from the middle (floor left of it, ceil
   right of it), so where they press together every slime still shows. With 2,
-  3 and 4 slimes, every body is drawn at the collide frame and the first
+  3, 4 and 5 slimes, every body is drawn at the collide frame and the first
   Scatter frame.
 
 ### Copy (Dragon Quest battle-message style)
@@ -334,7 +340,7 @@ slimes' worth of room):
   - Keep the 0.6.1 show tests, rescaled to the new ticks: the slimes move only
     in the air; they collide airborne, further in than halfway, with every body
     showing; the next frame is one grounded splat as wide as the king in the
-    first slime's colours; for 2, 3 and 4 slimes every body shows at the
+    first slime's colours; for 2, 3, 4 and 5 slimes every body shows at the
     collide frame and the first Scatter frame.
   - Replace the 0.6.1 "leap home in two hops" test: Scatter starts where the
     slimes collided, is airborne at some tick, and ends at home in SQUASH

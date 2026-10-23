@@ -15,7 +15,7 @@ with the git branch in 8-bit pixel letters and a family of slimes breathing
 beside it.
 See [Claude Code: as a mod](#claude-code-as-a-mod).
 
-![pixel-hud, the Claude Code mod: the branch name main in 8-bit pixel letters with three pixel-art slimes beside it, above the same neon line, with the same sample values.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
+![pixel-hud, the Claude Code mod: the branch name main in 8-bit pixel letters with four pixel-art slimes beside it, above the same neon line, with the same sample values.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
 
 | What to watch | How to read it |
 |---|---|
@@ -67,12 +67,13 @@ Claude Code can also run hudline as a **mod**: a plugin that draws the line
 **above** the prompt, in the same neon look, and adds the git branch in 8-bit
 pixel letters on top. It needs no Node.js and no `statusLine` setting.
 
-![pixel-hud: the branch main in 8-bit pixel letters, three pixel-art slimes beside it, above hudline's neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
+![pixel-hud: the branch main in 8-bit pixel letters, four pixel-art slimes beside it, above hudline's neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
 
-Beside the branch sits a slime family: a slime, a she-slime, a metal slime and a
-bubble slime, each modelled on its Dragon Quest namesake, with round white eyes
-and a wide grin. At session start they drop in one by one, then settle into their
-resting motion. When a task of 20 seconds or more finishes, they leap toward
+Beside the branch sits a slime family: a slime, a she-slime, a metal slime, a
+bubble slime and a liquid metal slime, each modelled on its Dragon Quest namesake.
+All five are 11 pixels wide, with round white eyes and a wide grin. A clean
+`main` branch needs 87 columns to show all five; at 84 columns four fit. At
+session start they drop in one by one, then settle into their resting motion. When a task of 20 seconds or more finishes, they leap toward
 each other in two hops and collide in mid-air. They splat together, then a crowned
 **King Slime**, plated **Gold King Slime** or plated **Metal King Slime**, picked
 at random, drops in with a squash and rebound. It reigns for a few seconds,
