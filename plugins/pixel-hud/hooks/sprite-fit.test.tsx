@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import { LEVEL_UP_LIFTS } from './quest'
 import { MONSTERS, SKILLS } from './quest-foes'
 import { ATTACK, CHEER, HURT, QUEST_ROWS, STAND as HERO, WALK_A, WALK_B } from './quest-hero'
-import { BLINK, ENCOUNTER, ENCOUNTER_FALL_TICKS, HOP, KING, KING_COLLISION, KING_DROP, MERGED, POOF, SCATTER, SLIME_ROWS, SQUASH, STAND, STRETCH, WIDE } from './slime'
+import { ENCOUNTER, ENCOUNTER_FALL_TICKS, FAMILY, HOP, KING, KING_COLLISION, KING_DROP, KINGS, kinFrame, MERGED, ONION, POOF, SCATTER, SLIME_ROWS } from './slime'
 
 const STAGE_PIXELS = 16
 
@@ -18,22 +18,40 @@ function fits({ sprite, lift }: Pose): boolean {
 }
 
 test('the fit rule rejects a sprite that leaves the stage', () => {
-  expect(fits({ sprite: STAND, lift: STAGE_PIXELS - STAND.length + 1 })).toBe(false)
-  expect(fits({ sprite: STAND, lift: -1 })).toBe(false)
+  expect(fits({ sprite: ONION.stand, lift: STAGE_PIXELS - ONION.stand.length + 1 })).toBe(false)
+  expect(fits({ sprite: ONION.stand, lift: -1 })).toBe(false)
   expect(fits({ sprite: KING, lift: STAGE_PIXELS })).toBe(false)
   expect(fits({ sprite: KING, lift: STAGE_PIXELS - 1 })).toBe(true)
 })
 
 test('every slime sprite fits the sixteen-pixel stage at every lift it is drawn with', () => {
   expect(SLIME_ROWS * 2).toBe(STAGE_PIXELS)
-  for (const sprite of [STAND, SQUASH, WIDE, STRETCH, BLINK, KING, ...MERGED, POOF]) {
+  const kings = Object.values(KINGS)
+  for (const sprite of [...kings.flatMap(king => [king.sprite, king.blink, king.squash]), ...MERGED, POOF]) {
     expect(fits({ sprite, lift: 0 })).toBe(true)
   }
-  for (const pose of [...HOP, ...SCATTER, ...KING_DROP, KING_COLLISION]) expect(fits(pose)).toBe(true)
-  // The encounter starts wholly above the stage and falls in.
-  expect(ENCOUNTER[0]?.lift).toBe(STAGE_PIXELS)
-  for (const pose of ENCOUNTER) expect(Number.isInteger(pose.lift)).toBe(true)
-  for (const pose of ENCOUNTER.slice(ENCOUNTER_FALL_TICKS)) expect(fits(pose)).toBe(true)
+  for (const { sprite, squash } of kings) {
+    for (const drop of KING_DROP) expect(fits({ sprite: drop.squash ? squash : sprite, lift: drop.lift })).toBe(true)
+  }
+  for (const { sprites } of FAMILY) {
+    for (const sprite of Object.values(sprites)) expect(fits({ sprite, lift: 0 })).toBe(true)
+    for (const pose of [...HOP, ...SCATTER, KING_COLLISION]) expect(fits(kinFrame(sprites, pose))).toBe(true)
+    // The encounter starts wholly above the stage and falls in.
+    const encounter = ENCOUNTER.map(pose => kinFrame(sprites, pose))
+    expect(encounter[0]?.lift).toBe(STAGE_PIXELS)
+    for (const pose of encounter) expect(Number.isInteger(pose.lift)).toBe(true)
+    for (const pose of encounter.slice(ENCOUNTER_FALL_TICKS)) expect(fits(pose)).toBe(true)
+  }
+})
+
+test('every kin and every King share one size, so the slots and the King room stay fixed', () => {
+  for (const { sprites } of FAMILY) {
+    for (const sprite of Object.values(sprites)) expect(sprite.every(row => row.length === ONION.stand[0]!.length)).toBe(true)
+  }
+  for (const { sprite } of Object.values(KINGS)) {
+    expect(sprite.length).toBe(KING.length)
+    expect(sprite.every(row => row.length === KING[0]!.length)).toBe(true)
+  }
 })
 
 test('every quest sprite fits the sixteen-pixel stage at every lift it is drawn with', () => {

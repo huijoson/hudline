@@ -21,20 +21,20 @@ test('the quest slime is a green, grounded silhouette with eyes', () => {
   expect(silhouette(pixels)).toEqual([
     '....................',
     '....................',
-    '.........#..........',
-    '........##..........',
-    '........##..........',
-    '.......####.........',
-    '......######........',
-    '.....########.......',
-    '....##########......',
-    '...############.....',
-    '...############.....',
-    '..##############....',
-    '..##############....',
-    '..##############....',
-    '..##############....',
-    '...############.....',
+    '....................',
+    '....................',
+    '........#...........',
+    '........#...........',
+    '.......###..........',
+    '.....#######........',
+    '....#########.......',
+    '...###########......',
+    '..#############.....',
+    '..#############.....',
+    '..#############.....',
+    '..#############.....',
+    '..#############.....',
+    '...###########......',
   ])
   expect(pixels.flat()).toContain(0x38c838)
   expect(pixels.flat()).toContain(0x0b0a0d)
@@ -171,7 +171,8 @@ test('thunder drops a yellow zigzag from the top for three ticks', () => {
 test('painting clips at either edge and preserves transparent pixels and other rows', () => {
   const left = blank()
   const right = blank()
-  paintMonster(left, 'slime', -13, 0)
+  const slimeWidth = MONSTERS.slime.frames[0]!.sprite[0]!.length
+  paintMonster(left, 'slime', 1 - slimeWidth, 0)
   paintMonster(right, 'slime', COLUMNS - 1, 0)
   expect(left[11]).toEqual([0x38c838, ...Array(COLUMNS - 1).fill(null)])
   expect(right[11]).toEqual([...Array(COLUMNS - 1).fill(null), 0x38c838])
@@ -182,7 +183,7 @@ test('painting clips at either edge and preserves transparent pixels and other r
   paintMonster(background, 'slime', LEFT, 0)
   expect(background[0]?.[LEFT]).toBe(0x123456)
   expect(background[2]?.[LEFT]).toBe(0x123456)
-  expect(background[3]?.[LEFT + 6]).toBe(0xb8f818)
+  expect(background[6]?.[LEFT + 5]).toBe(0xb8f818)
   paintSkill(background, 'thunder', COLUMNS - 6, THUNDER_TICKS - 1)
   expect(background[0]?.[COLUMNS - 1]).toBe(0xfcd848)
   expect(background.every(row => row.length === COLUMNS)).toBe(true)

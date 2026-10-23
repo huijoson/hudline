@@ -8,88 +8,185 @@ export type { Moment, Rest } from './stage'
 // Raster, two pixels to a cell ('▀' paints the top pixel in the foreground and
 // the bottom one in the background).
 
-// B body, H highlight, W white, K pupil, M mouth, D shade, '.' transparent.
-// Each frame is 14 wide in a 16-pixel-tall stage (8 text rows), feet on the floor unless it is airborne.
-export const STAND = [
-  '......HB......',
-  '.....BHBB.....',
-  '....BHBBBB....',
-  '...BHBBBBBB...',
-  '..BHBBBBBBBB..',
-  '.BBWWWBBWWWBB.',
-  '.BBWKWBBWKWBB.',
-  'BBBWWWBBWWWBBB',
-  'BBKBBBBBBBBKBB',
-  'BBBKMMMMMMKBBB',
-  'DBBBKKKKKKBBBD',
-  '.DDDDDDDDDDDD.',
-]
-export const SQUASH = [
-  '......HB......',
-  '....BHBBBB....',
-  '..BHBBBBBBBB..',
-  '.BBWWWBBWWWBB.',
-  'BBBWKWBBWKWBBB',
-  'BBKBBBBBBBBKBB',
-  'DBBKMMMMMMKBBD',
-  'DDDDKKKKKKDDDD',
-  '.DDDDDDDDDDDD.',
-]
-export const WIDE = [
-  '......HB......',
-  '.....BHBB.....',
-  '...BHBBBBBB...',
-  '.BBHBBBBBBBBB.',
-  '.BBWWWBBWWWBB.',
-  'BBBWKWBBWKWBBB',
-  'BBBWWWBBWWWBBB',
-  'BBKBBBBBBBBKBB',
-  'DBBKMMMMMMKBBD',
-  'DDBBKKKKKKBBDD',
-  '.DDDDDDDDDDDD.',
-]
-export const STRETCH = [
-  '..............',
-  '......H.......',
-  '......H.......',
-  '.....BHB......',
-  '....BHBBB.....',
-  '...BHBBBBB....',
-  '..BWWWBWWWB...',
-  '..BWKWBWKWB...',
-  '..BWWWBWWWB...',
-  '..BKBBBBBKB...',
-  '..BBKMMMKBB...',
-  '...DBKKKBD....',
-  '....DDDDD.....',
-  '......D.......',
-]
-export const BLINK = [
-  '......HB......',
-  '.....BHBB.....',
-  '....BHBBBB....',
-  '...BHBBBBBB...',
-  '..BHBBBBBBBB..',
-  '.BBBBBBBBBBBB.',
-  '.BBKKKBBKKKBB.',
-  'BBBBBBBBBBBBBB',
-  'BBKBBBBBBBBKBB',
-  'BBBKMMMMMMKBBB',
-  'DBBBKKKKKKBBBD',
-  '.DDDDDDDDDDDD.',
+// B body, H highlight, W white, K pupil and grin, M mouth, D shade, '.' transparent.
+// Each kin is 13 wide in a 16-pixel-tall stage (8 text rows), feet on the floor unless it is airborne.
+export type KinPose = 'stand' | 'blink' | 'squash' | 'wide' | 'stretch'
+export type KinSprites = Record<KinPose, readonly string[]>
+
+// A thin tip flaring into a round bulb: the slime, she-slime and metal slime.
+export const ONION: KinSprites = {
+  stand: [
+    '......B......',
+    '......B......',
+    '.....HBB.....',
+    '...BHBBBBB...',
+    '..BHBBBBBBB..',
+    '.BBWWWBWWWBB.',
+    'BBBWKWBWKWBBB',
+    'BBBWWWBWWWBBB',
+    'BBKBBBBBBBKBB',
+    'BBBKMMMMMKBBB',
+    'DBBBKKKKKBBBD',
+    '.DDDDDDDDDDD.',
+  ],
+  blink: [
+    '......B......',
+    '......B......',
+    '.....HBB.....',
+    '...BHBBBBB...',
+    '..BHBBBBBBB..',
+    '.BBBBBBBBBBB.',
+    'BBBKKKBKKKBBB',
+    'BBBBBBBBBBBBB',
+    'BBKBBBBBBBKBB',
+    'BBBKMMMMMKBBB',
+    'DBBBKKKKKBBBD',
+    '.DDDDDDDDDDD.',
+  ],
+  squash: [
+    '......B......',
+    '....BHBBB....',
+    '..BHBBBBBBB..',
+    '.BBWWWBWWWBB.',
+    'BBBWKWBWKWBBB',
+    'BBKBBBBBBBKBB',
+    'DBBKMMMMMKBBD',
+    'DDBBKKKKKBBDD',
+    '.DDDDDDDDDDD.',
+  ],
+  wide: [
+    '......B......',
+    '......B......',
+    '....BHBBB....',
+    '..BHBBBBBBB..',
+    '.BBWWWBWWWBB.',
+    'BBBWKWBWKWBBB',
+    'BBBWWWBWWWBBB',
+    'BBKBBBBBBBKBB',
+    'BBBKMMMMMKBBB',
+    'DBBBKKKKKBBBD',
+    '.DDDDDDDDDDD.',
+  ],
+  stretch: [
+    '......B......',
+    '......B......',
+    '......B......',
+    '.....HBB.....',
+    '....HBBBB....',
+    '...BHBBBBB...',
+    '..BWWWBWWWB..',
+    '..BWKWBWKWB..',
+    '..BWWWBWWWB..',
+    '..BKBBBBBKB..',
+    '..BBKMMMKBB..',
+    '...DBKKKBD...',
+    '....DDDDD....',
+    '......D......',
+  ],
+}
+
+// A low dome over a melted skirt with bubbles above: the bubble slime.
+export const PUDDLE: KinSprites = {
+  stand: [
+    '..H.......H..',
+    '.......H.....',
+    '.H...........',
+    '...BHHBBB....',
+    '..BWWWBWWWB..',
+    '..BWKWBWKWB..',
+    '..BKBBBBBKB..',
+    '.BBBKMMMKBBB.',
+    'BBBBBBBBBBBBB',
+    'DDBBBBBBBBBDD',
+    '.DDDDDDDDDDD.',
+  ],
+  blink: [
+    '..H.......H..',
+    '.......H.....',
+    '.H...........',
+    '...BHHBBB....',
+    '..BBBBBBBBB..',
+    '..BKKKBKKKB..',
+    '..BKBBBBBKB..',
+    '.BBBKMMMKBBB.',
+    'BBBBBBBBBBBBB',
+    'DDBBBBBBBBBDD',
+    '.DDDDDDDDDDD.',
+  ],
+  squash: [
+    '.H.........H.',
+    '.....H.......',
+    '...BHHBBB....',
+    '.BBWWWBWWWBB.',
+    '.BBWKWBWKWBB.',
+    'BBBKBBBBBKBBB',
+    'BBBBKMMMKBBBB',
+    'DDBBBBBBBBBDD',
+    '.DDDDDDDDDDD.',
+  ],
+  wide: [
+    '..H.......H..',
+    '.......H.....',
+    '...BHHBBB....',
+    '.BBWWWBWWWBB.',
+    '.BBWKWBWKWBB.',
+    'BBBKBBBBBKBBB',
+    'BBBBKMMMKBBBB',
+    'BBBBBBBBBBBBB',
+    'DDBBBBBBBBBDD',
+    '.DDDDDDDDDDD.',
+  ],
+  stretch: [
+    '.........H...',
+    '..H..........',
+    '......H......',
+    '....BHHB.....',
+    '...BHBBBB....',
+    '..BWWWBWWWB..',
+    '..BWKWBWKWB..',
+    '..BKBBBBBKB..',
+    '..BBKMMMKBB..',
+    '.BBBBBBBBBBB.',
+    'BBBBBBBBBBBBB',
+    'DDBBBBBBBBBDD',
+    '.DDDDDDDDDDD.',
+  ],
+}
+
+export type Pixels = (number | null)[][]
+export type Palette = Partial<Record<string, number>>
+
+const WHITE = 0xfcfcfc
+const PUPIL = 0x0b0a0d
+const GOLD = 0xfcbc3c
+
+export type Kin = { name: string; sprites: KinSprites; palette: Record<'B' | 'H' | 'D' | 'K' | 'M' | 'W', number> }
+
+export const FAMILY: readonly Kin[] = [
+  { name: 'slime', sprites: ONION, palette: { B: 0x3cbcfc, H: 0xbcf0fc, D: 0x1878bc, K: PUPIL, M: 0xf87858, W: WHITE } },
+  { name: 'she-slime', sprites: ONION, palette: { B: 0xf88820, H: 0xfcd860, D: 0xb03800, K: PUPIL, M: 0x5c1c68, W: WHITE } },
+  { name: 'metal slime', sprites: ONION, palette: { B: 0xa8b0c0, H: 0xffffff, D: 0x4c5468, K: PUPIL, M: 0xe83828, W: WHITE } },
+  { name: 'bubble slime', sprites: PUDDLE, palette: { B: 0x40c818, H: 0xc8f840, D: 0x1c7c10, K: PUPIL, M: PUPIL, W: WHITE } },
 ]
 
 export const SLIME_ROWS = 8
-export const SLIME_WIDTH = STAND[0]!.length
+export const SLIME_WIDTH = ONION.stand[0]!.length
 const SLIME_PIXELS = SLIME_ROWS * 2
-// Airborne, a kin rises until its tip touches the top of the stage.
-const STAND_AIR_LIFT = SLIME_PIXELS - STAND.length
-const STRETCH_AIR_LIFT = SLIME_PIXELS - STRETCH.length
 
-type Pose = { sprite: readonly string[]; lift: number }
+// 'air' lifts a kin until its tip touches the top of the stage; sprite heights
+// differ between kin, so it resolves per kin.
+type Lift = number | 'air'
+export type Pose = { pose: KinPose; lift: Lift }
 type Beat = Pose & { ticks: number }
+const beats = ({ ticks, ...pose }: Beat): Pose[] => Array<Pose>(ticks).fill(pose)
+export type Frame = { sprite: readonly string[]; lift: number }
 
-const RESTING_POSE: Pose = { sprite: STAND, lift: 0 }
+export function kinFrame(sprites: KinSprites, { pose, lift }: Pose): Frame {
+  const sprite = sprites[pose]
+  return { sprite, lift: lift === 'air' ? SLIME_PIXELS - sprite.length : lift }
+}
+
+const RESTING_POSE: Pose = { pose: 'stand', lift: 0 }
 
 // Durations of the moving hop phases, shared with the King's leaps.
 export const HOP_CROUCH_TICKS = 2
@@ -107,14 +204,14 @@ const HOP_FALL_START = HOP_RISE_START + HOP_AIR_TICKS
 
 // One hop: crouch, launch, rise/hang, fall, land, rebound, settle.
 export const HOP: readonly Pose[] = ([
-  { sprite: SQUASH, lift: 0, ticks: HOP_CROUCH_TICKS },
-  { sprite: STRETCH, lift: 0, ticks: HOP_LAUNCH_TICKS },
-  { sprite: STAND, lift: STAND_AIR_LIFT, ticks: HOP_AIR_TICKS },
-  { sprite: STRETCH, lift: 0, ticks: HOP_FALL_TICKS },
-  { sprite: SQUASH, lift: 0, ticks: HOP_LAND_TICKS },
-  { sprite: STRETCH, lift: 0, ticks: HOP_REBOUND_TICKS },
-  { sprite: STAND, lift: 0, ticks: HOP_SETTLE_TICKS },
-] satisfies Beat[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
+  { pose: 'squash', lift: 0, ticks: HOP_CROUCH_TICKS },
+  { pose: 'stretch', lift: 0, ticks: HOP_LAUNCH_TICKS },
+  { pose: 'stand', lift: 'air', ticks: HOP_AIR_TICKS },
+  { pose: 'stretch', lift: 0, ticks: HOP_FALL_TICKS },
+  { pose: 'squash', lift: 0, ticks: HOP_LAND_TICKS },
+  { pose: 'stretch', lift: 0, ticks: HOP_REBOUND_TICKS },
+  { pose: 'stand', lift: 0, ticks: HOP_SETTLE_TICKS },
+] satisfies Beat[]).flatMap(beats)
 export const HOP_TICKS = HOP.length
 // Fixed rest lengths in ticks keep each kin's pauses varied and repeatable.
 const HOP_RESTS = [
@@ -124,15 +221,6 @@ const HOP_RESTS = [
   [14, 8, 11],
 ] satisfies number[][]
 
-type Kin = { body: number; highlight: number; eye: number; shade: number }
-
-// Slime, she-slime, metal slime, bubble slime.
-export const FAMILY: readonly Kin[] = [
-  { body: 0x3cbcfc, highlight: 0xbcf0fc, eye: 0x0b0a0d, shade: 0x1878bc },
-  { body: 0xfc7460, highlight: 0xfcd8c8, eye: 0x0b0a0d, shade: 0xbc3830 },
-  { body: 0xa8a8b8, highlight: 0xfcfcfc, eye: 0x0b0a0d, shade: 0x686878 },
-  { body: 0x38c838, highlight: 0xb8f818, eye: 0x0b0a0d, shade: 0x188818 },
-]
 // Each kin has an offset in ticks, so they never move in step.
 const PHASE = [0, 3, 7, 12]
 
@@ -157,13 +245,6 @@ export function slimeColumns(count: number): number {
   return count * SLIME_WIDTH
 }
 
-export type Pixels = (number | null)[][]
-export type Palette = Partial<Record<string, number>>
-
-const WHITE = 0xfcfcfc
-const MOUTH = 0xf87858
-const GOLD = 0xfcbc3c
-
 function blank(count: number): Pixels {
   return Array.from({ length: SLIME_PIXELS }, () => Array<number | null>(slimeColumns(count)).fill(null))
 }
@@ -180,9 +261,13 @@ export function paint(pixels: Pixels, sprite: readonly string[], x: number, lift
   })
 }
 
-function kinPalette(i: number): Palette {
-  const kin = FAMILY[i % FAMILY.length] as Kin
-  return { B: kin.body, H: kin.highlight, K: kin.eye, W: WHITE, M: MOUTH, D: kin.shade }
+function kinOf(i: number): Kin {
+  return FAMILY[i % FAMILY.length] as Kin
+}
+
+function paintKin(pixels: Pixels, i: number, pose: Pose, x: number, palette: Palette = kinOf(i).palette) {
+  const { sprite, lift } = kinFrame(kinOf(i).sprites, pose)
+  paint(pixels, sprite, x, lift, palette)
 }
 
 // A null `tick` is the slimes at rest: all of them sitting on the floor.
@@ -191,15 +276,15 @@ function pose(i: number, tick: number | null, rest: Rest): Pose {
   if (rest === 'breathe') {
     const breath = BREATH[i % BREATH.length] as Breath
     const isBlinking = tick % (breath.period * BLINK_EVERY_CYCLES) === breath.period * (BLINK_EVERY_CYCLES - 1) + breath.blink
-    if (isBlinking) return { sprite: BLINK, lift: 0 }
+    if (isBlinking) return { pose: 'blink', lift: 0 }
     const isSquishing = tick % breath.period >= breath.period - BREATH_SQUISH_TICKS
-    return isSquishing ? { sprite: WIDE, lift: 0 } : RESTING_POSE
+    return isSquishing ? { pose: 'wide', lift: 0 } : RESTING_POSE
   }
   const { step, cycle } = hopClock(i, tick)
   if (step < HOP_TICKS) return HOP[step] as Pose
   // One tick inside every third rest; offsets 1–4 fit even a six-tick rest.
   const isBlinking = cycle % BLINK_EVERY_CYCLES === BLINK_EVERY_CYCLES - 1 && step === HOP_TICKS + 1 + i % FAMILY.length
-  return isBlinking ? { sprite: BLINK, lift: 0 } : RESTING_POSE
+  return isBlinking ? { pose: 'blink', lift: 0 } : RESTING_POSE
 }
 
 // Locate a kin in its deterministic hop/rest sequence.
@@ -215,7 +300,7 @@ function hopClock(i: number, tick: number): { step: number; cycle: number } {
   return { step, cycle }
 }
 
-// The endpoint is plain STAND; resume only at Rest or the first Crouch tick.
+// The endpoint is the plain stand; resume only at Rest or the first Crouch tick.
 function hopRejoinTick(i: number, endpoint: number): number {
   const nextTick = endpoint + 1
   const { step } = hopClock(i, nextTick)
@@ -225,16 +310,14 @@ function hopRejoinTick(i: number, endpoint: number): number {
 // Hold one kin through its endpoint, then rejoin Rest or a fresh Crouch.
 function paintRejoiningKin(pixels: Pixels, i: number, tick: number, rest: Rest, endpointTick: number) {
   const held = tick <= endpointTick || (rest === 'hop' && tick < hopRejoinTick(i, endpointTick))
-  const p = pose(i, held ? null : tick, rest)
-  paint(pixels, p.sprite, i * SLIME_WIDTH, p.lift, kinPalette(i))
+  paintKin(pixels, i, pose(i, held ? null : tick, rest), i * SLIME_WIDTH)
 }
 
 // The stage's pixels for `count` slimes at `tick`: a color per pixel, or null.
 export function stage(count: number, tick: number | null, rest: Rest = 'breathe'): Pixels {
   const pixels = blank(count)
   for (let i = 0; i < count; i += 1) {
-    const p = pose(i, tick, rest)
-    paint(pixels, p.sprite, i * SLIME_WIDTH, p.lift, kinPalette(i))
+    paintKin(pixels, i, pose(i, tick, rest), i * SLIME_WIDTH)
   }
   return pixels
 }
@@ -261,16 +344,29 @@ export const KING = [
   '.DDDDDDDDDDDDDDDDDDDD.',
 ]
 const CROWN: Palette = { Y: GOLD, J: 0xf83800, P: 0x8838d0, G: 0x28a848 }
-const SLIME = FAMILY[0] as Kin
+const FACE: Palette = { K: PUPIL, M: 0xf87858, W: WHITE }
 
 export type KingVariant = 'king' | 'gold' | 'metal'
-type King = { name: string; body: Palette; crown: Palette }
+type King = { name: string; sprite: readonly string[]; blink: readonly string[]; squash: readonly string[]; body: Palette; crown: Palette }
+
+function crowned(name: string, sprite: readonly string[], body: Palette, crown: Palette): King {
+  return {
+    name,
+    sprite,
+    blink: sprite.map(row => row.replaceAll('W', 'B')),
+    // No squash was drawn: the landing loses the crown's points and spreads one
+    // pixel wider on each side where the body meets the edge.
+    squash: sprite.slice(1).map(row => row[0] + row + row.at(-1)),
+    body: { ...FACE, ...body },
+    crown,
+  }
+}
 
 // The Gold King's crown is silver: a gold one would vanish into its body.
 export const KINGS: Record<KingVariant, King> = {
-  king: { name: 'King Slime', body: { B: SLIME.body, H: SLIME.highlight, D: SLIME.shade }, crown: CROWN },
-  gold: { name: 'Gold King Slime', body: { B: 0xf8d830, H: 0xfcfcc0, D: 0xc87800 }, crown: { ...CROWN, Y: 0xd0d8e0 } },
-  metal: { name: 'Metal King Slime', body: { B: 0xb8c4d0, H: 0xffffff, D: 0x6c7888 }, crown: CROWN },
+  king: crowned('King Slime', KING, (FAMILY[0] as Kin).palette, CROWN),
+  gold: crowned('Gold King Slime', KING, { B: 0xf8d830, H: 0xfcfcc0, D: 0xc87800 }, { ...CROWN, Y: 0xd0d8e0 }),
+  metal: crowned('Metal King Slime', KING, { B: 0xb8c4d0, H: 0xffffff, D: 0x6c7888 }, CROWN),
 }
 
 export function pickKing(random: () => number): KingVariant {
@@ -278,21 +374,18 @@ export function pickKing(random: () => number): KingVariant {
   return variants[Math.floor(random() * variants.length)]!
 }
 
-// No squash was drawn: the landing loses the crown's points and spreads one
-// pixel wider on each side where the body meets the edge.
-const KING_SQUASH = KING.slice(1).map(row => row[0] + row + row.at(-1))
 export const KING_DROP_FALL_TICKS = 2
 export const KING_DROP_SQUASH_TICKS = 2
 // The King falls from five eighths of the stage, halving its height, and rebounds one eighth.
 const KING_DROP_LIFT = SLIME_PIXELS * 5 / 8
-export const KING_DROP: readonly Pose[] = ([
-  { sprite: KING, lift: KING_DROP_LIFT, ticks: KING_DROP_FALL_TICKS / 2 },
-  { sprite: KING, lift: KING_DROP_LIFT / 2, ticks: KING_DROP_FALL_TICKS / 2 },
-  { sprite: KING_SQUASH, lift: 0, ticks: KING_DROP_SQUASH_TICKS },
-  { sprite: KING, lift: SLIME_PIXELS / 8, ticks: HOP_REBOUND_TICKS },
-  { sprite: KING, lift: 0, ticks: HOP_SETTLE_TICKS },
-] satisfies Beat[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
-const KING_BLINK = KING.map(row => row.replaceAll('W', 'B'))
+type KingBeat = { squash: boolean; lift: number; ticks: number }
+export const KING_DROP: readonly { squash: boolean; lift: number }[] = ([
+  { squash: false, lift: KING_DROP_LIFT, ticks: KING_DROP_FALL_TICKS / 2 },
+  { squash: false, lift: KING_DROP_LIFT / 2, ticks: KING_DROP_FALL_TICKS / 2 },
+  { squash: true, lift: 0, ticks: KING_DROP_SQUASH_TICKS },
+  { squash: false, lift: SLIME_PIXELS / 8, ticks: HOP_REBOUND_TICKS },
+  { squash: false, lift: 0, ticks: HOP_SETTLE_TICKS },
+] satisfies KingBeat[]).flatMap(({ ticks, ...pose }) => Array(ticks).fill(pose))
 export const KING_WIDTH = KING[0]!.length
 // The slimes landing on one another: a splat, then a blob bouncing up.
 const MERGED_SPLAT = [
@@ -339,16 +432,16 @@ const TWINKLES = [
   [[-2, SLIME_PIXELS / 2], [KING_WIDTH + 1, 0], [KING_WIDTH + 2, SLIME_PIXELS - 2]],
 ]
 
-// Lifted STAND keeps the falling collision airborne without clipping STRETCH.
-export const KING_COLLISION: Pose = { sprite: STAND, lift: STAND_AIR_LIFT }
+// An airborne stand keeps the falling collision in the air without clipping a stretch.
+export const KING_COLLISION: Pose = { pose: 'stand', lift: 'air' }
 
 export const KING_SCATTER_AIR_TICKS = HOP_AIR_TICKS + HOP_FALL_TICKS
 export const SCATTER: readonly Pose[] = ([
-  { sprite: STRETCH, lift: STRETCH_AIR_LIFT, ticks: HOP_RISE_TICKS },
-  { sprite: STAND, lift: STAND_AIR_LIFT, ticks: HOP_HANG_TICKS },
-  { sprite: STRETCH, lift: STRETCH_AIR_LIFT, ticks: HOP_FALL_TICKS },
-  { sprite: SQUASH, lift: 0, ticks: HOP_LAND_TICKS },
-] satisfies Beat[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
+  { pose: 'stretch', lift: 'air', ticks: HOP_RISE_TICKS },
+  { pose: 'stand', lift: 'air', ticks: HOP_HANG_TICKS },
+  { pose: 'stretch', lift: 'air', ticks: HOP_FALL_TICKS },
+  { pose: 'squash', lift: 0, ticks: HOP_LAND_TICKS },
+] satisfies Beat[]).flatMap(beats)
 
 // Reign blinks and twinkles hold for two ticks.
 export const KING_POSE_TICKS = 2
@@ -394,11 +487,11 @@ export const ENCOUNTER_FALL_TICKS = 3
 export const ENCOUNTER_START_LIFT = SLIME_PIXELS
 export const ENCOUNTER: readonly Pose[] = ([
   ...Array.from({ length: ENCOUNTER_FALL_TICKS }, (_, i) => ({
-    sprite: STAND, lift: Math.round(ENCOUNTER_START_LIFT * (1 - i / ENCOUNTER_FALL_TICKS)), ticks: 1,
-  })),
-  { sprite: SQUASH, lift: 0, ticks: HOP_LAND_TICKS },
-  { sprite: STRETCH, lift: 0, ticks: HOP_REBOUND_TICKS },
-] satisfies Beat[]).flatMap(({ sprite, lift, ticks }) => Array<Pose>(ticks).fill({ sprite, lift }))
+    pose: 'stand', lift: Math.round(ENCOUNTER_START_LIFT * (1 - i / ENCOUNTER_FALL_TICKS)), ticks: 1,
+  }) satisfies Beat),
+  { pose: 'squash', lift: 0, ticks: HOP_LAND_TICKS },
+  { pose: 'stretch', lift: 0, ticks: HOP_REBOUND_TICKS },
+] satisfies Beat[]).flatMap(beats)
 export const ENCOUNTER_ARRIVAL_TICKS = ENCOUNTER.length
 
 // Relative endpoint of one kin, shared by rendering and expiry.
@@ -463,7 +556,7 @@ function paintFamily(pixels: Pixels, count: number, progress: number, familyPose
   for (let i = 0; i < count; i += 1) {
     const home = i * SLIME_WIDTH
     const x = home + (middle - home) * progress
-    paint(pixels, familyPose.sprite, home < middle ? Math.floor(x) : Math.ceil(x), familyPose.lift, kinPalette(i))
+    paintKin(pixels, i, familyPose, home < middle ? Math.floor(x) : Math.ceil(x))
   }
 }
 
@@ -488,8 +581,8 @@ export function kingStage(count: number, frame: number, tick: number | null, res
   const pixels = blank(count)
   const kingX = Math.floor((slimeColumns(count) - KING_WIDTH) / 2)
   const poofX = Math.floor((slimeColumns(count) - POOF[0]!.length) / 2)
-  const body: Palette = { ...kinPalette(0), ...KINGS[variant].body }
-  const king: Palette = { ...body, ...KINGS[variant].crown }
+  const { sprite, blink, squash, body, crown } = KINGS[variant]
+  const king: Palette = { ...body, ...crown }
   let f = frame
   if (f < KING_GATHER_TICKS) {
     gather(pixels, count, f)
@@ -503,14 +596,15 @@ export function kingStage(count: number, frame: number, tick: number | null, res
   }
   f -= KING_MERGE_TICKS
   if (f < KING_DROP_TICKS) {
-    const drop = KING_DROP[f] as Pose
-    const x = Math.floor((slimeColumns(count) - (drop.sprite[0] ?? '').length) / 2)
-    paint(pixels, drop.sprite, x, drop.lift, king)
+    const drop = KING_DROP[f]!
+    const dropSprite = drop.squash ? squash : sprite
+    const x = Math.floor((slimeColumns(count) - (dropSprite[0] ?? '').length) / 2)
+    paint(pixels, dropSprite, x, drop.lift, king)
     return pixels
   }
   f -= KING_DROP_TICKS
   if (f === 0) {
-    paint(pixels, KING, kingX, 0, whiteOf(KING))
+    paint(pixels, sprite, kingX, 0, whiteOf(sprite))
     return pixels
   }
   if (f < KING_FLASH_TICKS) {
@@ -520,7 +614,7 @@ export function kingStage(count: number, frame: number, tick: number | null, res
   f -= KING_FLASH_TICKS
   if (f < KING_REIGN_TICKS) {
     const reignPose = (f - f % KING_POSE_TICKS) / KING_POSE_TICKS
-    paint(pixels, reignPose % 8 === 5 ? KING_BLINK : KING, kingX, 0, king)
+    paint(pixels, reignPose % 8 === 5 ? blink : sprite, kingX, 0, king)
     for (const [dx, row] of TWINKLES[Math.floor(reignPose / 3) % 2] ?? []) {
       const line = pixels[row ?? 0]
       const x = kingX + (dx ?? 0)
@@ -530,7 +624,7 @@ export function kingStage(count: number, frame: number, tick: number | null, res
   }
   f -= KING_REIGN_TICKS
   if (f < KING_DEFEAT_TICKS) {
-    if (f % KING_FLICKER_TICKS === KING_FLICKER_TICKS - 1) paint(pixels, KING, kingX, 0, king)
+    if (f % KING_FLICKER_TICKS === KING_FLICKER_TICKS - 1) paint(pixels, sprite, kingX, 0, king)
     return pixels
   }
   f -= KING_DEFEAT_TICKS
@@ -575,8 +669,8 @@ function levelUpStage(moment: Moment, count: number, tick: number, rest: Rest): 
   const isGold = frame >= HOP_HANG_START && frame < HOP_FALL_START
   for (let i = 0; i < count; i += 1) {
     if (frame < LEVEL_UP_ENDPOINT) {
-      const p = HOP[frame] as Pose
-      paint(pixels, p.sprite, i * SLIME_WIDTH, p.lift, isGold ? { ...kinPalette(i), B: GOLD, H: WHITE } : kinPalette(i))
+      const { palette } = kinOf(i)
+      paintKin(pixels, i, HOP[frame]!, i * SLIME_WIDTH, isGold ? { ...palette, B: GOLD, H: WHITE } : palette)
     } else {
       paintRejoiningKin(pixels, i, tick, rest, endpointTick)
     }
@@ -591,8 +685,7 @@ function encounterStage(count: number, frame: number, tick: number, rest: Rest):
     const step = frame - i * ENCOUNTER_STAGGER_TICKS
     if (step < 0) continue
     if (step < ENCOUNTER.length) {
-      const p = ENCOUNTER[step] as Pose
-      paint(pixels, p.sprite, i * SLIME_WIDTH, p.lift, kinPalette(i))
+      paintKin(pixels, i, ENCOUNTER[step]!, i * SLIME_WIDTH)
     } else {
       paintRejoiningKin(pixels, i, tick, rest, startTick + encounterEndpoint(i))
     }
@@ -651,8 +744,7 @@ export function slimeText(count: number): { text: string; color: string }[][] {
   return Array.from({ length: SLIME_ROWS }, (_, row) =>
     Array.from({ length: count }, (_, i) => {
       const text = halfBlockText(pixels, row, i * SLIME_WIDTH, (i + 1) * SLIME_WIDTH)
-      const kin = FAMILY[i % FAMILY.length] as Kin
-      return { text, color: `#${kin.body.toString(16).padStart(6, '0')}` }
+      return { text, color: `#${kinOf(i).palette.B.toString(16).padStart(6, '0')}` }
     }),
   )
 }
