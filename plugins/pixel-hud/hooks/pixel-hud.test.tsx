@@ -1564,6 +1564,16 @@ describe('King Slime', () => {
     expect(kingStage(2, kingBlink, null, 'breathe', 'king')[7]?.includes(WHITE)).toBe(false)
   })
 
+  test('every King closes each three-pixel eye into a lid when blinking', () => {
+    for (const king of Object.values(KINGS)) {
+      expect(king.blink[8]?.slice(7, 15)).toBe('KKKBBKKK')
+      expect(king.blink.join('')).not.toContain('W')
+      expect(king.blink.map(row => row.replaceAll(/[BHK]/g, 'B'))).toEqual(
+        king.sprite.map(row => row.replaceAll(/[BHWK]/g, 'B')),
+      )
+    }
+  })
+
   test('both merged poses keep white eyes, pupils, a red grin and lower shading at their original sizes', () => {
     // [offset, width, height, white, dark, mouth, floor shade] of the splat and the blob.
     for (const [offset, width, height, white, dark, mouth, floorShade] of [

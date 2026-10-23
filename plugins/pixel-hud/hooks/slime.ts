@@ -399,7 +399,7 @@ function crowned(name: string, sprite: readonly string[], body: Palette, crown: 
   return {
     name,
     sprite,
-    blink: sprite.map(row => row.replaceAll('W', 'B')),
+    blink: sprite.map(row => row.replaceAll(/WKW/g, 'KKK').replaceAll('W', 'B')),
     // No squash was drawn: the landing loses the crown's points and spreads one
     // pixel wider on each side where the body meets the edge.
     squash: sprite.slice(1).map(row => row[0] + row + row.at(-1)),
