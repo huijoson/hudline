@@ -10,7 +10,7 @@ export const WALK_CYCLE_TICKS = WALK_POSE_TICKS * 2
 export const GROUND_STEP_TICKS = 2
 export const QUEST_ENCOUNTER_TICKS = 12
 export const QUEST_DAMAGE_TICKS = 6
-const LEVEL_UP_LIFTS = [0, 0, 1, 1, 1, 1, 0, 0]
+export const LEVEL_UP_LIFTS = [0, 0, 2, 2, 2, 2, 0, 0]
 export const QUEST_LEVEL_UP_TICKS = LEVEL_UP_LIFTS.length
 export const LEVEL_UP_FLASH_START = 3
 export const LEVEL_UP_FLASH_TICKS = 2
@@ -19,7 +19,8 @@ export const HERO_X = 2
 export const HERO_SWORD_END = HERO_X + ATTACK[0]!.length
 export const BATTLE_MONSTER_X = HERO_SWORD_END + 2
 export const QUEST_MIN_COLUMNS = BATTLE_MONSTER_X + Math.max(...Object.values(MONSTERS).flatMap(art => art.frames.flatMap(pose => pose.sprite.map(row => row.length))))
-const GOLD_PALETTE = { ...HERO_PALETTE, H: 0xfcbc3c, h: 0xfcfcfc, d: 0xac7c00, B: 0xfcbc3c, b: 0xac7c00, L: 0xfcbc3c, O: 0xac7c00, R: 0xfcfcfc, r: 0xfcfcfc, F: 0xfcfcfc, S: 0xfcfcfc }
+// Helmet, armour and legs turn gold, the shield white; skin, cape and emblem keep their colours.
+const GOLD_PALETTE = { ...HERO_PALETTE, H: HERO_PALETTE.G, h: 0xfcfcfc, d: HERO_PALETTE.g, B: HERO_PALETTE.G, b: HERO_PALETTE.g, S: 0xfcfcfc, L: HERO_PALETTE.G, D: HERO_PALETTE.g, O: HERO_PALETTE.g }
 const GROUND = 0x686878
 export const BATTLE_APPROACH_TICKS = 8
 export const BATTLE_FACE_OFF_TICKS = 4
@@ -62,7 +63,8 @@ function battleArt(pixels: Pixels, frame: number, moment: Battle) {
     paintSkill(pixels, moment.skill, origin + skill.originOffset, frame - effectStart)
   }
   if (frame >= burstStart && frame < burstStart + BATTLE_BURST_TICKS) {
-    paint(pixels, POOF, BATTLE_MONSTER_X - 2, 0, { W: 0xfcfcfc })
+    const foeWidth = MONSTERS[moment.monster].frames[0]!.sprite[0]!.length
+    paint(pixels, POOF, BATTLE_MONSTER_X + Math.floor((foeWidth - POOF[0]!.length) / 2), 0, { W: 0xfcfcfc })
   }
 }
 

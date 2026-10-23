@@ -1,5 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
+import { LEVEL_UP_LIFTS } from './quest'
+import { MONSTERS, SKILLS } from './quest-foes'
+import { ATTACK, CHEER, HURT, QUEST_ROWS, STAND as HERO, WALK_A, WALK_B } from './quest-hero'
 import { BLINK, ENCOUNTER, ENCOUNTER_FALL_TICKS, HOP, KING, KING_DROP, MERGED, POOF, SCATTER, SLIME_ROWS, SQUASH, STAND, STRETCH, WIDE } from './slime'
 
 const STAGE_PIXELS = 16
@@ -7,7 +10,7 @@ const STAGE_PIXELS = 16
 type Pose = { sprite: readonly string[]; lift: number }
 
 // A full-height sprite cannot move up without leaving the top, so its jumps
-// and falls (the King's drop and rebound) are the one exception.
+// and falls (the King's drop and rebound, the hero's level-up) are the one exception.
 function fits({ sprite, lift }: Pose): boolean {
   return Number.isInteger(lift) && lift >= 0 && (lift + sprite.length <= STAGE_PIXELS || sprite.length === STAGE_PIXELS)
 }
@@ -22,4 +25,13 @@ test('every slime sprite fits the sixteen-pixel stage at every lift it is drawn 
   expect(ENCOUNTER[0]?.lift).toBe(STAGE_PIXELS)
   for (const pose of ENCOUNTER) expect(Number.isInteger(pose.lift)).toBe(true)
   for (const pose of ENCOUNTER.slice(ENCOUNTER_FALL_TICKS)) expect(fits(pose)).toBe(true)
+})
+
+test('every quest sprite fits the sixteen-pixel stage at every lift it is drawn with', () => {
+  expect(QUEST_ROWS * 2).toBe(STAGE_PIXELS)
+  for (const sprite of [HERO, WALK_A, WALK_B, ATTACK, HURT, POOF]) expect(fits({ sprite, lift: 0 })).toBe(true)
+  for (const lift of LEVEL_UP_LIFTS) expect(fits({ sprite: CHEER, lift })).toBe(true)
+  for (const art of [...Object.values(MONSTERS), ...Object.values(SKILLS)]) {
+    for (const pose of art.frames) expect(fits(pose)).toBe(true)
+  }
 })

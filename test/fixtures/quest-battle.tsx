@@ -53,8 +53,8 @@ test('a short main answer battles without restarting for another answer', { opti
   for (let frame = 0; frame < frames.length; frame += 1) {
     expect(frames[frame]).toBe(QUEST_STAGE.cells(room, startTick + frame, battle, 'still'))
   }
-  expect(slimePixels(frames[BATTLE_APPROACH_TICKS]!).flat()).toContain(0x9878f8)
-  expect(frames.some(cells => slimePixels(cells!).flat().includes(0xf8d878))).toBe(true)
+  expect(slimePixels(frames[BATTLE_APPROACH_TICKS]!).flat()).toContain(0x8058e0)
+  expect(frames.some(cells => slimePixels(cells!).flat().includes(0xfcd848))).toBe(true)
   expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, end, null, 'still'))
   await ui.unmount()
 })

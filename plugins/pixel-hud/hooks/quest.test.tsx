@@ -25,6 +25,10 @@ import { slimeColumns } from './slime'
 import { FRAME_MS, nextMoment } from './stage'
 import { selectStage } from './stages'
 
+const FLOOR = QUEST_ROWS * 2 - 1
+const GROUND = 0x686878
+const BOOT = 0x6a4020
+
 // Decode the public Raster cells into the quest pixel rows.
 function pixels(cells: string) {
   const words = new Uint32Array(Uint8Array.from(atob(cells), ch => ch.charCodeAt(0)).buffer)
@@ -53,7 +57,8 @@ for (const monster of Object.keys(MONSTERS) as Monster[]) {
       expect(foe(BATTLE_APPROACH_TICKS).includes(MONSTERS[monster].palette.B)).toBe(true)
       const skillStart = BATTLE_SKILL_START
       const skillFrames = Array.from({ length: BATTLE_SKILL_TICKS[skill] }, (_, i) => frame(skillStart + i))
-      expect(skillFrames.some(picture => picture.flat().includes(Object.values(SKILLS[skill].palette)[0]))).toBe(true)
+      const colour = { slash: 0x8cc8fc, fireball: 0xf85818, thunder: 0xfcd848 }[skill]
+      expect(skillFrames.some(picture => picture.flat().includes(colour))).toBe(true)
       const hitStart = skillStart + BATTLE_SKILL_TICKS[skill]
       const hit = Array.from({ length: BATTLE_HIT_TICKS }, (_, i) => foe(hitStart + i).some(color => color !== null))
       expect(hit).toEqual([false, true, false, true, false, true])
@@ -68,15 +73,20 @@ test('the quest hero stands near the left over a dotted ground with a matching t
   const quest = selectStage('quest')
   expect(quest.columns(quest.maxRoom)).toBe(slimeColumns(quest.maxRoom))
   const frame = pixels(quest.cells(quest.maxRoom, 0, null, 'still'))
-  expect(frame[0]?.slice(HERO_X + 2, HERO_X + 6)).toEqual([0x3cbcfc, 0x0058f8, 0x0058f8, 0x0000bc])
-  expect(frame[7]?.slice(HERO_X + 2, HERO_X + 4)).toEqual([0x503000, 0x503000])
-  expect(frame[7]?.slice(12, 20)).toEqual([0x686878, null, 0x686878, null, 0x686878, null, 0x686878, null])
+  // The helmet's crest is the gold Loto emblem between blue plates.
+  expect(frame[1]?.slice(HERO_X + 6, HERO_X + 11)).toEqual([0x78b8fc, 0x2068f8, 0xfcbc3c, 0x2068f8, 0x0828a0])
+  expect(frame[FLOOR]?.slice(HERO_X + 2, HERO_X + 4)).toEqual([BOOT, BOOT])
+  expect(frame[FLOOR]?.slice(24, 32)).toEqual([GROUND, null, GROUND, null, GROUND, null, GROUND, null])
   expect(quest.text(quest.maxRoom).flat().map(span => span.color)).toEqual(Array(QUEST_ROWS).fill(`#${HERO_PALETTE.B.toString(16).padStart(6, '0')}`))
   expect(quest.text(quest.maxRoom).map(row => row.map(span => span.text).join(''))).toEqual([
-    '   ▄████▄ █                                             ',
-    '  ▄██████ █                                             ',
-    '  ███████▀█▀                                            ',
-    '▄ ▄▀██▄██ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ',
+    '  ▄     ▄██▄▄    █                                      ',
+    '  ██▄ ▄███████▄  █                                      ',
+    '  ▀████████████▄▄█▄▄                                    ',
+    '    ██████████  ▄█▄                                     ',
+    '   ▀████████▀█████████                                  ',
+    '  ▄█████████ █████████                                  ',
+    '  ▀█████████ █████████                                  ',
+    '▄ ▄ ████▄███▄ ███████ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ',
   ])
 })
 
@@ -85,7 +95,7 @@ test('walking alternates legs and scrolls the ground, then repeats its cycle', (
   const first = pixels(quest.cells(quest.maxRoom, 0, null, 'breathe'))
   const scroll = pixels(quest.cells(quest.maxRoom, GROUND_STEP_TICKS, null, 'breathe'))
   const stride = pixels(quest.cells(quest.maxRoom, WALK_POSE_TICKS, null, 'breathe'))
-  expect(scroll[7]?.slice(12)).not.toEqual(first[7]?.slice(12))
+  expect(scroll[FLOOR]?.slice(24)).not.toEqual(first[FLOOR]?.slice(24))
   expect(stride.map(row => row.slice(2, 7))).not.toEqual(first.map(row => row.slice(2, 7)))
   expect(quest.cells(quest.maxRoom, WALK_CYCLE_TICKS, null, 'breathe')).toBe(quest.cells(quest.maxRoom, 0, null, 'breathe'))
   for (let tick = 0; tick <= WALK_CYCLE_TICKS; tick += 1) {
@@ -103,7 +113,8 @@ test('the quest stage disappears below the full attack and widest monster width 
       expect(quest.accepts(kind, room)).toBe(false)
     }
   }
-  expect(QUEST_MIN_COLUMNS).toBe(25)
+  // Hero offset 2, attack 26, gap 2 and the 16-pixel bat.
+  expect(QUEST_MIN_COLUMNS).toBe(46)
   expect(quest.columns(quest.maxRoom)).toBe(slimeColumns(quest.maxRoom))
 })
 
@@ -142,10 +153,13 @@ test('level-up raises the cheering hero and flashes gold and white for two ticks
   const end = quest.momentEndTick(moment, quest.maxRoom, 'breathe')
   expect(end).toBe(moment.startTick + QUEST_LEVEL_UP_TICKS)
   const frames = Array.from({ length: end - moment.startTick }, (_, frame) => pixels(quest.cells(quest.maxRoom, moment.startTick + frame, moment, 'breathe')))
-  const golden = frames.filter(frame => frame[0]?.includes(0xac7c00) === true)
+  // Only the flash has pure white (the helmet's light and the shield).
+  const golden = frames.filter(frame => frame.flat().includes(0xfcfcfc))
   expect(golden.length).toBe(LEVEL_UP_FLASH_TICKS)
-  expect(golden.every(frame => frame.some(row => row.includes(0xfcfcfc)))).toBe(true)
+  expect(golden.every(frame => !frame.flat().includes(HERO_PALETTE.B) && frame.flat().includes(0xfcbc3c))).toBe(true)
   expect(golden.every(frame => frame[0]?.includes(0xfcfcfc))).toBe(true)
+  // Raised off the ground: only the ground line is left on the floor row.
+  expect(golden.every(frame => frame[FLOOR]?.every(pixel => pixel === null || pixel === GROUND))).toBe(true)
   expect(quest.cells(quest.maxRoom, end, moment, 'breathe')).toBe(quest.cells(quest.maxRoom, end, null, 'breathe'))
 })
 
@@ -180,18 +194,21 @@ test('skills reach from the attacking sword into the monster without overlapping
     const frame = (elapsed: number) => pixels(quest.cells(quest.maxRoom, elapsed, battle, 'still'))
     const attackTip = HERO_SWORD_END - 1
     if (skill === 'slash') {
-      // The streak crosses six columns of the monster.
-      expect(frame(effectStart)[4]?.[attackTip + 1]).toBe(0xfcfcfc)
-      expect(frame(effectStart)[7]?.[BATTLE_MONSTER_X]).toBe(0xfcfcfc)
-      expect(frame(effectStart)[2]?.[BATTLE_MONSTER_X + SKILLS.slash.frames[0]!.sprite[0]!.length - 1]).toBe(0xfcfcfc)
+      // The streak runs from the monster's bottom-left corner up across it.
+      expect(frame(effectStart)[FLOOR]?.[BATTLE_MONSTER_X]).toBe(0xfcfcfc)
+      expect(frame(effectStart)[4]?.[BATTLE_MONSTER_X + SKILLS.slash.frames[0]!.sprite[0]!.length - 1]).toBe(0xfcfcfc)
+      expect(frame(effectStart).every(row => row.slice(0, BATTLE_MONSTER_X).every(p => p !== 0xfcfcfc && p !== 0x8cc8fc))).toBe(true)
     } else if (skill === 'fireball') {
+      // The white core rides the blade's two rows from just past the tip.
       for (let tick = 0; tick < SKILLS.fireball.frames.length; tick += 1) {
-        expect(frame(effectStart + tick)[4]?.slice(attackTip + tick, attackTip + tick + 3)).toEqual([0xfca044, 0xfcd8a8, 0xfca044])
+        for (const row of [7, 8]) {
+          expect(frame(effectStart + tick)[row]?.slice(attackTip + tick + 2, attackTip + tick + 4)).toEqual([0xfcfcfc, 0xfcfcfc])
+        }
       }
-      expect(frame(effectStart + SKILLS.fireball.frames.length - 1)[4]?.[BATTLE_MONSTER_X + 2]).toBe(0xfca044)
+      expect(frame(effectStart + SKILLS.fireball.frames.length - 1)[7]?.[BATTLE_MONSTER_X + 4]).toBe(0xfcfcfc)
     } else {
-      expect(frame(effectStart)[0]?.[BATTLE_MONSTER_X + 2]).toBe(0xf8d878)
-      expect(frame(effectStart + SKILLS.thunder.frames.length - 1)[7]?.[BATTLE_MONSTER_X + 2]).toBe(0xf8d878)
+      expect(frame(effectStart)[0]?.[BATTLE_MONSTER_X + 5]).toBe(0xfcd848)
+      expect(frame(effectStart + SKILLS.thunder.frames.length - 1)[12]?.[BATTLE_MONSTER_X]).toBe(0xfcd848)
     }
   }
 })
@@ -226,8 +243,8 @@ test('still rest keeps standing legs during encounter and battle travel while br
     { moment: battle, tick: end - BATTLE_RESUME_TICKS },
   ]
   for (const { moment, tick } of samples) {
-    const legs = (rest: 'still' | 'breathe') => pixels(quest.cells(quest.maxRoom, tick, moment, rest))[QUEST_ROWS * 2 - 1]?.slice(HERO_X, HERO_X + 5)
-    expect(legs('still')).toEqual([0x686878, null, 0x503000, 0x503000, 0x686878])
+    const legs = (rest: 'still' | 'breathe') => pixels(quest.cells(quest.maxRoom, tick, moment, rest))[FLOOR]?.slice(HERO_X, HERO_X + 5)
+    expect(legs('still')).toEqual([GROUND, null, BOOT, BOOT, BOOT])
     expect(legs('breathe')).not.toEqual(legs('still'))
   }
 })

@@ -1,12 +1,115 @@
-// H/h/d helmet, F face, K eye, N hair, R/r cape, B/b armour, Y/y hilt,
-// S hand, W blade, L legs, O boots; dot is transparent.
-export const STAND = ['..hHHd..W.', '.hHHHHd.W.', '.dNFFKF.W.', 'RrNFFFF.W.', 'RRBbBBSyYy', 'RRbBYBB.y.', '.RLL.LL...', '..OO.OO...']
-export const WALK_A = ['..hHHd..W.', '.hHHHHd.W.', '.dNFFKF.W.', 'RrNFFFF.W.', 'RRBbBBSyYy', 'RRbBYBB.y.', '.RLL..LL..', '.OO....OO.']
-export const WALK_B = ['..hHHd..W.', '.hHHHHd.W.', '.dNFFKF.W.', 'RrNFFFF.W.', 'RRBbBBSyYy', 'RRbBYBB.y.', '.R.LLL....', '...OOO....']
-export const ATTACK = ['..hHHd......', '.hHHHHd.....', '.dNFFKF.....', 'RrNFFFF.y...', 'RRBbBBBSYWWW', 'RRbBYBB.y...', '.RLL..LL....', '..OO...OO...']
-export const HURT = ['.hHHd.....', 'hHHHHd....', 'dNFFKF...W', 'rNFFFF..W.', 'RRBbBBSY..', 'RRbBYBBy..', 'R.LL.LL...', '..OO..OO..']
-export const CHEER = ['..hHHd..W.', '.hHHHHd.W.', '.dNFFKFyYy', 'RrNFFFF.S.', 'RRBbBBBS..', 'RRbBYBB...', '.RLL.LL...', '..OO.OO...']
-export const HERO_PALETTE = { H: 0x0058f8, h: 0x3cbcfc, d: 0x0000bc, F: 0xfcd8a8, K: 0x181818, N: 0x881400, R: 0xd82800, r: 0x881400, B: 0x0078f8, b: 0x0058f8, Y: 0xfcbc3c, y: 0xac7c00, S: 0xfcd8a8, W: 0xfcfcfc, L: 0x0000bc, O: 0x503000 }
+// H/h/d helmet, G/g gold trim, J red jewel and the shield's emblem, F/f skin,
+// K eye, N hair, M mouth, C/c cape, B/b armour, S shield, Y hilt, W/w blade,
+// L/D legs, O/o boots; dot is transparent.
+export const STAND = [
+  '.......GG......W....',
+  'g.....hHGHd....W....',
+  'Gg...hhHHHHd...W....',
+  'GGg.hHHHHHHHd..W....',
+  'GGGgHHHHHHHHd..w....',
+  '.GGGGGGGJGGGGgGJGg..',
+  '..GcNNFFFFKF...Y....',
+  '..cCNNFFFFKF..FFf...',
+  '.cCCNfFFFFMgGGGGGGGg',
+  '..CbBBBBBb.GJSSSSSJG',
+  '.CCbBBBBBB.GJJSJSJJG',
+  'CCCbBGGGBB.GSJJJJJSG',
+  'CCcbBBBBBB.GSSJJJSSG',
+  '.cCLLLLDLL.gSJSSSJSg',
+  '..cLLL.LLL..gSSSSSg.',
+  '..OOOO.OOO...gGGGg..',
+]
+export const WALK_A = [
+  '.......GG......W....',
+  'g.....hHGHd....W....',
+  'Gg...hhHHHHd...W....',
+  'GGg.hHHHHHHHd..W....',
+  'GGGgHHHHHHHHd..w....',
+  '.GGGGGGGJGGGGgGJGg..',
+  '..GcNNFFFFKF...Y....',
+  '..cCNNFFFFKF..FFf...',
+  '.cCCNfFFFFMgGGGGGGGg',
+  '..CbBBBBBb.GJSSSSSJG',
+  '.CCbBBBBBB.GJJSJSJJG',
+  'CCCbBGGGBB.GSJJJJJSG',
+  'CCcbBBBBBB.GSSJJJSSG',
+  '.cCLLLDLLL.gSJSSSJSg',
+  '..LLL..LLL..gSSSSSg.',
+  '.OOOO...OOO..gGGGg..',
+]
+export const WALK_B = [
+  '.......GG......W....',
+  'g.....hHGHd....W....',
+  'Gg...hhHHHHd...W....',
+  'GGg.hHHHHHHHd..W....',
+  'GGGgHHHHHHHHd..w....',
+  '.GGGGGGGJGGGGgGJGg..',
+  '..GcNNFFFFKF...Y....',
+  '..cCNNFFFFKF..FFf...',
+  '.cCCNfFFFFMgGGGGGGGg',
+  '..CbBBBBBb.GJSSSSSJG',
+  '.CCbBBBBBB.GJJSJSJJG',
+  'CCCbBGGGBB.GSJJJJJSG',
+  'CCcbBBBBBB.GSSJJJSSG',
+  '.cCLLLLLL..gSJSSSJSg',
+  '..cLLLLL....gSSSSSg.',
+  '...OOOOO.....gGGGg..',
+]
+export const ATTACK = [
+  '.......GG.................',
+  'g.....hHGHd...............',
+  'Gg...hhHHHHd..............',
+  'GGg.hHHHHHHHd.............',
+  'GGGgHHHHHHHHd.............',
+  '.GGGGGGGJGGGG.............',
+  '..GcNNFFFFKF....g.........',
+  '..cCNNFFFFKF.FFYGWWWWWWW..',
+  '.cCCNfFFFFMf.FfYJWWWWWWWW.',
+  '..CbBBBBBb.gGGGGgGGg......',
+  '.CCbBBBBBB.GJSSSSSJG......',
+  'CCCbBGGGBB.GJJSJSJJG......',
+  'CCcbBBBBBB.GSJJJJJSG......',
+  '.cCLLLLDLL.GSSJJJSSG......',
+  '..cLLL.LLL.gSJSSSJSg......',
+  '..OOOO.OOO..gSSSSSg.......',
+]
+export const HURT = [
+  '........GG......W...',
+  '.g.....hHGHd....W...',
+  '.Gg...hhHHHHd...W...',
+  '.GGg.hHHHHHHHd..W...',
+  '.GGGgHHHHHHHHd..w...',
+  '..GGGGGGGJGGGGgGJGg.',
+  '...GcNNFFFKFK...Y...',
+  '...cCNNFFFFKF..FFf..',
+  '..cCCNfFFFMMgGGGGGGG',
+  '...CbBBBBBb.GJSSSSSJ',
+  '..CCbBBBBBB.GJJSJSJJ',
+  '.CCCbBGGGBB.GSJJJJJS',
+  '.CCcbBBBBBB.GSSJJJSS',
+  '..cCLLLLDLL.gSJSSSJS',
+  '...cLLL.LLL..gSSSSSg',
+  '...OOOO.OOO...gGGGg.',
+]
+export const CHEER = [
+  '.......GG......W....',
+  'g.....hHGHd....W....',
+  'Gg...hhHHHHd...W....',
+  'GGg.hHHHHHHHd..W....',
+  'GGGgHHHHHHHHd..w....',
+  '.GGGGGGGJGGGGgGJGg..',
+  '..GcNNFFFKFK...Y....',
+  '..cCNNFFFFFF..FFf...',
+  '.cCCNfFFMMMgGGGGGGGg',
+  '..CbBBBBBb.GJSSSSSJG',
+  '.CCbBBBBBB.GJJSJSJJG',
+  'CCCbBGGGBB.GSJJJJJSG',
+  'CCcbBBBBBB.GSSJJJSSG',
+  '.cCLLLLDLL.gSJSSSJSg',
+  '..cLLL.LLL..gSSSSSg.',
+  '..OOOO.OOO...gGGGg..',
+]
+export const HERO_PALETTE = { H: 0x2068f8, h: 0x78b8fc, d: 0x0828a0, G: 0xfcbc3c, g: 0xb07800, J: 0xe82818, F: 0xfcd8a8, f: 0xd89870, K: 0x181818, N: 0x5a2a10, B: 0x2878f8, b: 0x1048b0, C: 0xd82800, c: 0x801800, S: 0x1850d8, W: 0xf0f0fc, w: 0xa8b0c8, L: 0x283070, D: 0x182058, O: 0x6a4020, o: 0x3c2410, Y: 0x8a5a20, M: 0xc05040 }
 
 export const QUEST_ROWS = STAND.length / 2
 export const ATTACK_BLADE_LIFT = ATTACK.length - 1 - ATTACK.findIndex(row => row.includes('W'))

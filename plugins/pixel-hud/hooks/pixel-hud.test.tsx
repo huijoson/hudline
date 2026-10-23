@@ -2053,7 +2053,7 @@ for (const [theme, rows] of [['quest', QUEST_ROWS], ['slimes', SLIME_ROWS]] as c
   })
 }
 
-test('the desktop quest fallback includes all four rows', { options: { stage: 'quest' } }, async ($, on) => {
+test('the desktop quest fallback includes all eight rows', { options: { stage: 'quest' } }, async ($, on) => {
   mock.clock(on)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true })
@@ -2064,7 +2064,7 @@ test('the desktop quest fallback includes all four rows', { options: { stage: 'q
   await ui.unmount()
 })
 
-test('a five-row band uses the chip instead of clipping the quest stage', { options: { stage: 'quest' } }, async ($, on) => {
+test('a band one row short uses the chip instead of clipping the quest stage', { options: { stage: 'quest' } }, async ($, on) => {
   mock.clock(on)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
