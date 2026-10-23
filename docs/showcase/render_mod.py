@@ -33,6 +33,7 @@ mode.add_argument("--sheet", action="store_true",
                     help="draw the stage moments in a grid (one battle per quest skill)")
 mode.add_argument("--foes", type=Path, metavar="PNG",
                     help="draw every quest monster and skill frame to a contact sheet at PNG")
+parser.add_argument("--columns", type=int, default=84, help="terminal width (default: 84)")
 args = parser.parse_args()
 # Text is laid out with libraqm, as the committed images were: Pillow's basic
 # layout advances each cell 14 px instead of 14.45 and draws narrower images.
@@ -122,7 +123,7 @@ usage = {
     ],
     "cost": {"usd": payload["cost"]["total_cost_usd"]},
 }
-COLUMNS = 84
+COLUMNS = args.columns
 
 SHOWCASE_TEST = """
 import { mock, test } from 'claude-code/testing'
@@ -335,7 +336,7 @@ def paint(tree):
                 draw.rectangle((x, y + row_height / 2, x + cell_width, y + row_height - 1), fill=fg)
             elif char != " ":
                 draw.text((x, y + 26), char, font=font, fill=fg, anchor="ls")
-    draw.text((48, height - 53), "SAMPLE VALUES  /  UTC reset times  /  84-column wrap",
+    draw.text((48, height - 53), f"SAMPLE VALUES  /  UTC reset times  /  {COLUMNS}-column wrap",
               font=small, fill="#b6b2c4")
     return canvas, rows
 
