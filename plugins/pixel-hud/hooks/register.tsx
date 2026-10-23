@@ -21,6 +21,8 @@ import {
 } from './format'
 import type { Role } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
+import { MONSTERS, SKILLS } from './quest-foes'
+import type { Monster, Skill } from './quest-foes'
 import { DAMAGE_COOLDOWN_TICKS, FRAME_MS, nextMoment, STAGE_ROWS } from './stage'
 import type { Moment, Rest, Stage } from './stage'
 import { selectStage } from './stages'
@@ -232,7 +234,21 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
-    if (!e.agentId && e.reason === 'answer' && e.durationMs >= KING_AFTER_MS) crown()
+    if (!e.agentId && e.reason === 'answer') {
+      if (stage) {
+        const incoming: Moment = { kind: 'battle', startTick: tick, monster: 'slime', skill: 'slash' }
+        const admitted = nextMoment(theme, currentMoment(), incoming, stage.slimes)
+        if (admitted === incoming) {
+          const monsters = Object.keys(MONSTERS) as Monster[]
+          const skills = Object.keys(SKILLS) as Skill[]
+          incoming.monster = monsters[Math.floor(random() * monsters.length)]!
+          incoming.skill = skills[Math.floor(random() * skills.length)]!
+          moment = incoming
+          void repaint(theme, $, stage, tick, moment, rest).then(unseat)
+        }
+      }
+      if (e.durationMs >= KING_AFTER_MS) crown()
+    }
     return result
   }).catch(($, e, next) => next(e))
 

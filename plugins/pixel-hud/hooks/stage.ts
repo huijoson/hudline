@@ -1,3 +1,5 @@
+import type { Monster, Skill } from './quest-foes'
+
 export const FRAME_MS = 80
 export const STAGE_ROWS = 3
 export const DAMAGE_COOLDOWN_TICKS = Math.round(2_000 / FRAME_MS)
@@ -7,6 +9,7 @@ export type Rest = 'hop' | 'breathe' | 'still'
 export type Moment =
   | { kind: 'king' | 'level-up' | 'encounter'; startTick: number }
   | { kind: 'damage'; startTick: number; target: number }
+  | { kind: 'battle'; startTick: number; monster: Monster; skill: Skill }
 
 // Room is the number of seven-column slots granted beside the branch.
 export interface Stage {

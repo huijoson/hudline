@@ -26,9 +26,9 @@ mode = parser.add_mutually_exclusive_group()
 mode.add_argument("--king", action="store_true",
                     help="draw the King Slime show after a long task (pixel-hud-king.png)")
 mode.add_argument("--gif", action="store_true",
-                    help="animate the whole King Slime show, one frame a tick (pixel-hud-king.gif)")
+                    help="animate the stage moment, one frame a tick")
 mode.add_argument("--sheet", action="store_true",
-                    help="draw the King Slime frames in a grid (pixel-hud-king-sheet.png in the system temp dir)")
+                    help="draw the stage moments in a grid (one battle per quest skill)")
 mode.add_argument("--foes", type=Path, metavar="PNG",
                     help="draw every quest monster and skill frame to a contact sheet at PNG")
 args = parser.parse_args()
@@ -118,10 +118,11 @@ COLUMNS = 84
 SHOWCASE_TEST = """
 import { mock, test } from 'claude-code/testing'
 import { selectStage } from './stages'
+import { QUEST_STAGE, WALK_CYCLE_TICKS } from './quest'
 import { FRAME_MS, SLIME_WIDTH, KING_GATHER_TICKS, KING_MERGE_TICKS, KING_DROP_TICKS, KING_FLASH_TICKS, KING_REIGN_TICKS, KING_SHOW_TICKS } from './slime'
 
-test('showcase', { options: { stage: STAGE } }, async ($, on) => {
-  const theme = selectStage(STAGE)
+test('showcase', { options: { stage: THEME_OPTION } }, async ($, on) => {
+  const theme = selectStage(THEME_OPTION)
   console.log('FRAME_MS' + FRAME_MS)
   on('process.run', async (_$, e) => ({
     value: { exitCode: 0, stdout: e.argv.includes('rev-parse') ? 'main\\n' : '', stderr: '',
@@ -168,18 +169,26 @@ test('showcase', { options: { stage: STAGE } }, async ($, on) => {
     await ui.unmount()
     ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
   }
-  if (FRAMES > 0) {
-    // A task of a minute ends; one drawing a tick, from the slimes at rest
-    // through the whole show and home again.
-    console.log('SHOWCASE' + JSON.stringify(await ui.drawn()))
-    await $.turn.complete({ answer: '', durationMs: 60_000, isAborted: false, turnId: 't', reason: 'answer' })
-    for (let i = 0; i < FRAMES; i += 1) {
-      await ui.unmount()
-      ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
+  for (const skill of (THEME_OPTION === 'quest' && SHEET ? ['slash', 'fireball', 'thunder'] : [null])) {
+    if (FRAMES > 0) {
+      // A task ends; one drawing a tick, through the moment and back to rest.
       console.log('SHOWCASE' + JSON.stringify(await ui.drawn()))
-      await clock.advance(FRAME_MS)
-    }
-  } else console.log('SHOWCASE' + JSON.stringify(await ui.drawn()))
+      await $.turn.complete({ answer: '', durationMs: 60_000, isAborted: false, turnId: 't', reason: 'answer' })
+      const battleStart = clock.now() / FRAME_MS
+      for (let i = 0; i < FRAMES; i += 1) {
+        await ui.unmount()
+        ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
+        if (skill) {
+          const monster = skill === 'slash' ? 'slime' : skill === 'fireball' ? 'bat' : 'skeleton'
+          const actual = await ui.find({ type: 'Raster', key: 'slimes' })
+          const expected = theme.cells(count, battleStart + i, { kind: 'battle', startTick: battleStart, monster, skill }, 'breathe')
+          if (actual?.props.cells !== expected) throw new Error('battle picker/frame mismatch: ' + skill + ' tick ' + i)
+        }
+        console.log('SHOWCASE' + JSON.stringify(await ui.drawn()))
+        await clock.advance(FRAME_MS)
+      }
+    } else console.log('SHOWCASE' + JSON.stringify(await ui.drawn()))
+  }
   await ui.unmount()
 })
 """
@@ -187,19 +196,40 @@ test('showcase', { options: { stage: STAGE } }, async ($, on) => {
 with tempfile.TemporaryDirectory() as tmp:
     copy = Path(tmp) / "pixel-hud"
     shutil.copytree(MOD, copy, ignore=shutil.ignore_patterns("*.test.tsx", "*.test.ts"))
+    if args.stage == "quest":
+        # Exercise the real event path with a fixed sequence, one battle per skill.
+        (copy / "hooks" / "battle-showcase.ts").write_text("""
+import { register as registerHud } from './register'
+import type { Register } from 'claude-code'
+export const register: Register = (on, options) => {
+  const picks = [0, 0, 0.25, 0.34, 0.5, 0.67]
+  let pick = 0
+  return registerHud(on, options, () => picks[pick++ % picks.length]!)
+}
+""")
+        (copy / "hooks" / "hooks.json").write_text(json.dumps({"modules": ["./battle-showcase.ts"]}))
+    frame_count = "0"
+    if args.gif or args.sheet:
+        frame_count = (
+            "QUEST_STAGE.momentEndTick({ kind: 'battle', startTick: 0, monster: 'slime', skill: 'fireball' }, 4, 'breathe') + WALK_CYCLE_TICKS"
+            if args.stage == "quest" else "KING_SHOW_TICKS + 6"
+        )
     source = (SHOWCASE_TEST
-              .replace("STAGE", json.dumps(args.stage))
+              .replace("THEME_OPTION", json.dumps(args.stage))
               .replace("MODEL", json.dumps(payload["model"]["display_name"].lower()))
               .replace("EFFORT", json.dumps(payload["effort"]["level"]))
               .replace("USAGE", json.dumps(usage))
               .replace("TRANSCRIPT", json.dumps(transcript))
               .replace("COLUMNS", str(COLUMNS))
               .replace("if (KING)", "if (true)" if args.king else "if (false)")
-              .replace("FRAMES", "KING_SHOW_TICKS + 6" if args.gif or args.sheet else "0"))
+              .replace("SHEET", "true" if args.sheet else "false")
+              .replace("FRAMES", frame_count))
     (copy / "hooks" / "showcase.test.tsx").write_text(source)
     run = subprocess.run(["claude", "plugin", "test", str(copy)], text=True,
                          capture_output=True)
     found = re.findall(r"^SHOWCASE(.*)$", run.stdout + run.stderr, re.M)
+    if run.returncode != 0:
+        raise SystemExit(f"showcase test failed:\n{run.stdout}\n{run.stderr}")
     if not found:
         raise SystemExit(f"the mod drew nothing:\n{run.stdout}\n{run.stderr}")
     trees = [json.loads(f) for f in found]
@@ -306,17 +336,25 @@ def king_frames(trees):
 
 if args.sheet:
     frames = [paint(tree)[0] for tree in trees]
-    runs = [(frames[0], None, None)]
+    runs = []
     previous = None
     # Compare full frames before cropping, so every pixel change gets a cell.
     # Keep the resting sample separate from the show's tick numbers.
-    for tick, frame in enumerate(frames[1:]):
+    group_size = len(frames) // 3 if args.stage == "quest" else len(frames)
+    for index, frame in enumerate(frames):
+        group, offset = divmod(index, group_size)
+        skill = ["slash", "fireball", "thunder"][group] if args.stage == "quest" else "king"
+        tick = offset - 1
+        if offset == 0:
+            runs.append((frame, None, skill))
+            previous = None
+            continue
         pixels = frame.tobytes()
         if pixels == previous:
             first, start, _ = runs[-1]
-            runs[-1] = (first, start, tick)
+            runs[-1] = (first, start, (skill, tick))
         else:
-            runs.append((frame, tick, tick))
+            runs.append((frame, tick, (skill, tick)))
         previous = pixels
 
     changes = Image.new("RGB", frames[0].size)
@@ -343,12 +381,13 @@ if args.sheet:
         x = gap + (i % columns) * (width + gap)
         y = gap + (i // columns) * (height + label_height + gap)
         if start is None:
-            label = "rest"
+            label = f"{end} rest"
         else:
-            label = f"t{start}" if start == end else f"t{start}–t{end}"
+            skill, last = end
+            label = f"{skill} t{start}" if start == last else f"{skill} t{start}–t{last}"
         draw.text((x, y), label, font=small, fill=INK)
         sheet.paste(frame.crop(crop), (x, y + label_height))
-    output = args.output or Path(tempfile.gettempdir()) / "pixel-hud-king-sheet.png"
+    output = args.output or Path(tempfile.gettempdir()) / f"pixel-hud-{'quest' if args.stage == 'quest' else 'king'}-sheet.png"
     sheet.save(output)
     print(f"Wrote {output} ({sheet.width} x {sheet.height}, {len(runs)} cells)")
     raise SystemExit
@@ -357,7 +396,7 @@ if args.gif:
     frames, palette = king_frames(trees)
     # The slimes at rest a moment, then the show at the slimes' own pace.
     durations = [1200] + [frame_ms] * (len(frames) - 2) + [1200]
-    output = args.output or HERE / "pixel-hud-king.gif"
+    output = args.output or HERE / f"pixel-hud-{'quest' if args.stage == 'quest' else 'king'}.gif"
     # Disable per-frame palette optimization and supply the shared palette so
     # Pillow keeps one global colour table instead of remapping each frame.
     frames[0].save(output, save_all=True, append_images=frames[1:], duration=durations,
