@@ -26,6 +26,8 @@ mode.add_argument("--gif", action="store_true",
                     help="animate the whole King Slime show, one frame a tick (pixel-hud-king.gif)")
 mode.add_argument("--sheet", action="store_true",
                     help="draw the King Slime frames in a grid (pixel-hud-king-sheet.png in the system temp dir)")
+mode.add_argument("--foes", type=Path, metavar="PNG",
+                    help="draw every quest monster and skill frame to a contact sheet at PNG")
 args = parser.parse_args()
 # Text is laid out with libraqm, as the committed images were: Pillow's basic
 # layout advances each cell 14 px instead of 14.45 and draws narrower images.
@@ -34,6 +36,51 @@ if not features.check("raqm"):
 font = ImageFont.truetype(args.font, 24)
 small = ImageFont.truetype(args.font, 18)
 title = ImageFont.truetype(args.font, 30)
+
+
+def foes_sheet(output):
+    source = """
+import { MONSTERS, SKILLS, paintMonster, paintSkill } from MODULE
+const groups = []
+for (const [table, painter] of [[MONSTERS, paintMonster], [SKILLS, paintSkill]]) {
+  for (const [name, art] of Object.entries(table)) {
+    const frames = art.frames.map((_, frame) => {
+      const pixels = Array.from({ length: 6 }, () => Array(14).fill(null))
+      painter(pixels, name, 2, frame)
+      return pixels
+    })
+    groups.push({ name, frames })
+  }
+}
+console.log(JSON.stringify(groups))
+""".replace("MODULE", json.dumps((MOD / "hooks" / "quest-foes.ts").as_uri()))
+    run = subprocess.run(["node", "--experimental-strip-types", "--input-type=module", "-e", source],
+                         text=True, capture_output=True, check=True)
+    groups = json.loads(run.stdout)
+    scale, gap, label_height = 10, 20, 32
+    tile_width, tile_height = 14 * scale, 6 * scale
+    columns = max(len(group["frames"]) for group in groups)
+    sheet = Image.new("RGB", (gap + columns * (tile_width + gap),
+                              gap + len(groups) * (tile_height + label_height + gap)), "#101116")
+    draw = ImageDraw.Draw(sheet)
+    for row, group in enumerate(groups):
+        for frame, pixels in enumerate(group["frames"]):
+            x = gap + frame * (tile_width + gap)
+            y = gap + row * (tile_height + label_height + gap)
+            draw.text((x, y), f'{group["name"]} {frame}', font=small, fill="#dedee5")
+            for r, line in enumerate(pixels):
+                for c, color in enumerate(line):
+                    if color is not None:
+                        left, top = x + c * scale, y + label_height + r * scale
+                        draw.rectangle((left, top, left + scale - 1, top + scale - 1),
+                                       fill=f"#{color:06x}")
+    sheet.save(output)
+    print(f"Wrote {output} ({sheet.width} x {sheet.height})")
+
+
+if args.foes:
+    foes_sheet(args.foes)
+    raise SystemExit
 
 # The same synthetic data as hudline.png, handed to the mod through the engine's
 # own test host: the payload's figures as $.session.usage(), the transcript as
