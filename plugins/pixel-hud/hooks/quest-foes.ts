@@ -1,34 +1,83 @@
-import { paint } from './slime'
+import { ONION, paint } from './slime'
 import type { Palette, Pixels } from './slime'
 import { ATTACK_BLADE_LIFT, QUEST_ROWS } from './quest-hero'
 
 type Pose = { sprite: readonly string[]; lift: number }
 
-// B body, H highlight, D shade, W eyes, K pupils, M mouth, E bat eyes.
+// B body, H highlight or side shade, D shade, W eyes, K pupils, M mouth.
+// The bat's pupils are red; the skeleton's K and W are its sockets and teeth gaps.
+const QUEST_SLIME = ONION.stand
+const SLIME_PAL = { B: 0x38c838, H: 0xb8f818, D: 0x008800, W: 0xfcfcfc, K: 0x0b0a0d, M: 0xf87858 }
+const BAT_UP = [
+  'D..............D',
+  'BD............DB',
+  'BBD....HH....DBB',
+  'BBBD..HBBH..DBBB',
+  '.BBBDHBBBBHDBBB.',
+  '..BBBBWBBWBBBB..',
+  '...BBWKBBWKBB...',
+  '....BBBBBBBB....',
+  '....BBMMMMBB....',
+  '.....BWBBWB.....',
+  '......DBBD......',
+  '.......DD.......',
+]
+const BAT_DOWN = [
+  '.......HH.......',
+  '......HBBH......',
+  '.....HBBBBH.....',
+  '....BWBBWBBB....',
+  '...BWKBBWKBBB...',
+  '..BBBBBBBBBBBB..',
+  '.DBBBBMMMMBBBBD.',
+  'DBBD.BWBBWB.DBBD',
+  'BBD...DBBD...DBB',
+  'BD.....DD.....DB',
+  'D..............D',
+]
+const BAT_PAL = { B: 0x8058e0, H: 0xc0a8fc, D: 0x4c2c98, W: 0xfcfcfc, K: 0xf83800, M: 0x2c1048 }
+const SKELETON = [
+  '....BBBBBB....',
+  '...BBBBBBBB...',
+  '..BBBBBBBBBB..',
+  '..BKKBBBKKBB..',
+  '..BKKBBBKKBB..',
+  '...BBBKBBBB...',
+  '....BWBWBW....',
+  '.....BBBB.....',
+  '..HBBBHBBBH...',
+  '.BH.BBBBB.HB..',
+  '.B..HBBBH..B..',
+  '....BBBBB.....',
+  '.....H.H......',
+  '....BB.BB.....',
+  '....B...B.....',
+  '...BB...BB....',
+]
+const SKELETON_PAL = { B: 0xf0f0e8, H: 0xa8a89c, K: 0x0b0a0d, W: 0x0b0a0d }
+const GHOST = [
+  '....BBBBB.....',
+  '..BBBBBBBBB...',
+  '.BBBBBBBBBBB..',
+  '.BBKKBBBKKBB..',
+  'HBBKKBBBKKBBB.',
+  'HBBBBBBBBBBBB.',
+  'HBBBBKKKBBBBB.',
+  'HBBBBKKKBBBBB.',
+  'HBBBBBBBBBBBBB',
+  'HHBBBBBBBBBBBB',
+  'HHBBBBBBBBBBB.',
+  'HBBBBBBBBBBBB.',
+  'HB.BBB.BBB.BB.',
+  'B...B...B...B.',
+]
+const GHOST_PAL = { B: 0xd8f4fc, H: 0x8cc8e8, K: 0x0b0a0d }
+
 export const MONSTERS = {
-  slime: {
-    palette: { B: 0x38c838, H: 0xb8f818, D: 0x008800, W: 0xfcfcfc, K: 0x0b0a0d, M: 0x981828 },
-    frames: [
-      { sprite: ['....B....', '...BHB...', '..BHHBB..', '.BWWBWWB.', 'BBWKBWKBB', 'BBBBBBBBB', 'DBBMMMBBD', '.DDDDDDD.'], lift: 0 },
-    ],
-  },
-  bat: {
-    palette: { B: 0x9878f8, H: 0xc8b8fc, D: 0x5838c0, E: 0xf83800 },
-    frames: [
-      { sprite: ['D.......D', 'BD.....DB', 'BBD.H.DBB', '.BBBHBBB.', '..BEBEB..', '...BDB...', '...D.D...'], lift: 0 },
-      { sprite: ['....H....', '...BHB...', '..BEBEB..', '.BBBBBBB.', 'BBD.D.DBB', 'BD.....DB', 'D.......D'], lift: 0 },
-    ],
-  },
-  skeleton: {
-    palette: { B: 0xfcfcfc, H: 0xbcbcbc, K: 0x0b0a0d },
-    frames: [
-      { sprite: ['.BBBBB.', 'BBBBBBB', 'BKKBKKB', '.BBHBB.', '..HBH..', 'BHBBBHB', '..HBH..', '.BB.BB.'], lift: 0 },
-    ],
-  },
-  ghost: {
-    palette: { B: 0xbcf0fc, H: 0x3cbcfc, K: 0x0b0a0d },
-    frames: [0, 1].map(lift => ({ sprite: ['..BBB..', '.BBBBB.', 'BBKBKBB', 'HBBBBBB', 'HBBKBBB', 'HBBBBBB', 'B.BB.BB'], lift })),
-  },
+  slime: { palette: SLIME_PAL, frames: [{ sprite: QUEST_SLIME, lift: 0 }] },
+  bat: { palette: BAT_PAL, frames: [BAT_UP, BAT_DOWN].map(sprite => ({ sprite, lift: 0 })) },
+  skeleton: { palette: SKELETON_PAL, frames: [{ sprite: SKELETON, lift: 0 }] },
+  ghost: { palette: GHOST_PAL, frames: [0, 2].map(lift => ({ sprite: GHOST, lift })) },
 } satisfies Record<string, { palette: Palette; frames: readonly Pose[] }>
 
 export type Monster = keyof typeof MONSTERS
@@ -42,29 +91,82 @@ export function paintMonster(pixels: Pixels, monster: Monster, x: number, frame:
 
 type EffectPose = Pose & { offset: number }
 
-const FIREBALL = ['.O.', 'OHO', '.O.']
+const SLASH = [
+  '...........W',
+  '..........Ww',
+  '.........Ww.',
+  '........Ww..',
+  '.......Ww...',
+  '......Ww....',
+  '.....Ww.....',
+  '....Ww......',
+  '...Ww.......',
+  '..Ww........',
+  '.Ww.........',
+  'W...........',
+]
+const FIRE_A = [
+  '..OO..',
+  '.OYYO.',
+  'OYWWYO',
+  'OYWWYO',
+  '.OYYO.',
+  '..OO..',
+]
+const FIRE_B = [
+  '.O..O.',
+  'OOYYOO',
+  '.YWWY.',
+  '.YWWYO',
+  'OOYYO.',
+  '..O.O.',
+]
+const BOLT = [
+  '.....YY',
+  '....YY.',
+  '...YW..',
+  '..YWY..',
+  '.YYYYYY',
+  '...YWY.',
+  '..YWY..',
+  '.YWY...',
+  'YYYYY..',
+  '..YWY..',
+  '.YW....',
+  'YY.....',
+  'Y......',
+  '.......',
+  '.......',
+  '.......',
+]
+const SKILL_PAL = { W: 0xfcfcfc, w: 0x8cc8fc, O: 0xf85818, Y: 0xfcd848 }
 
 export const SKILLS = {
   slash: {
     heroStep: 1,
     origin: 'monster',
     originOffset: 0,
-    palette: { W: 0xfcfcfc },
-    frames: Array<EffectPose>(2).fill({ sprite: ['.....W', '....W.', '...W..', '..W...', '.W....', 'W.....'], lift: 0, offset: 0 }),
+    palette: SKILL_PAL,
+    frames: Array<EffectPose>(2).fill({ sprite: SLASH, lift: 0, offset: 0 }),
   },
   fireball: {
     heroStep: 0,
     origin: 'sword',
     originOffset: 0,
-    palette: { O: 0xfca044, H: 0xfcd8a8 },
-    frames: Array.from({ length: 6 }, (_, offset) => ({ sprite: FIREBALL, lift: ATTACK_BLADE_LIFT - (FIREBALL.length - 1) / 2, offset })),
+    palette: SKILL_PAL,
+    // The ball flickers between its two poses; its centre rides the two-pixel blade.
+    frames: Array.from({ length: 6 }, (_, offset) => ({
+      sprite: offset % 2 === 0 ? FIRE_A : FIRE_B,
+      lift: ATTACK_BLADE_LIFT - Math.floor(FIRE_A.length / 2),
+      offset,
+    })),
   },
   thunder: {
     heroStep: 0,
     origin: 'monster',
     originOffset: 0,
-    palette: { Y: 0xf8d878 },
-    frames: [2, 4, QUEST_ROWS * 2].map(rows => ({ sprite: ['..Y', '.Y.', 'YYY', '..Y', '.Y.', 'Y..', 'YYY', '..Y'].slice(0, rows), lift: QUEST_ROWS * 2 - rows, offset: 0 })),
+    palette: SKILL_PAL,
+    frames: [BOLT.length / 4, BOLT.length / 2, BOLT.length].map(rows => ({ sprite: BOLT.slice(0, rows), lift: QUEST_ROWS * 2 - rows, offset: 0 })),
   },
 } satisfies Record<string, { heroStep: number; origin: 'monster' | 'sword'; originOffset: number; palette: Palette; frames: readonly EffectPose[] }>
 

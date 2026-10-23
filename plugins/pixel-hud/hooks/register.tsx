@@ -20,9 +20,11 @@ import {
   usd,
 } from './format'
 import type { Role } from './format'
-import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
+import { BRANCH_SPRITE, GLYPH_ADVANCE, pack, pixelText, pixelWidth } from './pixel'
 import { DAMAGE_COOLDOWN_TICKS, FRAME_MS, nextMoment } from './stage'
 import type { Moment, Rest, Stage } from './stage'
+import { KINGS, pickKing } from './slime'
+import type { KingVariant } from './slime'
 import { selectStage } from './stages'
 
 const branch = atom({ plugin: 'pixel-hud', key: 'branch' } as const, null)
@@ -31,11 +33,11 @@ const EMPTY: Tally = { effort: null, transcript: null, base: null, since: NO_FLO
 const tally = atom({ plugin: 'pixel-hud', key: 'tally' } as const, EMPTY)
 
 // Branch: NES-style palette, a vertical title gradient, green sprite, red alert.
-const ROW_COLORS = ['#58f898', '#3cbcfc', '#6888fc']
+const ROW_COLORS = ['#58f898', '#58d8d0', '#3cbcfc', '#6888fc']
 const SPRITE_COLOR = '#00b800'
 const DIRTY_COLOR = '#f83800'
 const SPRITE = pack(BRANCH_SPRITE)
-const GAP = '  '
+export const GAP = '  '
 // Meter: hudline's neon theme.
 const ROLE_COLORS: Record<Role, string> = { ok: '#4ade80', warn: '#fbbf24', danger: '#f2555a' }
 const LABEL = '#ff49a4'
@@ -44,7 +46,8 @@ const CHIP = '#ff1f8f'
 const CHIP_INK = '#0b0a0d'
 const SEP = ' ★ '
 export const METER_ROWS = 2
-const FULL_ROWS = SPRITE.length + METER_ROWS
+export const TITLE_ROWS = SPRITE.length
+const FULL_ROWS = TITLE_ROWS + METER_ROWS
 // /clear empties $.state, and a branch switched outside Claude Code raises no
 // event: poll to catch both.
 export const POLL_MS = 3000
@@ -133,7 +136,7 @@ function fitBranch(theme: Stage, name: string, isDirty: boolean, columns: number
   const roomFor = (slimes: number) => {
     const width = theme.columns(slimes)
     const used = fixed + (width > 0 ? GAP.length + width : 0)
-    return Math.floor((columns - used + 1) / 4)
+    return Math.floor((columns - used + 1) / GLYPH_ADVANCE)
   }
   for (let slimes = theme.maxRoom; slimes > 0; slimes -= 1) {
     if (name.length <= roomFor(slimes)) {
@@ -168,7 +171,7 @@ async function repaint(theme: Stage, $: EngineInterface, drawn: DrawnStage | nul
   }
 }
 
-// The battle picker is injectable; the slime stage does not consume it.
+// The battle and King pickers are injectable.
 export const register = (on: Parameters<Register>[0], options: Parameters<Register>[1], random: () => number = Math.random) => {
   const theme = selectStage(options.stage)
   const rest = theme.rest(options.slimesIdle !== false, options.slimesHop === true)
@@ -194,11 +197,13 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
     if (denied && stage === denied) stage = null
   }
   // Starts the show unless one is playing or there is no room for the king.
-  const crown = (): 'crowned' | 'reigning' | 'no-room' => {
-    if (currentMoment()?.kind === 'king') return 'reigning'
+  const crown = (): { isNew: boolean; variant: KingVariant } | 'no-room' => {
+    const active = currentMoment()
+    if (active?.kind === 'king') return { isNew: false, variant: active.variant }
     if (!stage || !theme.accepts('king', stage.slimes)) return 'no-room'
-    moment = nextMoment(theme, moment, { kind: 'king', startTick: tick }, stage.slimes)
-    return 'crowned'
+    const variant = pickKing(random)
+    moment = nextMoment(theme, moment, { kind: 'king', startTick: tick, variant }, stage.slimes)
+    return { isNew: true, variant }
   }
 
   on('session.start', async ($, e, next) => {
@@ -227,16 +232,13 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
     return next(e)
   })
 
-  const KING_SAYS = {
-    crowned: 'The slimes band together... A King Slime appears!',
-    reigning: 'The King Slime is already here!',
-    'no-room': 'But there was no room for a King Slime! Widen the terminal.',
-  } as const
-  on('command.run', { command: KING_COMMAND }, async () => ({
-    text: theme.accepts('king', theme.maxRoom)
-      ? KING_SAYS[crown()]
-      : 'But there are no slimes here. The hero walks on.',
-  }))
+  on('command.run', { command: KING_COMMAND }, async () => {
+    if (!theme.accepts('king', theme.maxRoom)) return { text: 'But there are no slimes here. The hero walks on.' }
+    const crowning = crown()
+    if (crowning === 'no-room') return { text: 'But there was no room for a King Slime! Widen the terminal.' }
+    const { name } = KINGS[crowning.variant]
+    return { text: crowning.isNew ? `The slimes band together... A ${name} appears!` : `The ${name} is already here!` }
+  })
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
@@ -375,6 +377,9 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
     const cells = Raster ? theme.cells(slimes, tick, currentMoment(), rest) : ''
     stage = Raster ? { requestId: e.requestId, slimes, cells } : null
     const still = Raster === null && slimes > 0 ? theme.text(slimes) : null
+    // The title block is centred against a taller stage.
+    const branchRows = Math.max(TITLE_ROWS, slimes > 0 ? theme.rows : 0)
+    const titleTop = Math.floor((branchRows - TITLE_ROWS) / 2)
     const dirty = pixelText('*')
     const chip =
       git && glyphs === null
@@ -487,22 +492,25 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
         {glyphs && git ? (
           <Box key="branch">
             <Box flexDirection="column">
-              {Array.from({ length: Math.max(glyphs.length, still?.length ?? 0) }, (_, row) => (
-                <Box key={`row-${row}`}>
-                  <Text color={SPRITE_COLOR}>{paddedRow(SPRITE, row, BRANCH_SPRITE[0]!.length)}</Text>
-                  <Text>{GAP}</Text>
-                  <Text color={ROW_COLORS[row]} bold>
-                    {paddedRow(glyphs, row, glyphs[0]!.length)}
-                  </Text>
-                  {git.isDirty ? <Text color={DIRTY_COLOR}>{GAP + paddedRow(dirty, row, pixelWidth(1))}</Text> : null}
-                  {still ? <Text>{GAP}</Text> : null}
-                  {still?.[row]?.map((s, i) => (
-                    <Text key={`slime-${i}`} color={s.color}>
-                      {s.text}
+              {Array.from({ length: branchRows }, (_, row) => {
+                const titleRow = row - titleTop
+                return (
+                  <Box key={`row-${row}`}>
+                    <Text color={SPRITE_COLOR}>{paddedRow(SPRITE, titleRow, BRANCH_SPRITE[0]!.length)}</Text>
+                    <Text>{GAP}</Text>
+                    <Text color={ROW_COLORS[titleRow]} bold>
+                      {paddedRow(glyphs, titleRow, glyphs[0]!.length)}
                     </Text>
-                  ))}
-                </Box>
-              ))}
+                    {git.isDirty ? <Text color={DIRTY_COLOR}>{GAP + paddedRow(dirty, titleRow, pixelWidth(1))}</Text> : null}
+                    {still ? <Text>{GAP}</Text> : null}
+                    {still?.[row]?.map((s, i) => (
+                      <Text key={`slime-${i}`} color={s.color}>
+                        {s.text}
+                      </Text>
+                    ))}
+                  </Box>
+                )
+              })}
             </Box>
             {Raster ? <Text>{GAP}</Text> : null}
             {Raster ? (

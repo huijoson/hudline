@@ -22,6 +22,8 @@ parser.add_argument("--font", default="/usr/share/fonts/truetype/dejavu/DejaVuSa
 parser.add_argument("--stage", choices=["slimes", "quest"], default="slimes",
                     help="choose the stage theme")
 parser.add_argument("--output", type=Path, help="write the image to this path")
+parser.add_argument("--variant", choices=["king", "gold", "metal"], default="king",
+                    help="which King the slimes crown")
 mode = parser.add_mutually_exclusive_group()
 mode.add_argument("--king", action="store_true",
                     help="draw the King Slime show after a long task (pixel-hud-king.png)")
@@ -31,6 +33,7 @@ mode.add_argument("--sheet", action="store_true",
                     help="draw the stage moments in a grid (one battle per quest skill)")
 mode.add_argument("--foes", type=Path, metavar="PNG",
                     help="draw every quest monster and skill frame to a contact sheet at PNG")
+parser.add_argument("--columns", type=int, default=84, help="terminal width (default: 84)")
 args = parser.parse_args()
 # Text is laid out with libraqm, as the committed images were: Pillow's basic
 # layout advances each cell 14 px instead of 14.45 and draws narrower images.
@@ -50,11 +53,12 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 } })
 const { MONSTERS, SKILLS, paintMonster, paintSkill } = await import(MODULE)
 const { QUEST_STAGE: stage } = await import(STAGE_MODULE)
+const width = 2 + Math.max(...[MONSTERS, SKILLS].flatMap(table => Object.values(table).flatMap(art => art.frames.map(pose => pose.sprite[0].length + (pose.offset ?? 0)))))
 const groups = []
 for (const [table, painter] of [[MONSTERS, paintMonster], [SKILLS, paintSkill]]) {
   for (const [name, art] of Object.entries(table)) {
     const frames = art.frames.map((_, frame) => {
-      const pixels = Array.from({ length: stage.rows * 2 }, () => Array(14).fill(null))
+      const pixels = Array.from({ length: stage.rows * 2 }, () => Array(width).fill(null))
       painter(pixels, name, 2, frame)
       return pixels
     })
@@ -67,7 +71,7 @@ console.log(JSON.stringify(groups))
                          text=True, capture_output=True, check=True)
     groups = json.loads(run.stdout)
     scale, gap, label_height = 10, 20, 32
-    tile_width, tile_height = 14 * scale, len(groups[0]["frames"][0]) * scale
+    tile_width, tile_height = len(groups[0]["frames"][0][0]) * scale, len(groups[0]["frames"][0]) * scale
     columns = max(len(group["frames"]) for group in groups)
     sheet = Image.new("RGB", (gap + columns * (tile_width + gap),
                               gap + len(groups) * (tile_height + label_height + gap)), "#101116")
@@ -119,13 +123,13 @@ usage = {
     ],
     "cost": {"usd": payload["cost"]["total_cost_usd"]},
 }
-COLUMNS = 84
+COLUMNS = args.columns
 
 SHOWCASE_TEST = """
 import { mock, test } from 'claude-code/testing'
 import { selectStage } from './stages'
 import { QUEST_STAGE, WALK_CYCLE_TICKS } from './quest'
-import { FRAME_MS, SLIME_WIDTH, KING_GATHER_TICKS, KING_MERGE_TICKS, KING_DROP_TICKS, KING_FLASH_TICKS, KING_REIGN_TICKS, KING_SHOW_TICKS } from './slime'
+import { FRAME_MS, KING_GATHER_TICKS, KING_MERGE_TICKS, KING_DROP_TICKS, KING_FLASH_TICKS, KING_REIGN_TICKS, KING_SHOW_TICKS } from './slime'
 
 test('showcase', { options: { stage: THEME_OPTION } }, async ($, on) => {
   const theme = selectStage(THEME_OPTION)
@@ -163,7 +167,7 @@ test('showcase', { options: { stage: THEME_OPTION } }, async ($, on) => {
   }
   // Let the once-per-session encounter finish before the resting sample.
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
-  const count = Number(raster?.props.columns) / SLIME_WIDTH
+  const count = Array.from({ length: theme.maxRoom + 1 }, (_, room) => room).findLast(room => theme.columns(room) === Number(raster?.props.columns)) ?? 0
   await clock.advance(FRAME_MS * theme.momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'breathe'))
   await ui.unmount()
   ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
@@ -214,10 +218,19 @@ export const register: Register = (on, options) => {
 }
 """)
         (copy / "hooks" / "hooks.json").write_text(json.dumps({"modules": ["./battle-showcase.ts"]}))
+    else:
+        # A fixed pick in the middle of the variant's third of [0, 1).
+        pick = (["king", "gold", "metal"].index(args.variant) + 0.5) / 3
+        (copy / "hooks" / "king-showcase.ts").write_text(f"""
+import {{ register as registerHud }} from './register'
+import type {{ Register }} from 'claude-code'
+export const register: Register = (on, options) => registerHud(on, options, () => {pick})
+""")
+        (copy / "hooks" / "hooks.json").write_text(json.dumps({"modules": ["./king-showcase.ts"]}))
     frame_count = "0"
     if args.gif or args.sheet:
         frame_count = (
-            "QUEST_STAGE.momentEndTick({ kind: 'battle', startTick: 0, monster: 'slime', skill: 'fireball' }, 4, 'breathe') + WALK_CYCLE_TICKS"
+            "QUEST_STAGE.momentEndTick({ kind: 'battle', startTick: 0, monster: 'slime', skill: 'fireball' }, QUEST_STAGE.maxRoom, 'breathe') + WALK_CYCLE_TICKS"
             if args.stage == "quest" else "KING_SHOW_TICKS + 6"
         )
     source = (SHOWCASE_TEST
@@ -323,7 +336,7 @@ def paint(tree):
                 draw.rectangle((x, y + row_height / 2, x + cell_width, y + row_height - 1), fill=fg)
             elif char != " ":
                 draw.text((x, y + 26), char, font=font, fill=fg, anchor="ls")
-    draw.text((48, height - 53), "SAMPLE VALUES  /  UTC reset times  /  84-column wrap",
+    draw.text((48, height - 53), f"SAMPLE VALUES  /  UTC reset times  /  {COLUMNS}-column wrap",
               font=small, fill="#b6b2c4")
     return canvas, rows
 

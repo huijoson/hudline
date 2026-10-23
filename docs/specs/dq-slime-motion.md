@@ -2,7 +2,33 @@
 
 Status: ready for agent · 2026-10-18 · shaped with `/impeccable shape`
 
+ADR 0015 enlarged the stage to 16 pixels (8 text rows). The dimensions and
+motion below describe the current 11-column kin on that stage; the original
+7-pixel drafts have been superseded.
+
+The faces were later redrawn closer to Dragon Quest: round white eyes around a
+centred pupil, looking straight ahead, and a wide crescent grin with a salmon
+mouth. The King is 22 pixels wide under a crown of gold, purple and green. The
+merge crowns a King Slime, a Gold King Slime or a Metal King Slime, picked at
+random each time; each has its own body colours, and the Gold King's crown band is
+silver. The replies below name whichever King it is.
+
+Each kin was then modelled on its Dragon Quest counterpart and narrowed to 11
+pixels. The slime, she-slime and metal slime share one onion-shaped sprite set,
+a thin tip flaring into a round bulb; the bubble slime has its own puddle set, a
+low dome over a melted skirt with bubbles above. The fifth kin, the liquid metal
+slime, has a flowing silver mound sprite set.
+All five poses exist in all three sets. Each kin has its own palette: mouths
+are salmon, dark purple and red for the onion kin, with dark grins for both
+puddle-shaped kin. The merged blob stays 17 wide and all Kings stay 22 wide.
+The Gold and Metal Kings wear a plated sprite with banded metal shading; the
+blue King Slime keeps its own. A clean `main` heading uses 32 columns, so the
+55-column family fits from 87 columns. The README family showcase uses that
+minimum width; at 84 columns only four kin fit under the branch-first fit rule.
+
 ## Problem Statement
+
+The original baseline before these changes was as follows.
 
 The slime family beside the branch in the pixel-hud mod reads as generic pixel
 blobs, not Dragon Quest slimes, and it moves stiffly. A hop is ten 140 ms
@@ -41,12 +67,14 @@ The HUD's numbers stay first. Motion marks moments; it never narrates.
 1. As a developer, I want the slimes to have Dragon Quest faces (white eyes
    with dark pupils, a wide open grin, a pointed tip), so that I recognise
    them as Dragon Quest slimes at a glance.
-2. As a developer, I want the four kin (slime, she-slime, metal slime, bubble
-   slime) to keep their colours, so that the family I know stays the same.
+2. As a developer, I want the five kin (slime, she-slime, metal slime, bubble
+   slime, liquid metal slime) to keep their colours, so that the family I know
+   stays the same.
 3. As a developer, I want each kin's lower edge drawn in a darker shade of its
    body, so that the slimes look round rather than flat.
-4. As a developer, I want the slimes to keep their 7-column, 3-row footprint,
-   so that the branch name keeps its room.
+4. As a developer, I want each kin to use an 11-column slot on the 8-text-row
+   stage, giving up slots before shortening the branch name, so that the
+   branch name keeps its room.
 5. As a developer, I want the slimes to breathe at rest by default with a
    gentle squish every few seconds, so that the HUD feels alive without
    pulling my eye.
@@ -141,34 +169,32 @@ The HUD's numbers stay first. Motion marks moments; it never narrates.
 
 ### Sprites
 
-New palette letters, added to the existing B (body), H (highlight), Y (gold),
-R (jewel):
+Palette letters extend B (body), H (highlight), Y (crown band), J (red
+jewel), P (purple crown fabric) and G (green crown fabric):
 
 - **W**: eye white
 - **K**: pupil, mouth corners and outlines
-- **M**: mouth interior, a dark red shared by all kin
+- **M**: mouth interior, in each kin's own colour
 - **D**: shade, a darker version of each kin's body colour, added to each
   kin's entry
 
-Each frame is 7 pixels wide and the stage is 6 pixels tall. The STAND pose is
-5 pixels tall, so a hop lifts at most 1 pixel (half a text row). The stretch
-pose sells being airborne more than the lift does. The pixel layouts below are
-drafts. The builder finalises them by rendering with the showcase renderer.
-The silhouette and face intent are the decision; the exact pixels are not.
+Each kin has 11-pixel-wide stand, blink, squash, wide and stretch sprites,
+with its feet on the floor of the 16-pixel stage. Stand heights are 10 pixels
+for the onion kin, 9 for the bubble slime and 8 for the liquid metal slime;
+stretch heights are 12, 12 and 10 respectively. Airborne stand poses lift by
+the unused stage height (6, 7 and 8 pixels), keeping each tip at the top.
+The authoritative pixel rows are the `ONION`, `PUDDLE` and `LIQUID` sprite
+sets in the slime module.
 
-```
-STAND (5)   SQUASH (4)   WIDE/breath (4)   STRETCH (6)   BLINK = STAND with W→B
-...B...                                     ...B...
-..BHB..     ..BHB..      ..BHB..            ..BHB..
-.BWBWB.     .BWBWB.      BWBBBWB            .BWBWB.
-BBKBKBB     BBKBKBB      BKBBBKB            .BKBKB.
-DDMMMDD     DDDMDDD      DDMMMDD            .BMMMB.
-                                            ..DDD..
-```
+A blink replaces eye whites with body colour and draws a closed lid across
+each eye's pupil row: `.BWWWB.` / `.BWKWB.` becomes `.BBBBB.` / `.BKKKB.`.
 
-The King Slime is redrawn with the same face language (white eyes, pupils, a
-red grin, a shaded lower edge) inside its existing 13 × 6 footprint. Its crown
-and jewel stay.
+All three Kings are 22 pixels wide and 16 pixels tall, with white eyes,
+pupils, a grin and a shaded lower edge. Their blink uses the same closed-lid
+pattern, derived from the standing sprite. The Gold King's crown band is
+silver; its jewels retain their colours. The landing squash is generated
+from the sprite: drop the first row and extend each remaining row by one
+pixel on each side.
 
 ### Timing tables (in 80 ms ticks)
 
@@ -178,7 +204,7 @@ These are data tables in the slime module, not logic.
 `slimesIdle: false`):
 
 - STAND for most of the cycle, then WIDE for 2 ticks, then back to STAND.
-- Each slime has its own period: 36, 44, 50 and 40 ticks, so from about 2.9
+- Each slime has its own period: 36, 44, 50, 40 and 46 ticks, so from about 2.9
   to 4 seconds.
 - A BLINK of 1 tick plays roughly every third cycle, at a different offset
   for each slime.
@@ -191,8 +217,8 @@ These are data tables in the slime module, not logic.
 |---|---|---|---|
 | Crouch | SQUASH | 0 | 2 |
 | Launch | STRETCH | 0 | 1 |
-| Rise | STAND | 1 | 1 |
-| Hang | STAND | 1 | 2 |
+| Rise | STAND | stage height − stand height | 1 |
+| Hang | STAND | stage height − stand height | 2 |
 | Fall | STRETCH | 0 | 1 |
 | Land | SQUASH | 0 | 2 |
 | Rebound | STRETCH | 0 | 1 |
@@ -223,7 +249,8 @@ it):
 - Each one falls through the clipped top of the stage in 3 ticks, lands in
   SQUASH for 2 ticks, rebounds in STRETCH for 1 tick, then joins its resting
   motion.
-- Total length is about 16 ticks (about 1.3 seconds).
+- The last of five kin reaches its resting endpoint after 18 ticks (1.44
+  seconds); fewer kin finish sooner.
 - It does not replay on later redraws, polls or `/clear` refreshes within the
   same session.
 
@@ -244,7 +271,8 @@ it):
 
 **King Slime show** (the trigger rules are unchanged: a main-loop answer
 after a task of 20 seconds or more, or `/slime-king`; and it needs two
-slimes' worth of room):
+slimes' worth of room, 22 columns; the 24-column landing squash is clipped
+to those slots at the minimum under the existing stage-clipping policy):
 
 | Phase | Ticks (about) | What happens |
 |---|---|---|
@@ -263,15 +291,15 @@ slimes' worth of room):
 - Keep pixel-hud 0.6.1's fix (PR #3): in every leap and in the Scatter arc,
   each slime's position rounds away from the middle (floor left of it, ceil
   right of it), so where they press together every slime still shows. With 2,
-  3 and 4 slimes, every body is drawn at the collide frame and the first
+  3, 4 and 5 slimes, every body is drawn at the collide frame and the first
   Scatter frame.
 
 ### Copy (Dragon Quest battle-message style)
 
 | Situation | Reply |
 |---|---|
-| Crowned | `The slimes band together... A King Slime appears!` |
-| Already reigning | `The King Slime is already here!` |
+| Crowned | `The slimes band together... A King Slime appears!` (or `A Gold King Slime`, `A Metal King Slime`) |
+| Already reigning | `The King Slime is already here!`, naming the King that reigns |
 | No room | `But there was no room for a King Slime! Widen the terminal.` |
 | `/slime-king` command description | `Call the slimes together to form a King Slime` |
 
@@ -302,7 +330,9 @@ slimes' worth of room):
   - the cells the slime module returns for a given count, tick and moment;
   - what the mod blits, and when;
   - the reply text.
-- Never assert on internal tables or private helpers.
+- Derive timing and kin selection from the exported tables rather than
+  copying them into tests. Pixel and motion expectations must still be
+  independent of the rendering helpers they exercise.
 - **Seam 1, the slime module (pure).** This is the prior art in the "slime
   family" and "King Slime" describe blocks. Cover:
   - The rest frame has every slime grounded.
@@ -315,7 +345,7 @@ slimes' worth of room):
   - Keep the 0.6.1 show tests, rescaled to the new ticks: the slimes move only
     in the air; they collide airborne, further in than halfway, with every body
     showing; the next frame is one grounded splat as wide as the king in the
-    first slime's colours; for 2, 3 and 4 slimes every body shows at the
+    selected King's body colours; for 2, 3, 4 and 5 slimes every body shows at the
     collide frame and the first Scatter frame.
   - Replace the 0.6.1 "leap home in two hops" test: Scatter starts where the
     slimes collided, is airborne at some tick, and ends at home in SQUASH
@@ -346,17 +376,17 @@ slimes' worth of room):
 - Visual check: regenerate `docs/showcase/pixel-hud.png`,
   `pixel-hud-king.png` and the README's `pixel-hud-king.gif` with the showcase
   renderer (`render_mod.py`, `--king`, `--gif`) and inspect them once. The
-  renderer hard-codes 140 ms (the `--king` catch-up, the GIF's per-tick clock
-  advance and its frame durations); derive these from the new frame constant,
-  and keep `--king` catching the king mid-reign. Keep the GIF's single shared
-  palette.
+  renderer derives the `--king` catch-up, GIF clock advances and frame
+  durations from `FRAME_MS`; keep `--king` catching the king mid-reign and
+  the GIF's single shared palette.
 
 ## Out of Scope
 
 - Changes to hudline's stdout status line, its themes or its Narration.
 - The branch glyphs, the meter, the HUD's layout and the rules for when
   slimes give up their room.
-- New slime kin, a larger slime footprint, or new stage height.
+- Additional kin beyond the five documented here, or further changes to the
+  11-column slots and 16-pixel stage height.
 - Sound, and any on-screen text message for moments other than the
   `/slime-king` replies.
 - Moments for other events, such as turn start, subagents or permission

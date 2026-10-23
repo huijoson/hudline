@@ -42,15 +42,20 @@ same `payload.json` and `transcript.jsonl`. It needs the `claude` CLI (2.1.294
 or newer) besides Pillow and the font:
 
 ```sh
-/tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py
+/tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --columns 87
 /tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --king
 /tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --gif
 /tmp/hudline-showcase-venv/bin/python docs/showcase/render_mod.py --sheet
 ```
 
+The first draws all five kin at 87 columns, the minimum beside clean `main`.
+Other images keep the default 84 columns.
 The second draws `pixel-hud-king.png`: a task of a minute ends, and the image
 catches the King Slime halfway through its reign, using the exported phase
 lengths.
+The mod picks the King at random; the renderer hands it a fixed pick, the King
+Slime unless `--variant gold` or `--variant metal` asks for the Gold King or
+the Metal King Slime. The committed images use the King Slime.
 The third draws `pixel-hud-king.gif`, the README's demo: the same task, one
 frame for each tick of the slimes' exported `FRAME_MS` clock, from the slimes
 at rest through the whole show and home again. Pillow folds repeated frames

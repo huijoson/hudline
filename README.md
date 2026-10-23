@@ -15,7 +15,7 @@ with the git branch in 8-bit pixel letters and a family of slimes breathing
 beside it.
 See [Claude Code: as a mod](#claude-code-as-a-mod).
 
-![pixel-hud, the Claude Code mod: the branch name main in 8-bit pixel letters with four pixel-art slimes beside it, above the same neon line, with the same sample values.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
+![pixel-hud, the Claude Code mod: the branch name main in 8-bit pixel letters with five pixel-art slimes beside it, above the same neon line, with the same sample values.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
 
 | What to watch | How to read it |
 |---|---|
@@ -67,13 +67,16 @@ Claude Code can also run hudline as a **mod**: a plugin that draws the line
 **above** the prompt, in the same neon look, and adds the git branch in 8-bit
 pixel letters on top. It needs no Node.js and no `statusLine` setting.
 
-![pixel-hud: the branch main in 8-bit pixel letters, four pixel-art slimes beside it, above hudline's neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
+![pixel-hud: the branch main in 8-bit pixel letters, five pixel-art slimes beside it, above hudline's neon line.](https://raw.githubusercontent.com/huijoson/hudline/main/docs/showcase/pixel-hud.png)
 
-Beside the branch sits a slime family: a slime, a she-slime, a metal slime and a
-bubble slime. At session start they drop in one by one, then settle into their
-resting motion. When a task of 20 seconds or more finishes, they leap toward
+Beside the branch sits a slime family: a slime, a she-slime, a metal slime, a
+bubble slime and a liquid metal slime, each modelled on its Dragon Quest namesake.
+All five are 11 pixels wide, with round white eyes and a wide grin. A clean
+`main` branch needs 87 columns to show all five; at 84 columns four fit. At
+session start they drop in one by one, then settle into their resting motion. When a task of 20 seconds or more finishes, they leap toward
 each other in two hops and collide in mid-air. They splat together, then a crowned
-**King Slime** drops in with a squash and rebound. It reigns for a few seconds,
+**King Slime**, plated **Gold King Slime** or plated **Metal King Slime**, picked
+at random, drops in with a squash and rebound. It reigns for a few seconds,
 flickers in defeat, then bursts into the family, each arcing home in one leap
 and settling at rest. Type `/slime-king` to see the show any time.
 
@@ -122,7 +125,9 @@ colours follow the same ramps. What the mod does not have:
   `agent_running` line.
 
 The slimes give up their room one by one before the branch name is shortened,
-and need at least two of them for the King Slime. They are drawn in full colour in a
+and need at least two of them for the King Slime. The quest stage needs 46
+columns beside the branch and is hidden when they do not fit. Both stages are 8
+rows tall, so the mod needs a band of 10 rows. They are drawn in full colour in a
 terminal; the desktop app's Code tab draws them resting, one colour each. The
 branch shrinks to a `▶ BRANCH` chip when the band is narrow or short, and is
 hidden outside a git repository. Run the mod *or* the status line: with both,

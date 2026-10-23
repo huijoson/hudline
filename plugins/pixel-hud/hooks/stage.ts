@@ -1,4 +1,5 @@
 import type { Monster, Skill } from './quest-foes'
+import type { KingVariant } from './slime'
 
 export const FRAME_MS = 80
 export const DAMAGE_COOLDOWN_TICKS = Math.round(2_000 / FRAME_MS)
@@ -6,11 +7,13 @@ export const DAMAGE_COOLDOWN_TICKS = Math.round(2_000 / FRAME_MS)
 export type Rest = 'hop' | 'breathe' | 'still'
 
 export type Moment =
-  | { kind: 'king' | 'level-up' | 'encounter'; startTick: number }
+  | { kind: 'king'; startTick: number; variant: KingVariant }
+  | { kind: 'level-up' | 'encounter'; startTick: number }
   | { kind: 'damage'; startTick: number; target: number }
   | { kind: 'battle'; startTick: number; monster: Monster; skill: Skill }
 
-// Room is the number of seven-column slots granted beside the branch.
+// Room is a theme's own unit of width beside the branch, from 0 to maxRoom.
+// columns(room) turns it into columns; 0 columns means the stage is not drawn.
 export interface Stage {
   rows: number
   taskMoment: (tick: number, random: () => number) => Moment | null

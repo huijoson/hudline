@@ -14,14 +14,20 @@ import {
   tokens,
   usd,
 } from './format'
-import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { QUEST_STAGE } from './quest'
+import { BRANCH_SPRITE, pixelText, pixelWidth } from './pixel'
+import { QUEST_MIN_COLUMNS, QUEST_STAGE } from './quest'
 import { HERO_PALETTE, QUEST_ROWS } from './quest-hero'
-import { METER_ROWS, POLL_MS } from './register'
+import { GAP, METER_ROWS, POLL_MS, TITLE_ROWS } from './register'
 import {
+  BLINK_EVERY_CYCLES,
+  BREATH_SQUISH_TICKS,
+  ONION,
+  PUDDLE,
+  LIQUID,
   canCrown,
   DAMAGE_COOLDOWN_TICKS,
   DAMAGE_TICKS,
+  ENCOUNTER,
   ENCOUNTER_ARRIVAL_TICKS,
   ENCOUNTER_FALL_TICKS,
   ENCOUNTER_STAGGER_TICKS,
@@ -36,7 +42,9 @@ import {
   HOP_RISE_TICKS,
   HOP_SETTLE_TICKS,
   HOP_TICKS,
+  KING as KING_SPRITE,
   KING_DEFEAT_TICKS,
+  KING_DROP,
   KING_DROP_FALL_TICKS,
   KING_DROP_SQUASH_TICKS,
   KING_DROP_TICKS,
@@ -49,10 +57,13 @@ import {
   KING_SCATTER_TICKS,
   KING_SHOW_TICKS,
   KING_WIDTH,
+  KINGS,
   kingStage,
   LEAP,
   momentEndTick,
   nextMoment,
+  kinFrame,
+  pickKing,
   slimeCells,
   slimeColumns,
   slimeText,
@@ -60,7 +71,7 @@ import {
   stage,
   SLIME_ROWS,
 } from './slime'
-import type { Moment } from './slime'
+import type { KingVariant, Moment } from './slime'
 
 const failure = { tool_name: 'Bash', tool_input: {}, tool_use_id: 'failed-tool', error: 'failed' }
 const compaction = { compact_summary: 'The conversation so far, compacted.' }
@@ -71,23 +82,32 @@ function shape(pixels: (number | null)[][]): string {
 
 const WHITE = 0xfcfcfc
 const GOLD = 0xfcbc3c
-const MOUTH = 0x981828
-// Ticket #8's per-kin breathing periods, in clock ticks.
-const BREATH_PERIODS = [36, 44, 50, 40]
-const BLINK_EVERY_CYCLES = 3
+const MOUTH = 0xf87858
+const BREATH_PERIODS = FAMILY.map(kin => kin.breath.period)
 const LONGEST_BREATH_PERIOD = Math.max(...BREATH_PERIODS)
 const BLINK_OBSERVATION_TICKS = BLINK_EVERY_CYCLES * LONGEST_BREATH_PERIOD
 // Sweep enough start offsets to exercise the staggered hop clocks.
-const HOP_START_WINDOW_TICKS = 100
+const HOP_START_WINDOW_TICKS = Math.max(...FAMILY.map(kin => kin.hopRests.reduce((sum, rest) => sum + HOP_TICKS + rest, 0)))
 const kingLandingTick = KING_SHOW_TICKS - HOP_LAND_TICKS
-const TIP_ROW = 1
-const TIP_COLUMN = 3
-const EYE_ROW = 3
-const LEFT_EYE_COLUMN = 2
-const RIGHT_EYE_COLUMN = 4
+const PUPIL = 0x0b0a0d
+// The blue slime's tip row at rest.
+const TIP_ROW = 6
+// Rows above every crouching kin, and the blue slime's stretching tip row.
+const CROUCH_EMPTY_ROWS = 8
+const STRETCH_TIP_ROW = 4
 
 function slimeFace(pixels: (number | null)[][], i: number) {
   return pixels.map(row => row.slice(i * SLIME_WIDTH, (i + 1) * SLIME_WIDTH))
+}
+
+// Columns of the pupils that sit between white on both sides, looking straight ahead.
+function pupils(row: (number | null)[] = []): number[] {
+  return row.flatMap((p, x) => p === PUPIL && row[x - 1] === WHITE && row[x + 1] === WHITE ? [x] : [])
+}
+
+// A blink keeps the standing silhouette and shows no white of the eyes.
+function isBlinking(face: (number | null)[][], standing: (number | null)[][]): boolean {
+  return shape(face) === shape(standing) && !face.flat().includes(WHITE)
 }
 
 // Raster cells are row-major [code point, foreground, background] u32s.
@@ -116,11 +136,17 @@ function slimePixels(cells: string, rows = SLIME_ROWS) {
   )
 }
 
-const SPRITE_ROW = pack(BRANCH_SPRITE)[0]
+const SPRITE_ROW = '█   █'
+// The stage beside the title, with the meter below it.
+const FULL_ROWS = SLIME_ROWS + METER_ROWS
+const MAIN_TITLE = ['█▄ ▄█ ▄▀▀▀▄  ▀█▀  █   █', '█ █ █ █▄▄▄█   █   █▀▄ █', '█   █ █   █   █   █  ▀█', '▀   ▀ ▀   ▀  ▀▀▀  ▀   ▀']
+const DEV_TITLE = ['█▀▀▀▄ █▀▀▀▀ █   █', '█   █ █▄▄▄  █   █', '█   █ █     ▀▄ ▄▀', '▀▀▀▀  ▀▀▀▀▀   ▀  ']
+const FEATURE_TITLE = ['█▀▀▀▀ █▀▀▀▀ ▄▀▀▀▄ ▀▀█▀▀ █   █ █▀▀▀▄ █▀▀▀▀     █ ▄▀▀▀▀ █      ▀█▀  █▄ ▄█ █▀▀▀▀ ▄▀▀▀▀', '█▄▄▄  █▄▄▄  █▄▄▄█   █   █   █ █▄▄▄▀ █▄▄▄    ▄▀  ▀▄▄▄  █       █   █ █ █ █▄▄▄  ▀▄▄▄ ', '█     █     █   █   █   █   █ █ ▀▄  █     ▄▀        █ █       █   █   █ █         █', '▀     ▀▀▀▀▀ ▀   ▀   ▀    ▀▀▀  ▀   ▀ ▀▀▀▀▀ ▀     ▀▀▀▀  ▀▀▀▀▀  ▀▀▀  ▀   ▀ ▀▀▀▀▀ ▀▀▀▀ ']
+const CLIPPED_TITLE = ['█▀▀▀▀ █▀▀▀▀ ▄▀▀▀▄ ▀▀█▀▀            ', '█▄▄▄  █▄▄▄  █▄▄▄█   █              ', '█     █     █   █   █    ▄▄    ▄▄  ', '▀     ▀▀▀▀▀ ▀   ▀   ▀    ▀▀    ▀▀  ']
 
 describe('pixel font', () => {
-  test('packs a glyph into three half-block rows', () => {
-    expect(pixelText('a')).toEqual(['▄▀▄', '█▀█', '▀ ▀'])
+  test('packs a glyph into four half-block rows', () => {
+    expect(pixelText('a')).toEqual(['▄▀▀▀▄', '█▄▄▄█', '█   █', '▀   ▀'])
   })
 
   test('spaces glyphs one column apart', () => {
@@ -247,11 +273,11 @@ test('draws the branch in pixel glyphs above the neon meter', async ($, on) => {
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
 
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await mount($, surface, 10, 120)
-    for (const line of pixelText('main')) {
+    const ui = await mount($, surface, FULL_ROWS, 120)
+    for (const line of MAIN_TITLE) {
       expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
     }
-    expect(await ui.find({ type: 'Text', text: `  ${pixelText('*')[1]}` })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '  ▄███▄' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: ' Opus 5.5 ' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: ' ▰▰▱▱▱ 42%' })).toBeDefined()
     // Quota windows read as remaining: 39% used is 61% left, 85% used is 15% left.
@@ -264,6 +290,49 @@ test('draws the branch in pixel glyphs above the neon meter', async ($, on) => {
     await ui.unmount()
   }
 })
+
+for (const [theme, rows] of [['slimes', SLIME_ROWS], ['quest', QUEST_ROWS]] as const) {
+  for (const surface of ['terminal', 'desktop'] as const) {
+    test(`centres the branch title beside the ${theme} stage on ${surface}`, { options: { stage: theme } }, async ($, on) => {
+      mock.clock(on)
+      answers(on, { name: 'main', porcelain: ' M app.ts\n', isRepo: true })
+      await $.session.start({ cwd: '/repo', surface, isInteractive: true })
+      const height = Math.max(rows, TITLE_ROWS)
+      const ui = await mount($, surface, height + METER_ROWS, 120)
+      const top = Math.floor((height - TITLE_ROWS) / 2)
+      const blank = ' '.repeat(BRANCH_SPRITE[0]!.length + GAP.length + pixelWidth('main'.length) + GAP.length + pixelWidth(1))
+      const sprite = ['█   █', '█  ▄▀', '█▄▀  ', '▀    ']
+      const dirty = ['▄ ▄ ▄', '▄███▄', '▄▀█▀▄', '     ']
+      for (let row = 0; row < height; row += 1) {
+        const titleRow = row - top
+        const prefix = titleRow >= 0 && titleRow < TITLE_ROWS
+          ? `${sprite[titleRow]}  ${MAIN_TITLE[titleRow]}  ${dirty[titleRow]}`
+          : blank
+        expect((await ui.find({ type: 'Box', key: `row-${row}` }))?.text.startsWith(prefix)).toBe(true)
+      }
+      // Every title row gets a gradient colour, whatever the font's height.
+      for (const line of MAIN_TITLE) {
+        expect(typeof (await ui.find({ type: 'Text', text: line }))?.props.color).toBe('string')
+      }
+      expect(await ui.find({ type: 'Box', key: `row-${height}` })).toBeUndefined()
+      await ui.unmount()
+    })
+  }
+}
+
+const mainTitleColumns = BRANCH_SPRITE[0]!.length + GAP.length + pixelWidth('main'.length) + GAP.length
+const fiveKinColumns = mainTitleColumns + slimeColumns(FAMILY.length)
+for (const [columns, count] of [[fiveKinColumns - 3, FAMILY.length - 1], [fiveKinColumns - 1, FAMILY.length - 1], [fiveKinColumns, FAMILY.length]] as const) {
+  test(`a clean main branch fits ${count} kin at ${columns} columns`, async ($, on) => {
+    mock.clock(on)
+    answers(on, { name: 'main', porcelain: '', isRepo: true })
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+    const ui = await mount($, 'terminal', FULL_ROWS, columns)
+    expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns).toBe(slimeColumns(count))
+    for (const line of MAIN_TITLE) expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
+    await ui.unmount()
+  })
+}
 
 test('reads token flow from the transcript the classic hooks name', async ($, on) => {
   mock.clock(on)
@@ -289,10 +358,10 @@ test('reads token flow from the transcript the classic hooks name', async ($, on
   await $.classic.SessionStart({ source: 'startup', transcript_path: '/t.jsonl' } as never)
 
   // The read runs beside the hook, never ahead of the prompt: draw until it lands.
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   for (let i = 0; i < 20 && (await ui.find({ type: 'Text', text: ' 1.2M' })) === undefined; i += 1) {
     await ui.unmount()
-    ui = await mount($, 'terminal', 10, 120)
+    ui = await mount($, 'terminal', FULL_ROWS, 120)
   }
   expect(await ui.find({ type: 'Text', text: ' 1.2M' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: ' 98%' })).toBeDefined()
@@ -317,7 +386,7 @@ test('shows only the meter outside a git repo', async ($, on) => {
   answers(on, { name: '', porcelain: '', isRepo: false })
   await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
 
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   expect(await ui.find({ type: 'Text', text: ' Opus 5.5 ' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: SPRITE_ROW })).toBeUndefined()
   await ui.unmount()
@@ -332,8 +401,8 @@ test('picks up a branch switched outside Claude Code on the next poll', async ($
   git.name = 'dev'
   await clock.advance(3000)
 
-  const ui = await mount($, 'terminal', 10, 120)
-  for (const line of pixelText('dev')) {
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
+  for (const line of DEV_TITLE) {
     expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
   }
   await ui.unmount()
@@ -341,42 +410,44 @@ test('picks up a branch switched outside Claude Code on the next poll', async ($
 
 describe('slime family', () => {
   test('the default Raster breathes at rest', () => {
-    const firstSquishTick = 34
-    expect(slimeCells(4, firstSquishTick)).toBe(slimeCells(4, firstSquishTick, null, 'breathe'))
+    const firstSquishTick = FAMILY[0]!.breath.period - BREATH_SQUISH_TICKS
+    expect(slimeCells(FAMILY.length, firstSquishTick)).toBe(slimeCells(FAMILY.length, firstSquishTick, null, 'breathe'))
   })
 
-  test('each kin has white eyes, dark pupils, a red grin and a shaded lower edge', () => {
-    const rest = stage(4, null)
+  test('each kin has white eyes, centred pupils, its mouth colour and a shaded lower edge', () => {
+    const rest = stage(FAMILY.length, null)
+    expect(new Set(FAMILY.map(kin => kin.palette.B)).size).toBe(FAMILY.length)
     for (const [i, kin] of FAMILY.entries()) {
       const face = slimeFace(rest, i)
-      expect(face[0]?.every(p => p === null)).toBe(true)
-      expect(face[1]?.filter(p => p !== null)).toEqual([kin.body])
-      expect(face[3]?.filter(p => p === WHITE).length).toBe(2)
-      expect(face[4]?.filter(p => p === 0x0b0a0d).length).toBe(2)
-      expect(face[5]?.slice(2, 5)).toEqual([MOUTH, MOUTH, MOUTH])
-      const shade = face[5]?.[0] ?? 0xffffff
-      expect(shade).not.toBe(kin.body)
-      expect(shade).not.toBe(0x0b0a0d)
+      const eyeRow = face.findIndex(row => pupils(row).length === 2)
+      expect(eyeRow).toBeGreaterThan(0)
+      const [left, right] = pupils(face[eyeRow])
+      expect((left ?? 0) + (right ?? 0)).toBe(SLIME_WIDTH - 1)
+      // The grin is a run of the kin's own mouth colour below the eyes.
+      const mouth = face.slice(eyeRow + 1).some(row => row.some((_, x) => row.slice(x, x + 3).every(p => p === kin.palette.M)))
+      expect(mouth).toBe(true)
+      const shade = face[floorRow]?.filter(p => p !== null) ?? []
+      expect(new Set(shade)).toEqual(new Set([kin.palette.D]))
       for (const shift of [16, 8, 0]) {
-        expect((shade >> shift) & 255).toBeLessThan((kin.body >> shift) & 255)
+        expect((kin.palette.D >> shift) & 255).toBeLessThan((kin.palette.B >> shift) & 255)
       }
     }
   })
 
   test('breath widens for two ticks and returns to stand at each kin’s own pace', () => {
     const firstCycleTick = 0
-    const rest = stage(4, null)
+    const rest = stage(FAMILY.length, null)
     const poses: string[][] = []
     for (const [i, period] of BREATH_PERIODS.entries()) {
       const frames: string[] = []
       for (let tick = firstCycleTick; tick <= period; tick += 1) {
-        const pixels = stage(4, tick, 'breathe')
+        const pixels = stage(FAMILY.length, tick, 'breathe')
         const face = slimeFace(pixels, i)
-        expect(face[5]?.some(p => p !== null)).toBe(true)
+        expect(face[floorRow]?.some(p => p !== null)).toBe(true)
         frames.push(JSON.stringify(face))
       }
       const standing = JSON.stringify(slimeFace(rest, i))
-      expect(frames.filter(frame => frame !== standing).length).toBe(2)
+      expect(frames.filter(frame => frame !== standing).length).toBe(BREATH_SQUISH_TICKS)
       expect(frames.at(-1)).toBe(standing)
       poses.push(frames.map(frame => frame === standing ? 'stand' : 'wide'))
     }
@@ -393,15 +464,16 @@ describe('slime family', () => {
     for (const [i, period] of BREATH_PERIODS.entries()) {
       const blinkCycleTicks = period * BLINK_EVERY_CYCLES
       const blinks: number[] = []
+      const standing = slimeFace(stage(FAMILY.length, null), i)
       for (let tick = 0; tick < blinkCycleTicks; tick += 1) {
-        const face = slimeFace(stage(4, tick, 'breathe'), i)
-        if (face[TIP_ROW]?.[TIP_COLUMN] !== null && face[EYE_ROW]?.[LEFT_EYE_COLUMN] !== WHITE && face[EYE_ROW]?.[RIGHT_EYE_COLUMN] !== WHITE) blinks.push(tick)
+        if (isBlinking(slimeFace(stage(FAMILY.length, tick, 'breathe'), i), standing)) blinks.push(tick)
       }
       expect(blinks.length).toBe(1)
       const blinkTick = blinks[0] ?? 0
+      expect(blinkTick).toBe(period * (BLINK_EVERY_CYCLES - 1) + FAMILY[i]!.breath.blink)
       blinkTicks.push(blinkTick)
-      const nextBlink = slimeFace(stage(4, blinkTick + blinkCycleTicks, 'breathe'), i)
-      const firstBlink = slimeFace(stage(4, blinkTick, 'breathe'), i)
+      const nextBlink = slimeFace(stage(FAMILY.length, blinkTick + blinkCycleTicks, 'breathe'), i)
+      const firstBlink = slimeFace(stage(FAMILY.length, blinkTick, 'breathe'), i)
       expect(nextBlink).toEqual(firstBlink)
     }
     expect(new Set(blinkTicks).size).toBe(FAMILY.length)
@@ -409,11 +481,11 @@ describe('slime family', () => {
 
   test('the King holds each kin at rest until its next grounded hop start', () => {
     const silhouette = (pixels: (number | null)[][]) => pixels.map(row => row.map(p => p !== null))
-    for (const count of [2, 3, 4]) {
+    for (const count of [2, 3, 4, 5]) {
       const standing = stage(count, null)
-      const crouching = kingStage(count, kingLandingTick, null)
-      for (let startTick = 0; startTick < 200; startTick += 1) {
-        const king: Moment = { kind: 'king', startTick }
+      const crouching = kingStage(count, kingLandingTick, null, 'breathe', 'king')
+      for (let startTick = 0; startTick < HOP_START_WINDOW_TICKS; startTick += 1) {
+        const king: Moment = { kind: 'king', startTick, variant: 'king' }
         const endpoint = startTick + KING_SHOW_TICKS
         expect(slimeCells(count, endpoint, king, 'hop')).toBe(slimeCells(count, 0, null, 'still'))
         const joined = Array<boolean>(count).fill(false)
@@ -421,7 +493,7 @@ describe('slime family', () => {
         for (let tick = endpoint + 1; tick <= endpoint + HOP_TICKS; tick += 1) {
           const global = stage(count, tick, 'hop')
           const previous = stage(count, tick - 1, 'hop')
-          const actual = kingStage(count, tick - startTick, tick, 'hop')
+          const actual = kingStage(count, tick - startTick, tick, 'hop', 'king')
           const cells = slimeCells(count, tick, king, 'hop')
           const globalCells = slimeCells(count, tick, null, 'hop')
           const standingCells = slimeCells(count, 0, null, 'still')
@@ -467,31 +539,29 @@ describe('slime family', () => {
     // Crouch, launch, rise/hang, fall, land, rebound, settle/rest.
     expect(runs).toEqual([2, 1, 3, 1, 2, 1, nextCrouchTick - settleTick])
     const stretch = stage(1, launchTick, 'hop')
-    expect(stretch[0]?.filter(p => p !== null)).toEqual([FAMILY[0]?.body])
-    expect(stretch[5]?.filter(p => p !== null).length).toBe(3)
+    expect(stretch[STRETCH_TIP_ROW]?.filter(p => p !== null)).toEqual([FAMILY[0]?.palette.B])
+    expect(stretch[floorRow]?.filter(p => p !== null).length).toBe(1)
     expect(stage(1, fallTick, 'hop')).toEqual(stretch)
     expect(stage(1, reboundTick, 'hop')).toEqual(stretch)
-    expect(stage(1, riseTick, 'hop')[5]?.every(p => p === null)).toBe(true)
+    expect(stage(1, riseTick, 'hop')[floorRow]?.every(p => p === null)).toBe(true)
     expect(stage(1, settleTick, 'hop')).toEqual(stage(1, null))
   })
 
   test('each kin blinks for one grounded tick strictly inside every third hop rest', () => {
-    const restSequences = [[6, 10, 14], [9, 14, 7], [12, 6, 10], [14, 8, 11]]
-    const phaseTicks = [0, 3, 7, 12]
     const blinkOffsets: number[] = []
-    for (const [i, rests] of restSequences.entries()) {
-      const standing = slimeFace(stage(4, null), i)
-      const blinking = standing.map((row, r) => row.map((pixel, c) => r === EYE_ROW && (c === LEFT_EYE_COLUMN || c === RIGHT_EYE_COLUMN) ? FAMILY[i]?.body : pixel))
-      let crouchTick = -(phaseTicks[i] ?? 0)
+    for (const [i, kin] of FAMILY.entries()) {
+      const rests = kin.hopRests
+      const standing = slimeFace(stage(FAMILY.length, null), i)
+      let crouchTick = -kin.phase
       for (let cycle = 0; cycle < BLINK_EVERY_CYCLES * 2; cycle += 1) {
         const restTicks = rests[cycle % rests.length] ?? 0
         const restStart = crouchTick + HOP_TICKS
         const nextCrouch = restStart + restTicks
         const blinks: number[] = []
         for (let tick = Math.max(0, crouchTick); tick < nextCrouch; tick += 1) {
-          const face = slimeFace(stage(4, tick, 'hop'), i)
-          if (tick < restStart) expect(face).not.toEqual(blinking)
-          else if (JSON.stringify(face) === JSON.stringify(blinking)) blinks.push(tick)
+          const face = slimeFace(stage(FAMILY.length, tick, 'hop'), i)
+          if (tick < restStart) expect(isBlinking(face, standing)).toBe(false)
+          else if (isBlinking(face, standing)) blinks.push(tick)
           else expect(face).toEqual(standing)
         }
         if (cycle % BLINK_EVERY_CYCLES === BLINK_EVERY_CYCLES - 1) {
@@ -500,9 +570,9 @@ describe('slime family', () => {
           expect(blinkTick).toBeGreaterThan(restStart)
           expect(blinkTick).toBeLessThan(nextCrouch - 1)
           // Even the shortest six-tick rest has standing ticks on both sides.
-          expect(blinkTick - restStart).toBeLessThan(6 - 1)
-          expect(slimeFace(stage(4, blinkTick - 1, 'hop'), i)).toEqual(standing)
-          expect(slimeFace(stage(4, blinkTick + 1, 'hop'), i)).toEqual(standing)
+          expect(blinkTick - restStart).toBeLessThan(restTicks - 1)
+          expect(slimeFace(stage(FAMILY.length, blinkTick - 1, 'hop'), i)).toEqual(standing)
+          expect(slimeFace(stage(FAMILY.length, blinkTick + 1, 'hop'), i)).toEqual(standing)
           if (cycle < BLINK_EVERY_CYCLES) blinkOffsets.push(blinkTick - restStart)
         } else expect(blinks).toEqual([])
         crouchTick = nextCrouch
@@ -512,27 +582,34 @@ describe('slime family', () => {
   })
 
   test('hop rests vary by kin and cycle, within six to fourteen ticks, deterministically', () => {
-    const observationTicks = 200
+    const observationTicks = HOP_START_WINDOW_TICKS * 3
     const movingTicks = HOP_TICKS
-    const launchOffset = 2
-    const riseOffset = 3
-    const minRestTicks = 6
-    const maxRestTicks = 14
-    const expectedRests = [[6, 10, 14], [14, 7, 9], [6, 10, 12], [8, 11, 14]]
+    const launchOffset = HOP_CROUCH_TICKS
+    const riseOffset = HOP_CROUCH_TICKS + HOP_LAUNCH_TICKS
+    const minRestTicks = Math.min(...FAMILY.flatMap(kin => [...kin.hopRests]))
+    const maxRestTicks = Math.max(...FAMILY.flatMap(kin => [...kin.hopRests]))
     const restLengths: number[][] = []
     for (let i = 0; i < FAMILY.length; i += 1) {
       const crouches: number[] = []
       for (let tick = 0; tick < observationTicks; tick += 1) {
-        const face = slimeFace(stage(4, tick, 'hop'), i)
-        const launch = slimeFace(stage(4, tick + launchOffset, 'hop'), i)
-        const rise = slimeFace(stage(4, tick + riseOffset, 'hop'), i)
-        const isCrouching = face.slice(0, 2).flat().every(p => p === null)
-        const isLaunching = launch[0]?.some(p => p !== null) && launch[5]?.some(p => p !== null)
-        const isRising = rise[5]?.every(p => p === null)
+        const face = slimeFace(stage(FAMILY.length, tick, 'hop'), i)
+        const launch = slimeFace(stage(FAMILY.length, tick + launchOffset, 'hop'), i)
+        const rise = slimeFace(stage(FAMILY.length, tick + riseOffset, 'hop'), i)
+        const isCrouching = face.slice(0, CROUCH_EMPTY_ROWS).flat().every(p => p === null)
+        const stretchTop = SLIME_ROWS * 2 - FAMILY[i]!.sprites.stretch.length
+        const isLaunching = launch[stretchTop]?.some(p => p !== null) && launch[floorRow]?.some(p => p !== null)
+        const isRising = rise[floorRow]?.every(p => p === null)
         if (isCrouching && isLaunching && isRising) crouches.push(tick)
       }
       const rests = crouches.slice(1).map((tick, cycle) => tick - (crouches[cycle] ?? 0) - movingTicks)
-      expect(rests.slice(0, 3)).toEqual(expectedRests[i])
+      const kin = FAMILY[i]!
+      let firstCycle = 0
+      let firstCrouch = -kin.phase
+      while (firstCrouch < 0) {
+        firstCrouch += HOP_TICKS + kin.hopRests[firstCycle % kin.hopRests.length]!
+        firstCycle += 1
+      }
+      expect(rests.slice(0, kin.hopRests.length)).toEqual(kin.hopRests.map((_, cycle) => kin.hopRests[(firstCycle + cycle) % kin.hopRests.length]))
       expect(rests.length).toBeGreaterThan(2)
       expect(new Set(rests).size).toBeGreaterThan(1)
       for (const rest of rests) {
@@ -541,8 +618,8 @@ describe('slime family', () => {
       for (const crouchTick of crouches) {
         const settleTick = crouchTick + movingTicks - 1
         const restTick = crouchTick + movingTicks
-        expect(slimeFace(stage(4, settleTick, 'hop'), i)).toEqual(slimeFace(stage(4, null), i))
-        expect(slimeFace(stage(4, restTick, 'hop'), i)).toEqual(slimeFace(stage(4, null), i))
+        expect(slimeFace(stage(FAMILY.length, settleTick, 'hop'), i)).toEqual(slimeFace(stage(FAMILY.length, null), i))
+        expect(slimeFace(stage(FAMILY.length, restTick, 'hop'), i)).toEqual(slimeFace(stage(FAMILY.length, null), i))
       }
       restLengths.push(rests)
     }
@@ -553,22 +630,23 @@ describe('slime family', () => {
     }
   })
 
-  test('the pointed tip stays visible throughout a hop in the six-pixel stage', () => {
+  test('the pointed tip stays visible throughout a hop in the sixteen-pixel stage', () => {
     let airborneTicks = 0
     for (let tick = 0; tick < HOP_TICKS; tick += 1) {
       const pixels = stage(1, tick, 'hop')
       const top = pixels.find(row => row.some(p => p !== null))
-      if (!pixels[5]?.some(p => p !== null)) {
+      if (!pixels[floorRow]?.some(p => p !== null)) {
         airborneTicks += 1
+        expect(pixels[0]).toBe(top)
         expect(top?.filter(p => p !== null)).toEqual([0x3cbcfc])
-        expect(pixels[4]?.slice(2, 5)).toEqual([MOUTH, MOUTH, MOUTH])
+        expect(pixels.some(row => row.filter(p => p === MOUTH).length === 3)).toBe(true)
       }
     }
     expect(airborneTicks).toBeGreaterThan(0)
   })
 
   test('stands on the floor at rest and leaves it mid-hop', () => {
-    const floor = (tick: number) => stage(1, tick, 'hop')[5]?.some(p => p !== null)
+    const floor = (tick: number) => stage(1, tick, 'hop')[floorRow]?.some(p => p !== null)
     expect(floor(0)).toBe(true)
     expect(Array.from({ length: HOP_TICKS }, (_, tick) => floor(tick))).toContain(false)
     expect(floor(HOP_TICKS)).toBe(true)
@@ -578,33 +656,65 @@ describe('slime family', () => {
   })
 
   test('at rest every slime sits on the floor', () => {
-    const rest = stage(4, null)
-    for (let i = 0; i < 4; i += 1) {
-      expect(slimeFace(rest, i)[5]?.some(p => p !== null)).toBe(true)
+    const rest = stage(FAMILY.length, null)
+    for (let i = 0; i < FAMILY.length; i += 1) {
+      expect(slimeFace(rest, i)[floorRow]?.some(p => p !== null)).toBe(true)
     }
-    expect(rest[0]?.some(p => p !== null)).toBe(false)
+    expect(rest.slice(0, TIP_ROW).flat().some(p => p !== null)).toBe(false)
   })
 
   test('the crouch keeps the white eyes and grin in a lower silhouette', () => {
     const crouchTick = 0
     const crouch = stage(1, crouchTick, 'hop')
-    expect(crouch.slice(0, 2).flat().every(p => p === null)).toBe(true)
-    expect(crouch.flat().filter(p => p === WHITE).length).toBe(2)
-    expect(crouch[5]?.includes(MOUTH)).toBe(true)
+    expect(crouch.slice(0, CROUCH_EMPTY_ROWS).flat().every(p => p === null)).toBe(true)
+    expect(crouch.flat().filter(p => p === WHITE).length).toBe(10)
+    expect(crouch.flat()).toContain(MOUTH)
   })
 
-  test('packs a frame into three rows of Raster cells', () => {
+  test('packs a frame into eight rows of Raster cells', () => {
     const bytes = atob(slimeCells(3, 0)).length
     expect(bytes).toBe(slimeColumns(3) * SLIME_ROWS * 3 * 4)
   })
 
   test('draws a resting frame as text where there is no Raster', () => {
-    const rows = slimeText(4)
+    const rows = slimeText(FAMILY.length)
     expect(rows.length).toBe(SLIME_ROWS)
-    for (let i = 0; i < 4; i += 1) {
-      expect(rows.map(row => row[i]?.text)).toEqual(['   ▄   ', ' ▄███▄ ', '███████'])
+    for (let i = 0; i < FAMILY.length; i += 1) {
+      const silhouettes = [
+        [
+          '           ',
+          '           ',
+          '           ',
+          '    ▄█▄    ',
+          ' ▄▄█████▄▄ ',
+          '███████████',
+          '███████████',
+          ' ▀███████▀ ',
+        ],
+        [
+          '           ',
+          '           ',
+          '           ',
+          ' ▄       ▄ ',
+          '   ▄▄▄█▄   ',
+          ' █████████ ',
+          '▄█████████▄',
+          '▀█████████▀',
+        ],
+        [
+          '           ',
+          '           ',
+          '           ',
+          '           ',
+          '  ▄▄▄██▄▄  ',
+          ' █████████ ',
+          '▄█████████▄',
+          '███████████',
+        ],
+      ]
+      expect(rows.map(row => row[i]?.text)).toEqual(new Map([[ONION, silhouettes[0]], [PUDDLE, silhouettes[1]], [LIQUID, silhouettes[2]]]).get(FAMILY[i]!.sprites))
     }
-    expect(rows[0]?.map(part => part.color)).toEqual(['#3cbcfc', '#fc7460', '#a8a8b8', '#38c838'])
+    expect(rows[0]?.map(part => part.color)).toEqual(FAMILY.map(kin => `#${kin.palette.B.toString(16).padStart(6, '0')}`))
   })
 })
 
@@ -619,19 +729,19 @@ for (const slimesIdle of [true, false]) {
     answers(on, { name: 'main', porcelain: '', isRepo: true })
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
 
-    const ui = await mount($, 'terminal', 10, 120)
+    const ui = await mount($, 'terminal', FULL_ROWS, 120)
     const raster = await ui.find({ type: 'Raster', key: 'slimes' })
-    expect(raster?.props.columns).toBe(slimeColumns(4))
+    expect(raster?.props.columns).toBe(slimeColumns(FAMILY.length))
     expect(raster?.props.rows).toBe(SLIME_ROWS)
     const hopAirborneTick = 3
     const encounter: Moment = { kind: 'encounter', startTick: 0 }
     await clock.advance(FRAME_MS * hopAirborneTick)
-    expect(blits.at(-1)).toBe(slimeCells(4, hopAirborneTick, encounter, 'hop'))
+    expect(blits.at(-1)).toBe(slimeCells(FAMILY.length, hopAirborneTick, encounter, 'hop'))
     expect(blits.length).toBeGreaterThan(0)
     expect(new Set(blits).size).toBeGreaterThan(1)
     await ui.unmount()
 
-    const desk = await mount($, 'desktop', 10, 120)
+    const desk = await mount($, 'desktop', FULL_ROWS, 120)
     expect(await desk.find({ type: 'Raster' })).toBeUndefined()
     expect(await desk.find({ type: 'Text', text: '███████' })).toBeDefined()
     await desk.unmount()
@@ -649,9 +759,9 @@ test('the encounter waits for a stage, plays once, and expires before resting ho
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const beforeSeatingTicks = 12
   await clock.advance(FRAME_MS * beforeSeatingTicks)
-  const desktop = await mount($, 'desktop', 10, 120)
+  const desktop = await mount($, 'desktop', FULL_ROWS, 120)
   await desktop.unmount()
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   const encounter: Moment = { kind: 'encounter', startTick: beforeSeatingTicks }
   const count = FAMILY.length
   const initial = (await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells
@@ -669,7 +779,7 @@ test('the encounter waits for a stage, plays once, and expires before resting ho
   }
   const remountTick = expiredTick + HOP_TICKS
   await ui.unmount()
-  ui = await mount($, 'terminal', 10, 120)
+  ui = await mount($, 'terminal', FULL_ROWS, 120)
   expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells).toBe(slimeCells(count, remountTick, null, 'hop'))
   await ui.unmount()
 })
@@ -684,17 +794,17 @@ test('a failure without a seated stage spends neither cooldown nor target', { op
   on('classic.PostToolUseFailure', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const tick = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
   await clock.advance(FRAME_MS * tick)
   await ui.unmount()
-  const desktop = await mount($, 'desktop', 10, 120)
+  const desktop = await mount($, 'desktop', FULL_ROWS, 120)
   const beforeFailure = blits.length
   await $.classic.PostToolUseFailure(failure as never)
   expect(blits.length).toBe(beforeFailure)
   await desktop.unmount()
-  ui = await mount($, 'terminal', 10, 120)
+  ui = await mount($, 'terminal', FULL_ROWS, 120)
   await $.classic.PostToolUseFailure(failure as never)
   const damage: Moment = { kind: 'damage', startTick: tick, target: 0 }
   expect(blits.at(-1)).toBe(slimeCells(count, tick, damage, 'still'))
@@ -713,13 +823,13 @@ test('session.start resets the damage cooldown and target rotation', { options: 
   const count = FAMILY.length
   const encounterTicks = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   await clock.advance(FRAME_MS * encounterTicks)
   await $.classic.PostToolUseFailure(failure as never)
   expect(blits.at(-1)).toBe(slimeCells(count, encounterTicks, { kind: 'damage', startTick: encounterTicks, target: 0 }, 'still'))
   await ui.unmount()
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  ui = await mount($, 'terminal', 10, 120)
+  ui = await mount($, 'terminal', FULL_ROWS, 120)
   await clock.advance(FRAME_MS * encounterTicks)
   // The new encounter ends before the previous session's cooldown would.
   const tick = encounterTicks * 2
@@ -738,7 +848,7 @@ test('the next damage target stays in range after the terminal seats fewer kin',
   on('classic.PostToolUseFailure', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns).toBe(slimeColumns(count))
   let tick = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
@@ -753,7 +863,7 @@ test('the next damage target stays in range after the terminal seats fewer kin',
   await ui.unmount()
   const narrowerCount = 2
   const narrowerColumns = (BRANCH_SPRITE[0] ?? '').length + 2 + pixelWidth('main'.length) + 2 + slimeColumns(narrowerCount)
-  ui = await mount($, 'terminal', 10, narrowerColumns)
+  ui = await mount($, 'terminal', FULL_ROWS, narrowerColumns)
   expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns).toBe(slimeColumns(narrowerCount))
   await $.classic.PostToolUseFailure(failure as never)
   const damage: Moment = { kind: 'damage', startTick: tick, target: 1 }
@@ -771,7 +881,7 @@ test('failures flicker rotating kin after encounter expiry, with interrupt and c
   on('classic.PostToolUseFailure', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
   await clock.advance(FRAME_MS * encounterEnds)
@@ -808,7 +918,7 @@ test('damage yields to encounter and King without consuming a target or cooldown
   on('classic.PostToolUseFailure', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const encounter: Moment = { kind: 'encounter', startTick: 0 }
   const encounterEnds = momentEndTick(encounter, count, 'still')
@@ -821,8 +931,7 @@ test('damage yields to encounter and King without consuming a target or cooldown
   await $.classic.PostToolUseFailure(failure as never)
   const firstDamage: Moment = { kind: 'damage', startTick: encounterEnds, target: 0 }
   expect(blits.at(-1)).toBe(slimeCells(count, encounterEnds, firstDamage, 'still'))
-  await $.command.run(KING)
-  const king: Moment = { kind: 'king', startTick: encounterEnds }
+  const king: Moment = { kind: 'king', startTick: encounterEnds, variant: await crownKing($) }
   const kingEnds = momentEndTick(king, count, 'still')
   const lastKingTick = kingEnds - 1
   await clock.advance(FRAME_MS * (lastKingTick - encounterEnds))
@@ -846,7 +955,7 @@ test('damage returns to grounded hopping, expires, and admits the next failure',
   on('classic.PostToolUseFailure', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'hop')
   await clock.advance(FRAME_MS * encounterEnds)
@@ -879,7 +988,7 @@ test('compaction levels up in gold over the encounter and damage, but not over t
   on('classic.PostCompact', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const midEncounterTick = ENCOUNTER_STAGGER_TICKS
   await clock.advance(FRAME_MS * midEncounterTick)
@@ -904,8 +1013,7 @@ test('compaction levels up in gold over the encounter and damage, but not over t
   const manualLevelUp: Moment = { kind: 'level-up', startTick: midDamageTick }
   expect(blits.at(-1)).toBe(slimeCells(count, midDamageTick, manualLevelUp, 'still'))
 
-  await $.command.run(KING)
-  const king: Moment = { kind: 'king', startTick: midDamageTick }
+  const king: Moment = { kind: 'king', startTick: midDamageTick, variant: await crownKing($) }
   const beforeCompaction = blits.length
   await $.classic.PostCompact({ ...compaction, trigger: 'auto' } as never)
   expect(blits.length).toBe(beforeCompaction)
@@ -927,7 +1035,7 @@ test('a second compaction during a level-up is ignored, and the first ends on ti
   on('classic.PostCompact', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'still')
   await clock.advance(FRAME_MS * encounterEnds)
@@ -959,7 +1067,7 @@ test('level-up returns to grounded hopping, expires, and admits lower-priority d
   on('classic.PostCompact', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = FAMILY.length
   const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'hop')
   await clock.advance(FRAME_MS * encounterEnds)
@@ -991,24 +1099,24 @@ test('clear, polls and remounts do not replay an encounter displaced by the King
   on('session.end', async (_$, e) => ({ sessionId: e.sessionId }))
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   await $.command.run(KING)
   const kingFinishedTick = KING_SHOW_TICKS + 1
   await clock.advance(FRAME_MS * kingFinishedTick)
   expect(blits.some(goldIn)).toBe(true)
-  expect(blits.at(-1)).toBe(slimeCells(4, 0, null, 'still'))
+  expect(blits.at(-1)).toBe(slimeCells(FAMILY.length, 0, null, 'still'))
   blits.length = 0
   await $.session.end({ reason: 'clear', sessionId: 's1' } as never)
   const pollWindowMs = POLL_MS * 2
   await clock.advance(pollWindowMs)
   await ui.unmount()
-  ui = await mount($, 'terminal', 10, 120)
-  expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells).toBe(slimeCells(4, 0, null, 'still'))
+  ui = await mount($, 'terminal', FULL_ROWS, 120)
+  expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells).toBe(slimeCells(FAMILY.length, 0, null, 'still'))
   expect(blits.length).toBe(0)
   await ui.unmount()
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  ui = await mount($, 'terminal', 10, 120)
-  expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells).not.toBe(slimeCells(4, 0, null, 'still'))
+  ui = await mount($, 'terminal', FULL_ROWS, 120)
+  expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.cells).not.toBe(slimeCells(FAMILY.length, 0, null, 'still'))
   await ui.unmount()
 })
 
@@ -1021,7 +1129,7 @@ test('each blit changes the seated cells, during encounter, hops and the King sh
   })
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
   cells.push(raster?.props.cells as string)
   await clock.advance(FRAME_MS)
@@ -1043,13 +1151,13 @@ test('a denied blit unseats the stage until a render seats it again', { options:
   })
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   await clock.advance(FRAME_MS * 10)
   expect(blits.length).toBe(1)
   expect((await $.command.run(KING)).text).toBe('But there was no room for a King Slime! Widen the terminal.')
   await ui.unmount()
 
-  const remount = await mount($, 'terminal', 10, 120)
+  const remount = await mount($, 'terminal', FULL_ROWS, 120)
   const raster = await remount.find({ type: 'Raster', key: 'slimes' })
   await clock.advance(FRAME_MS * 10)
   expect(blits.length).toBe(2)
@@ -1066,11 +1174,11 @@ test('by default the slimes breathe without repainting unchanged cells', async (
   })
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
-  const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, 4, 'breathe')
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
+  const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, FAMILY.length, 'breathe')
   await clock.advance(FRAME_MS * encounterEnds)
   blits.length = 0
-  const standing = slimeCells(4, encounterEnds)
+  const standing = slimeCells(FAMILY.length, encounterEnds)
   const firstBreathStarts = 34
   const firstBreathEnds = 36
   await clock.advance(FRAME_MS * (firstBreathStarts - 1 - encounterEnds))
@@ -1096,10 +1204,10 @@ test('with breath off the slimes sit still, and the King Slime still plays', { o
   on('turn.complete', async () => ({ text: 'done' }))
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
-  const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, 4, 'still')
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
+  const encounterEnds = momentEndTick({ kind: 'encounter', startTick: 0 }, FAMILY.length, 'still')
   await clock.advance(FRAME_MS * encounterEnds)
-  expect(blits.at(-1)).toBe(slimeCells(4, 0, null, 'still'))
+  expect(blits.at(-1)).toBe(slimeCells(FAMILY.length, 0, null, 'still'))
   blits.length = 0
   const blinkCycleTicks = BLINK_OBSERVATION_TICKS
   await clock.advance(FRAME_MS * blinkCycleTicks)
@@ -1108,7 +1216,7 @@ test('with breath off the slimes sit still, and the King Slime still plays', { o
   await $.turn.complete({ answer: 'ok', durationMs: 60_000, isAborted: false, turnId: 't1', reason: 'answer' })
   await clock.advance(FRAME_MS * (KING_SHOW_TICKS + 2))
   expect(blits.some(goldIn)).toBe(true)
-  expect(blits.at(-1)).toBe(slimeCells(4, 0, null, 'still'))
+  expect(blits.at(-1)).toBe(slimeCells(FAMILY.length, 0, null, 'still'))
 
   blits.length = 0
   await clock.advance(FRAME_MS * 10)
@@ -1119,12 +1227,13 @@ test('with breath off the slimes sit still, and the King Slime still plays', { o
 test('slimes give up their room before the branch name does', async ($, on) => {
   answers(on, { name: 'feature/slimes', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 70)
-  for (const line of pixelText('feature/slimes')) {
+  const columns = BRANCH_SPRITE[0]!.length + 2 + pixelWidth('feature/slimes'.length)
+  const ui = await mount($, 'terminal', FULL_ROWS, columns)
+  for (const line of FEATURE_TITLE) {
     expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
   }
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
-  expect((raster?.props.columns as number | undefined) ?? 0).toBeLessThan(slimeColumns(4))
+  expect((raster?.props.columns as number | undefined) ?? 0).toBeLessThan(slimeColumns(FAMILY.length))
   await ui.unmount()
 })
 
@@ -1165,11 +1274,18 @@ describe('slime moments', () => {
     const startTick = HOP_TICKS * 2 + 1
     const settleTick = HOP_TICKS - HOP_SETTLE_TICKS
     const floorRow = SLIME_ROWS * 2 - 1
-    // Blue's own hop from its first crouch is the shape every kin shares.
-    const hopShape = (frame: number) => shape(slimeFace(stage(1, frame, 'hop'), 0))
-    const blueHang = slimeFace(stage(1, hopTop, 'hop'), 0)
-    const bodyPixels = blueHang.flat().filter(p => p === FAMILY[0]?.body).length
-    for (const count of [1, 2, 3, 4]) {
+    // Expected art comes directly from the sprite requirement, independently of HOP/kinFrame.
+    const expectedSprite = (i: number, frame: number) => {
+      const sprites = FAMILY[i]!.sprites
+      if (frame < HOP_CROUCH_TICKS) return sprites.squash
+      if (frame < hopRise) return sprites.stretch
+      if (frame < hopFall) return sprites.stand
+      if (frame < hopFall + HOP_FALL_TICKS) return sprites.stretch
+      if (frame < hopFall + HOP_FALL_TICKS + HOP_LAND_TICKS) return sprites.squash
+      return frame < settleTick ? sprites.stretch : sprites.stand
+    }
+    const bodyPixels = (i: number) => FAMILY[i]!.sprites.stand.join('').split('B').length - 1
+    for (let count = 1; count <= FAMILY.length; count += 1) {
       const levelUp: Moment = { kind: 'level-up', startTick }
       let isAllAirborne = false
       for (let frame = 0; frame < HOP_TICKS; frame += 1) {
@@ -1178,11 +1294,16 @@ describe('slime moments', () => {
         for (let i = 0; i < count; i += 1) {
           const face = slimeFace(pixels, i)
           const kin = FAMILY[i] as (typeof FAMILY)[number]
-          expect(shape(face)).toBe(hopShape(frame))
-          expect(face.flat().filter(p => p === GOLD).length).toBe(isGold ? bodyPixels : 0)
+          const sprite = expectedSprite(i, frame)
+          const airborne = frame >= hopRise && frame < hopFall
+          const top = airborne ? 0 : SLIME_ROWS * 2 - sprite.length
+          const expected = Array.from({ length: SLIME_ROWS * 2 }, (_, row) =>
+            Array.from({ length: SLIME_WIDTH }, (_, col) => (sprite[row - top]?.[col] ?? '.') !== '.'))
+          expect(face.map(row => row.map(pixel => pixel !== null))).toEqual(expected)
+          expect(face.flat().filter(p => p === GOLD).length).toBe(isGold ? bodyPixels(i) : 0)
           if (isGold) {
-            expect(face.flat()).not.toContain(kin.body)
-            if (kin.highlight !== WHITE) expect(face.flat()).not.toContain(kin.highlight)
+            expect(face.flat()).not.toContain(kin.palette.B)
+            if (kin.palette.H !== WHITE) expect(face.flat()).not.toContain(kin.palette.H)
           }
         }
         if (pixels[floorRow]?.every(p => p === null)) isAllAirborne = true
@@ -1197,15 +1318,16 @@ describe('slime moments', () => {
 
   test('the encounter starts empty and each kin first shows only its lower rows', () => {
     const encounter: Moment = { kind: 'encounter', startTick: 0 }
-    for (const count of [2, 3, 4]) {
+    for (const count of [2, 3, 4, 5]) {
       const first = slimePixels(slimeCells(count, 0, encounter, 'still'))
       expect(first.flat().every(pixel => pixel === null)).toBe(true)
       for (let i = 0; i < count; i += 1) {
         const standing = slimeFace(stage(count, null), i)
         const emptyRow = Array<null>(SLIME_WIDTH).fill(null)
         const dropTick = i * ENCOUNTER_STAGGER_TICKS
-        // First visible tick: bottom two rows; next tick: bottom four rows.
-        for (const [offset, visibleRows] of [[1, 2], [2, 4]] as const) {
+        // Each falling tick shows the rows below the stage top.
+        for (const offset of [1, 2]) {
+          const visibleRows = SLIME_ROWS * 2 - kinFrame(FAMILY[i]!.sprites, ENCOUNTER[offset]!).lift
           const actual = slimeFace(slimePixels(slimeCells(count, dropTick + offset, encounter, 'still')), i)
           const expected = [...standing.slice(-visibleRows), ...Array(SLIME_ROWS * 2 - visibleRows).fill(emptyRow)]
           expect(actual).toEqual(expected)
@@ -1223,7 +1345,7 @@ describe('slime moments', () => {
         for (let i = 0; i < count; i += 1) {
           const endpointTick = startTick + DAMAGE_TICKS
           const stand = shape(slimeFace(stage(count, null), i))
-          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null), i))
+          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null, 'breathe', 'king'), i))
           let joined = false
           for (let tick = endpointTick; tick <= endpointTick + HOP_TICKS; tick += 1) {
             const global = shape(slimeFace(stage(count, tick, 'hop'), i))
@@ -1252,7 +1374,7 @@ describe('slime moments', () => {
         let allJoinedTick = startTick + 1
         for (let i = 0; i < count; i += 1) {
           const stand = shape(slimeFace(stage(count, null), i))
-          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null), i))
+          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null, 'breathe', 'king'), i))
           let joined = false
           for (let tick = endpointTick; tick <= endpointTick + HOP_TICKS; tick += 1) {
             const global = shape(slimeFace(stage(count, tick, 'hop'), i))
@@ -1282,7 +1404,7 @@ describe('slime moments', () => {
         for (let i = 0; i < count; i += 1) {
           const endpointTick = startTick + i * staggerTicks + arrivalTicks
           const stand = shape(slimeFace(stage(count, null), i))
-          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null), i))
+          const crouch = shape(slimeFace(kingStage(count, kingLandingTick, null, 'breathe', 'king'), i))
           let joined = false
           for (let tick = endpointTick; tick <= endpointTick + HOP_TICKS; tick += 1) {
             const global = shape(slimeFace(stage(count, tick, 'hop'), i))
@@ -1309,7 +1431,7 @@ describe('slime moments', () => {
     const squashTicks = HOP_LAND_TICKS
     const reboundTicks = HOP_REBOUND_TICKS
     const standing = slimeCells(count, 0, null, 'still')
-    const crouching = slimeCells(count, kingLandingTick, { kind: 'king', startTick: 0 }, 'still')
+    const crouching = slimeCells(count, kingLandingTick, { kind: 'king', startTick: 0, variant: 'king' }, 'still')
     const empty = slimeCellFace(slimeCells(count, 0, encounter, 'still'), count, 0)
     const launchTick = HOP_CROUCH_TICKS
     const stretching = slimeCells(count, launchTick, null, 'hop')
@@ -1338,7 +1460,7 @@ describe('slime moments', () => {
 
   test('King replaces another moment only when there is room, and renders from its start tick', () => {
     const damage: Moment = { kind: 'damage', startTick: 1, target: 0 }
-    const king: Moment = { kind: 'king', startTick: 100 }
+    const king: Moment = { kind: 'king', startTick: 100, variant: 'king' }
     expect(nextMoment(damage, king, 1)).toEqual(damage)
     expect(nextMoment(null, king, 1)).toBe(null)
     const active = nextMoment(damage, king, 2)
@@ -1353,7 +1475,7 @@ describe('slime moments', () => {
       { kind: 'damage', startTick: 1, target: 2 },
       { kind: 'encounter', startTick: 2 },
       { kind: 'level-up', startTick: 3 },
-      { kind: 'king', startTick: 4 },
+      { kind: 'king', startTick: 4, variant: 'king' },
     ]
     for (const [i, incoming] of moments.entries()) {
       expect(nextMoment(null, incoming, 4)).toEqual(incoming)
@@ -1363,7 +1485,7 @@ describe('slime moments', () => {
     }
     const king = moments[3] as Moment
     const active = nextMoment(king, { kind: 'damage', startTick: 5, target: 0 }, 4)
-    expect(slimeCells(4, king.startTick + KING_SHOW_TICKS, active, 'still')).toBe(slimeCells(4, 0, null, 'still'))
+    expect(slimeCells(FAMILY.length, king.startTick + KING_SHOW_TICKS, active, 'still')).toBe(slimeCells(FAMILY.length, 0, null, 'still'))
   })
 })
 
@@ -1375,18 +1497,25 @@ describe('King Slime', () => {
     const land = hopLanding
     const rebound = hopRebound
     const settle = hopSettle
-    const home = kingStage(4, crouch, null)
-    expect(home.slice(0, 2).flat().every(p => p === null)).toBe(true)
-    for (let i = 0; i < 4; i += 1) expect(home[floorRow]?.slice(i * SLIME_WIDTH, (i + 1) * SLIME_WIDTH)).toEqual([
-      FAMILY[i]?.shade, FAMILY[i]?.shade, FAMILY[i]?.shade, MOUTH, FAMILY[i]?.shade, FAMILY[i]?.shade, FAMILY[i]?.shade,
-    ])
-    const launchTips = kingStage(4, launch, null)[0]
-    expect(launchTips?.flatMap((p, x) => p === null ? [] : [x])).toEqual(FAMILY.map((_, i) => i * SLIME_WIDTH + Math.floor(SLIME_WIDTH / 2)))
-    expect(kingStage(4, rise, null)[5]?.every(p => p === null)).toBe(true)
-    expect(kingStage(4, land, null).slice(0, 2).flat().every(p => p === null)).toBe(true)
+    const home = kingStage(FAMILY.length, crouch, null, 'breathe', 'king')
+    expect(home.slice(0, CROUCH_EMPTY_ROWS).flat().every(p => p === null)).toBe(true)
+    for (const [i, kin] of FAMILY.entries()) {
+      expect(slimeFace(home, i)[floorRow]).toEqual(
+        [...kin.sprites.squash.at(-1)!].map(ch => kin.palette[ch as keyof typeof kin.palette] ?? null),
+      )
+    }
+    // The launch stretches every kin taller than it stands, still on the floor.
+    const topOf = (face: (number | null)[][]) => face.findIndex(row => row.some(p => p !== null))
+    const launched = kingStage(FAMILY.length, launch, null, 'breathe', 'king')
+    for (let i = 0; i < FAMILY.length; i += 1) {
+      expect(topOf(slimeFace(launched, i))).toBeLessThan(topOf(slimeFace(stage(FAMILY.length, null), i)))
+      expect(slimeFace(launched, i)[floorRow]?.some(p => p !== null)).toBe(true)
+    }
+    expect(kingStage(FAMILY.length, rise, null, 'breathe', 'king')[floorRow]?.every(p => p === null)).toBe(true)
+    expect(kingStage(FAMILY.length, land, null, 'breathe', 'king').slice(0, CROUCH_EMPTY_ROWS).flat().every(p => p === null)).toBe(true)
     const fall = hopFall
-    expect(kingStage(4, rebound, null)[0]).toEqual(kingStage(4, fall, null)[0])
-    expect(kingStage(4, settle, null)[0]?.every(p => p === null)).toBe(true)
+    expect(kingStage(FAMILY.length, rebound, null, 'breathe', 'king')).toEqual(kingStage(FAMILY.length, fall, null, 'breathe', 'king'))
+    expect(topOf(kingStage(FAMILY.length, settle, null, 'breathe', 'king'))).toBe(topOf(stage(FAMILY.length, null)))
   })
 
   const GOLD = 0xfcbc3c
@@ -1402,44 +1531,64 @@ describe('King Slime', () => {
     const poofStarts = defeatStarts + KING_DEFEAT_TICKS
     const width = (pixels: (number | null)[][]) => new Set(pixels.flatMap(row => row.flatMap((p, x) => p === null ? [] : [x]))).size
     const height = (pixels: (number | null)[][]) => pixels.filter(row => row.some(p => p !== null)).length
-    expect(height(kingStage(4, dropStarts, null))).toBeLessThan(6)
-    expect(kingStage(4, dropStarts, null)[5]?.every(p => p === null)).toBe(true)
-    expect(height(kingStage(4, squashStarts, null))).toBe(5)
-    expect(width(kingStage(4, squashStarts, null))).toBe(KING_WIDTH + 2)
-    expect(width(kingStage(2, squashStarts, null))).toBe(slimeColumns(2))
-    expect(kingStage(4, rebound, null)[5]?.every(p => p === null)).toBe(true)
-    expect(hasGold(kingStage(4, reignStarts, null))).toBe(true)
-    const defeat = Array.from({ length: KING_DEFEAT_TICKS }, (_, step) => kingStage(4, defeatStarts + step, null))
+    // Falling in from above, only the King's rows below the stage top show.
+    expect(height(kingStage(FAMILY.length, dropStarts, null, 'breathe', 'king'))).toBe(SLIME_ROWS * 2 - KING_DROP[0]!.lift)
+    expect(kingStage(FAMILY.length, dropStarts, null, 'breathe', 'king')[floorRow]?.every(p => p === null)).toBe(true)
+    expect(height(kingStage(FAMILY.length, squashStarts, null, 'breathe', 'king'))).toBe(KING_SPRITE.length - 1)
+    expect(width(kingStage(FAMILY.length, squashStarts, null, 'breathe', 'king'))).toBe(KING_WIDTH + 2)
+    // At the two-slot minimum, the landing squash clips one pixel per side.
+    expect(width(kingStage(2, squashStarts, null, 'breathe', 'king'))).toBe(KING_WIDTH)
+    expect(kingStage(FAMILY.length, rebound, null, 'breathe', 'king')[floorRow]?.every(p => p === null)).toBe(true)
+    expect(hasGold(kingStage(FAMILY.length, reignStarts, null, 'breathe', 'king'))).toBe(true)
+    const defeat = Array.from({ length: KING_DEFEAT_TICKS }, (_, step) => kingStage(FAMILY.length, defeatStarts + step, null, 'breathe', 'king'))
     expect(defeat.map(pixels => pixels.flat().every(p => p === null))).toEqual([true, false, true, false, true, false])
-    expect(kingStage(4, poofStarts, null).flat().filter(p => p !== null).every(p => p === WHITE)).toBe(true)
+    expect(kingStage(FAMILY.length, poofStarts, null, 'breathe', 'king').flat().filter(p => p !== null).every(p => p === WHITE)).toBe(true)
     expect(KING_SHOW_TICKS).toBe(86)
   })
 
-  test('the king keeps its crown and jewel above white eyes and a wide red grin', () => {
-    const pixels = kingStage(2, kingReignStarts, null)
-    expect(pixels.length).toBe(6)
-    expect(pixels[0]?.includes(0xf83800)).toBe(true)
-    expect(pixels[1]?.filter(p => p === GOLD).length).toBe(5)
-    expect(pixels[2]?.filter(p => p === WHITE).length).toBe(2)
-    expect(pixels[3]?.filter(p => p === 0x0b0a0d).length).toBe(2)
-    expect(pixels[4]?.filter(p => p === MOUTH).length).toBe(5)
-    expect(pixels[5]?.filter(p => p !== null).length).toBe(13)
-    expect(pixels[5]?.filter(p => p === 0x1878bc).length).toBe(13)
+  test('the king keeps its jewelled crown above white eyes with centred pupils and a wide salmon grin', () => {
+    const pixels = kingStage(2, kingReignStarts, null, 'breathe', 'king')
+    expect(pixels.length).toBe(16)
+    expect(pixels[0]?.includes(0x8838d0)).toBe(true)
+    expect(pixels[0]?.includes(0x28a848)).toBe(true)
+    expect(pixels[2]?.filter(p => p === GOLD).length).toBe(10)
+    expect(pixels[3]?.filter(p => p === 0xf83800).length).toBe(4)
+    expect(pixels[7]?.filter(p => p === WHITE).length).toBe(6)
+    const eyes = pixels[8]?.flatMap(p => p === WHITE ? ['W'] : p === 0x0b0a0d ? ['K'] : []).join('')
+    expect(eyes).toBe('WKWWKW')
+    expect(pixels[11]?.filter(p => p === MOUTH).length).toBe(8)
+    expect(pixels[12]?.filter(p => p === MOUTH).length).toBe(6)
+    expect(pixels[floorRow]?.filter(p => p !== null).length).toBe(20)
+    expect(pixels[floorRow]?.filter(p => p === 0x1878bc).length).toBe(20)
     const kingBlink = kingReignStarts + 10
-    expect(kingStage(2, kingBlink, null)[2]?.includes(WHITE)).toBe(false)
+    expect(kingStage(2, kingBlink, null, 'breathe', 'king')[7]?.includes(WHITE)).toBe(false)
+  })
+
+  test('every King closes each three-pixel eye into a lid when blinking', () => {
+    for (const king of Object.values(KINGS)) {
+      expect(king.blink[8]?.slice(7, 15)).toBe('KKKBBKKK')
+      expect(king.blink.join('')).not.toContain('W')
+      expect(king.blink.map(row => row.replaceAll(/[BHK]/g, 'B'))).toEqual(
+        king.sprite.map(row => row.replaceAll(/[BHWK]/g, 'B')),
+      )
+    }
   })
 
   test('both merged poses keep white eyes, pupils, a red grin and lower shading at their original sizes', () => {
-    for (const [offset, width, height] of [[0, 13, 3], [KING_MERGE_TICKS / 2, 11, 5]] as const) {
-      const pixels = kingStage(2, KING_GATHER_TICKS + offset, null)
+    // [offset, width, height, white, dark, mouth, floor shade] of the splat and the blob.
+    for (const [offset, width, height, white, dark, mouth, floorShade] of [
+      [0, 22, 6, 10, 16, 10, 10],
+      [KING_MERGE_TICKS / 2, 17, 12, 16, 13, 7, 13],
+    ] as const) {
+      const pixels = kingStage(2, KING_GATHER_TICKS + offset, null, 'breathe', 'king')
       const occupied = pixels.filter(row => row.some(p => p !== null))
       expect(occupied.length).toBe(height)
-      const columns = pixels[5]?.map((_, x) => x).filter(x => pixels.some(row => row[x] !== null)) ?? []
+      const columns = pixels[floorRow]?.map((_, x) => x).filter(x => pixels.some(row => row[x] !== null)) ?? []
       expect(columns.length).toBe(width)
-      expect(pixels.flat().filter(p => p === WHITE).length).toBe(2)
-      expect(pixels.flat().filter(p => p === FAMILY[0]?.eye).length).toBe(2)
-      expect(pixels[5]?.filter(p => p === MOUTH).length).toBe(3)
-      expect(pixels[5]?.filter(p => p === FAMILY[0]?.shade).length).toBe(width - 3)
+      expect(pixels.flat().filter(p => p === WHITE).length).toBe(white)
+      expect(pixels.flat().filter(p => p === KINGS.king.body.K).length).toBe(dark)
+      expect(pixels.flat().filter(p => p === MOUTH).length).toBe(mouth)
+      expect(pixels[floorRow]?.filter(p => p === KINGS.king.body.D).length).toBe(floorShade)
     }
   })
 
@@ -1449,9 +1598,9 @@ describe('King Slime', () => {
   })
 
   test('the slimes gather, the king reigns crowned, and they end back home', () => {
-    expect(hasGold(kingStage(4, 0, 0))).toBe(false)
-    expect(hasGold(kingStage(4, kingReignStarts, HOP_TICKS))).toBe(true)
-    expect(kingStage(4, KING_SHOW_TICKS, HOP_TICKS, 'hop')).toEqual(stage(4, null))
+    expect(hasGold(kingStage(FAMILY.length, 0, 0, 'breathe', 'king'))).toBe(false)
+    expect(hasGold(kingStage(FAMILY.length, kingReignStarts, HOP_TICKS, 'breathe', 'king'))).toBe(true)
+    expect(kingStage(FAMILY.length, KING_SHOW_TICKS, HOP_TICKS, 'hop', 'king')).toEqual(stage(FAMILY.length, null))
   })
 
   type Pixels = (number | null)[][]
@@ -1459,8 +1608,8 @@ describe('King Slime', () => {
   const atTop = (pixels: Pixels) => pixels.slice(-1).every(row => row.every(c => c === null))
   const left = (pixels: Pixels) => Math.min(...pixels.map(row => row.findIndex(c => c !== null)).filter(x => x >= 0))
   const right = (pixels: Pixels) => Math.max(...pixels.map(row => row.findLastIndex(c => c !== null)))
-  const at = (frame: number, count = 4) => kingStage(count, frame, null)
-  const bodies = (pixels: Pixels) => FAMILY.filter(kin => pixels.some(row => row.includes(kin.body))).length
+  const at = (frame: number, count = FAMILY.length) => kingStage(count, frame, null, 'breathe', 'king')
+  const bodies = (pixels: Pixels) => FAMILY.filter(kin => pixels.some(row => row.includes(kin.palette.B))).length
   const rise = hopRise
   const top = hopTop
   const lastHang = hopFall - 1
@@ -1481,9 +1630,11 @@ describe('King Slime', () => {
     expect(left(at(firstLanding))).toBeGreaterThan(0)
     // The second leap takes off from where the first landed.
     expect(at(secondCrouch)).toEqual(at(firstLanding))
-    // The highlight sits at x + 3 in every leap pose, even as width changes.
-    const xOf = (pixels: Pixels, i: number) => pixels.flatMap(row => row.flatMap((p, x) => p === FAMILY[i]?.highlight ? [x] : []))[0]
-    for (const count of [2, 3, 4]) {
+    // Each pose puts its first highlight pixel in its own row, so a kin that
+    // stays grounded in one pose must keep that pixel where it was.
+    const xOf = (pixels: Pixels, i: number) => pixels.flatMap((row, y) => row.flatMap((p, x) => p === FAMILY[i]?.palette.H ? [`${x},${y}`] : []))[0]
+    const rowOf = (point: string | undefined) => point?.split(',')[1]
+    for (const count of [2, 3, 4, 5]) {
       for (const [start, length] of [[0, LEAP], [LEAP, KING_GATHER_TICKS - LEAP], [out, KING_SCATTER_TICKS]] as const) {
         for (let frame = Math.max(1, start); frame < start + length; frame += 1) {
           const current = at(frame, count)
@@ -1491,7 +1642,7 @@ describe('King Slime', () => {
           const previous = at(frame - 1, count)
           for (let i = 0; i < count; i += 1) {
             expect(xOf(current, i)).toBeDefined()
-            expect(xOf(current, i)).toBe(xOf(previous, i))
+            if (rowOf(xOf(current, i)) === rowOf(xOf(previous, i))) expect(xOf(current, i)).toBe(xOf(previous, i))
           }
         }
       }
@@ -1502,29 +1653,35 @@ describe('King Slime', () => {
     expect(grounded(at(collide))).toBe(false)
     expect(left(at(collide))).toBeGreaterThan(left(at(firstLanding)))
     // Pressed together, every one of them still shows.
-    expect(bodies(at(collide))).toBe(4)
-    // The next pose they are one splat on the floor, as wide as the king, in
-    // the first slime's colours: not the four landed on one spot.
+    expect(bodies(at(collide))).toBe(FAMILY.length)
+    // The next pose they are one splat on the floor, nearly as wide as the
+    // king, in the first slime's colours: not the family landed on one spot.
     const splat = at(splatStarts)
     expect(grounded(splat)).toBe(true)
-    expect(right(splat) - left(splat) + 1).toBe(KING_WIDTH)
+    expect(right(splat) - left(splat) + 1).toBe(22)
     expect(bodies(splat)).toBe(1)
-    expect(splat.some(row => row.includes(FAMILY[0]?.body ?? -1))).toBe(true)
+    expect(splat.some(row => row.includes(KINGS.king.body.B ?? -1))).toBe(true)
   })
 
   test('the airborne collision keeps every body tip inside the stage', () => {
-    for (const count of [2, 3, 4]) {
+    for (const count of [2, 3, 4, 5]) {
       const pixels = at(collide, count)
       expect(grounded(pixels)).toBe(false)
-      for (const kin of FAMILY.slice(0, count)) expect(pixels[0]?.includes(kin.body)).toBe(true)
-      expect(pixels[0]?.filter(p => p !== null).length).toBe(count)
+      // A kin's top is its tip or, for the bubble slime, a bubble; a bubble
+      // in front may cover a neighbour's topmost tip pixel.
+      const top = pixels.slice(0, 2).flat()
+      for (const kin of FAMILY.slice(0, count)) expect(top.some(p => p === kin.palette.B || p === kin.palette.H)).toBe(true)
     }
   })
 
   test('scatter bursts from the collision in one airborne arc and lands home squashed', () => {
-    // The shared BHB row stays at the collision x positions across poses.
-    expect(at(out)[0]).toEqual(at(collide)[1])
-    expect(bodies(at(out))).toBe(4)
+    // The onion tips stay at the collision x positions across poses.
+    const tips = (pixels: Pixels) => [...new Set(pixels.slice(0, 2).flatMap(row => row.flatMap((p, x) => FAMILY.filter(kin => kin.sprites === ONION).some(kin => kin.palette.B === p) ? [x] : [])))].sort()
+    expect(tips(at(out))).toEqual(tips(at(collide)))
+    // LIQUID changes its top from HB to B; the highlight marks the same column.
+    const liquid = FAMILY.find(kin => kin.sprites === LIQUID)!
+    expect(at(out)[0]?.indexOf(liquid.palette.B)).toBe(at(collide)[0]?.indexOf(liquid.palette.H))
+    expect(bodies(at(out))).toBe(FAMILY.length)
     expect(atTop(at(out))).toBe(true)
     const scatterArcTicks = KING_SCATTER_TICKS
     const arc = Array.from({ length: scatterArcTicks }, (_, step) => at(out + step))
@@ -1538,9 +1695,39 @@ describe('King Slime', () => {
   })
 
   test('however many slimes, every one shows where they collide and leap out', () => {
-    for (const count of [2, 3, 4]) {
+    for (const count of [2, 3, 4, 5]) {
       expect([count, bodies(at(collide, count)), bodies(at(out, count))]).toEqual([count, count, count])
     }
+  })
+
+  test('an injected random crowns the King, Gold King or Metal King, each in its own body and crown', () => {
+    const reigns = ([[0, 'king'], [0.5, 'gold'], [0.99, 'metal']] as const).map(([pick, variant]) => {
+      expect(pickKing(() => pick)).toBe(variant)
+      const { body, crown } = KINGS[variant]
+      const merged = kingStage(2, KING_GATHER_TICKS + KING_MERGE_TICKS / 2, null, 'breathe', variant)
+      expect(merged.flat()).toContain(body.B)
+      const reign = kingStage(2, kingReignStarts, null, 'breathe', variant)
+      expect(reign.flat()).toContain(body.B)
+      expect(reign.flat()).toContain(body.D)
+      // The crown's band is all crown metal.
+      expect(new Set(reign[2]?.filter(p => p !== null))).toEqual(new Set([crown.Y]))
+      // The Gold and Metal Kings are plated: a bright sheen above, a darker band below.
+      for (const plate of [body.S, body.O]) {
+        if (variant === 'king') expect(plate).toBeUndefined()
+        else expect(reign.flat()).toContain(plate)
+      }
+      return reign
+    })
+    expect(new Set(Object.values(KINGS).map(king => king.body.B)).size).toBe(3)
+    for (const [i, reign] of reigns.entries()) {
+      const others = Object.values(KINGS).filter((_, k) => k !== i)
+      for (const other of others) expect(reign.flat()).not.toContain(other.body.B)
+    }
+    expect(KINGS.king.name).toBe('King Slime')
+    expect(KINGS.gold.name).toBe('Gold King Slime')
+    expect(KINGS.metal.name).toBe('Metal King Slime')
+    // The King and Metal King wear gold bands; the Gold King's band is silver.
+    expect([KINGS.king, KINGS.gold, KINGS.metal].map(king => king.crown.Y)).toEqual([GOLD, 0xd0d8e0, GOLD])
   })
 
   test('the show lasts 6.5 to 7 seconds at 80 ms per frame', () => {
@@ -1566,7 +1753,7 @@ test('a long task crowns a King Slime, and the slimes come back after', { option
   on('turn.complete', async () => ({ text: 'done' }))
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
 
   // A quick answer is no occasion.
   await $.turn.complete({ answer: 'ok', durationMs: 3_000, isAborted: false, turnId: 't1', reason: 'answer' })
@@ -1602,10 +1789,10 @@ async function step($: Parameters<TestBody>[0], e: { effort?: 'high'; agentId?: 
 
 // Reflow runs beside the hook that started it: draw until the band shows it.
 async function drawUntil($: Parameters<TestBody>[0], text: string, isShown = true) {
-  let ui = await mount($, 'terminal', 10, 120)
+  let ui = await mount($, 'terminal', FULL_ROWS, 120)
   for (let i = 0; i < 20 && ((await ui.find({ type: 'Text', text })) !== undefined) !== isShown; i += 1) {
     await ui.unmount()
-    ui = await mount($, 'terminal', 10, 120)
+    ui = await mount($, 'terminal', FULL_ROWS, 120)
   }
   return ui
 }
@@ -1617,6 +1804,19 @@ const KING = {
   presentation: { isFullscreen: false, columns: 120 },
 } as const
 
+// The King the command names as it crowns one, read back from its reply.
+async function crownKing($: Parameters<TestBody>[0]): Promise<KingVariant> {
+  const { text } = await $.command.run(KING)
+  const variant = (Object.keys(KINGS) as KingVariant[]).find(v => text === `The slimes band together... A ${KINGS[v].name} appears!`)
+  expect(variant).toBeDefined()
+  return variant ?? 'king'
+}
+
+function colorIn(cells: string, color: number): boolean {
+  const words = new Uint32Array(Uint8Array.from(atob(cells), c => c.charCodeAt(0)).buffer)
+  return words.some((w, i) => i % 3 !== 0 && w === color)
+}
+
 test('the King show holds grounded kin until each can rejoin the global hop', { options: { slimesHop: true } }, async ($, on) => {
   const clock = mock.clock(on)
   const blits: string[] = []
@@ -1626,14 +1826,13 @@ test('the King show holds grounded kin until each can rejoin the global hop', { 
   })
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const count = Number((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns) / SLIME_WIDTH
   const showStart = 12
   await clock.advance(FRAME_MS * showStart)
-  await $.command.run(KING)
+  const king: Moment = { kind: 'king', startTick: showStart, variant: await crownKing($) }
   await clock.advance(FRAME_MS * KING_SHOW_TICKS)
   expect(blits[blits.length - 1]).toBe(slimeCells(count, 0, null, 'still'))
-  const king: Moment = { kind: 'king', startTick: showStart }
   for (let offset = 1; offset <= HOP_TICKS; offset += 1) {
     const tick = showStart + KING_SHOW_TICKS + offset
     await clock.advance(FRAME_MS)
@@ -1658,15 +1857,20 @@ test('/slime-king is registered, and crowns the slimes while they are on stage',
   // Nothing drawn yet: no stage for a king.
   expect((await $.command.run(KING)).text).toBe('But there was no room for a King Slime! Widen the terminal.')
 
-  const ui = await mount($, 'terminal', 10, 120)
-  expect((await $.command.run(KING)).text).toBe('The slimes band together... A King Slime appears!')
-  // Asking again mid-show is not a question of room.
-  expect((await $.command.run(KING)).text).toBe('The King Slime is already here!')
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
+  const variant = await crownKing($)
+  // Asking again mid-show is not a question of room, and names the King that reigns.
+  expect((await $.command.run(KING)).text).toBe(`The ${KINGS[variant].name} is already here!`)
+  await clock.advance(FRAME_MS * (kingReignStarts + 1))
+  // The named King reigns in its own body colour, and no other King's.
+  for (const [other, king] of Object.entries(KINGS)) {
+    expect(colorIn(blits.at(-1)!, king.body.B!)).toBe(other === variant)
+  }
   await clock.advance(FRAME_MS * KING_SHOW_TICKS)
   expect(blits.some(goldIn)).toBe(true)
   // The show over, the next ask crowns again.
   await clock.advance(FRAME_MS * 2)
-  expect((await $.command.run(KING)).text).toBe('The slimes band together... A King Slime appears!')
+  await crownKing($)
   await ui.unmount()
 })
 
@@ -1677,7 +1881,7 @@ test('/slime-king on the quest stage says the hero walks on, with or without roo
   const reply = 'But there are no slimes here. The hero walks on.'
   expect((await $.command.run(KING)).text).toBe(reply)
   for (const columns of [120, 30]) {
-    const ui = await mount($, 'terminal', 10, columns)
+    const ui = await mount($, 'terminal', FULL_ROWS, columns)
     expect((await $.command.run(KING)).text).toBe(reply)
     await ui.unmount()
   }
@@ -1686,7 +1890,7 @@ test('/slime-king on the quest stage says the hero walks on, with or without roo
 test('/slime-king finds no room when the band only fits the branch', async ($, on) => {
   answers(on, { name: 'feature/slimes', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 30)
+  const ui = await mount($, 'terminal', FULL_ROWS, 30)
   expect(await ui.find({ type: 'Raster', key: 'slimes' })).toBeUndefined()
   expect((await $.command.run(KING)).text).toBe('But there was no room for a King Slime! Widen the terminal.')
   await ui.unmount()
@@ -1702,7 +1906,7 @@ test('only the main loop answering after a long task crowns the king', async ($,
   on('turn.complete', async () => ({ text: 'done' }))
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
 
   const long = { answer: 'ok', durationMs: 60_000, isAborted: false, turnId: 't1' } as const
   await $.turn.complete({ ...long, reason: 'answer', agentId: 'sub' } as never)
@@ -1725,9 +1929,10 @@ test('marks a dirty tree on the chip too', async ($, on) => {
 test('cuts a branch name too long for the band, after the slimes have left', async ($, on) => {
   answers(on, { name: 'feature/very-long-name', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  // 30 columns: 7 for the sprite and its gap leave room for 6 glyphs.
-  const ui = await mount($, 'terminal', 10, 30)
-  for (const line of pixelText('feat..')) {
+  const clipped = 'feat..'
+  const columns = BRANCH_SPRITE[0]!.length + 2 + pixelWidth(clipped.length)
+  const ui = await mount($, 'terminal', FULL_ROWS, columns)
+  for (const line of CLIPPED_TITLE) {
     expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
   }
   await ui.unmount()
@@ -1744,7 +1949,7 @@ test('gives the band back to the engine while a survey is up', async ($, on) => 
     plugin: 'pixel-hud',
     surface: 'terminal',
     component: 'AbovePrompt',
-    props: { hasSurvey: true, isWorking: false, maxRows: 10, bodyColumns: 120 } as never,
+    props: { hasSurvey: true, isWorking: false, maxRows: FULL_ROWS, bodyColumns: 120 } as never,
   })
   expect(await ui.find({ type: 'Text', text: 'survey' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: ' Opus 5.5 ' })).toBeUndefined()
@@ -1762,7 +1967,7 @@ test('a new reading from the engine redraws the meter, reset times and alarm', a
     changed: [],
   } as never)
 
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   expect(await ui.find({ type: 'Text', text: ' ▰▰▰▰▱ 88%' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: ' ▰▰▰▰▱ 70%' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: ' (07:05)' })).toBeDefined()
@@ -1784,8 +1989,8 @@ test('rereads the branch shortly after /clear', async ($, on) => {
   await $.session.end({ reason: 'clear', sessionId: 's1' } as never)
   await clock.advance(200)
 
-  const ui = await mount($, 'terminal', 10, 120)
-  expect(await ui.find({ type: 'Text', text: pixelText('dev')[0] })).toBeDefined()
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
+  expect(await ui.find({ type: 'Text', text: DEV_TITLE[0] })).toBeDefined()
   await ui.unmount()
 })
 
@@ -1821,7 +2026,7 @@ test('responses keep the counts live, the effort shows, and a subagent is left o
   usage = { ...(usage as object), input_tokens: 9_000_000, output_tokens: 9_000_000 }
   await step($, { agentId: 'sub' })
 
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   expect(await ui.find({ type: 'Text', text: ':high' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: ' 2.0k' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: ' 500' })).toBeDefined()
@@ -1888,7 +2093,7 @@ test('the quest hero stays still with idle off even when slime hopping is on', {
   })
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const end = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, QUEST_STAGE.maxRoom, 'still')
   await clock.advance(FRAME_MS * end)
   expect(blits.at(-1)).toBe(QUEST_STAGE.cells(QUEST_STAGE.maxRoom, end, null, 'still'))
@@ -1910,7 +2115,7 @@ test('quest failures flicker the hero and compaction takes over in gold', { opti
   on('classic.PostCompact', async () => ({}) as never)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
+  const ui = await mount($, 'terminal', FULL_ROWS, 120)
   const room = QUEST_STAGE.maxRoom
   const tick = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, room, 'still')
   await clock.advance(FRAME_MS * tick)
@@ -1946,7 +2151,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     })
     answers(on, { name: 'main', porcelain: '', isRepo: true })
     await $.session.start({ cwd: '/repo', surface, isInteractive: true })
-    const ui = await mount($, surface, 10, 40)
+    const ui = await mount($, surface, FULL_ROWS, 40)
     expect(await ui.find({ type: 'Raster', key: 'slimes' })).toBe(undefined)
     expect(JSON.stringify(await ui.drawn()).includes(`"color":"#${HERO_PALETTE.B.toString(16).padStart(6, '0')}"`)).toBe(false)
     await clock.advance(FRAME_MS * DAMAGE_COOLDOWN_TICKS)
@@ -1955,6 +2160,24 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 }
 
+// The width docs/showcase/render_mod.py renders at.
+const SHOWCASE_COLUMNS = 84
+
+test('the quest stage claims only its own columns beside the branch at the showcase width', { options: { stage: 'quest' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', FULL_ROWS, SHOWCASE_COLUMNS)
+  expect((await ui.find({ type: 'Raster', key: 'slimes' }))?.props.columns).toBe(QUEST_MIN_COLUMNS)
+  await clock.advance(FRAME_MS * QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, QUEST_STAGE.maxRoom, 'still'))
+  expect(slimePixels(blits.at(-1)!, QUEST_STAGE.rows).flat()).toContain(HERO_PALETTE.B)
+  await ui.unmount()
+})
 
 for (const columns of [40, 120]) {
   test(`quest battles ignore ineligible turns at ${columns} columns`, { options: { stage: 'quest', slimesIdle: false } }, async ($, on) => {
@@ -1970,7 +2193,7 @@ for (const columns of [40, 120]) {
     const answer = { answer: 'ok', durationMs: 1, isAborted: false, turnId: 't', reason: 'answer' } as const
     // A stage must be seated before any battle is admitted.
     await $.turn.complete(answer)
-    const ui = await mount($, 'terminal', 10, columns)
+    const ui = await mount($, 'terminal', FULL_ROWS, columns)
     const encounterEnd = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, QUEST_STAGE.maxRoom, 'still')
     await clock.advance(FRAME_MS * encounterEnd)
     blits.length = 0
@@ -1990,7 +2213,7 @@ for (const [theme, rows] of [['quest', QUEST_ROWS], ['slimes', SLIME_ROWS]] as c
     answers(on, { name: 'main', porcelain: '', isRepo: true })
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
     for (let render = 0; render < 2; render += 1) {
-      const ui = await mount($, 'terminal', rows + METER_ROWS, 120)
+      const ui = await mount($, 'terminal', Math.max(rows, TITLE_ROWS) + METER_ROWS, 120)
       const raster = await ui.find({ type: 'Raster', key: 'slimes' })
       expect(raster?.props.rows).toBe(rows)
       expect(new Uint32Array(Uint8Array.from(atob(String(raster?.props.cells)), ch => ch.charCodeAt(0)).buffer).length).toBe(Number(raster?.props.columns) * rows * 3)
@@ -1999,18 +2222,18 @@ for (const [theme, rows] of [['quest', QUEST_ROWS], ['slimes', SLIME_ROWS]] as c
   })
 }
 
-test('the desktop quest fallback includes all four rows', { options: { stage: 'quest' } }, async ($, on) => {
+test('the desktop quest fallback includes all eight rows', { options: { stage: 'quest' } }, async ($, on) => {
   mock.clock(on)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true })
-  const ui = await mount($, 'desktop', 10, 120)
+  const ui = await mount($, 'desktop', FULL_ROWS, 120)
   for (const row of QUEST_STAGE.text(QUEST_STAGE.maxRoom)) {
     expect(await ui.find({ type: 'Text', text: row[0]!.text })).toBeDefined()
   }
   await ui.unmount()
 })
 
-test('a five-row band uses the chip instead of clipping the quest stage', { options: { stage: 'quest' } }, async ($, on) => {
+test('a band one row short uses the chip instead of clipping the quest stage', { options: { stage: 'quest' } }, async ($, on) => {
   mock.clock(on)
   answers(on, { name: 'main', porcelain: '', isRepo: true })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })

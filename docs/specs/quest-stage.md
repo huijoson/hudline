@@ -2,6 +2,8 @@
 
 Status: ready for agent · 2026-10-23 · shaped with `/grilling`
 
+Sizes follow ADR 0015: both stages are 16 pixels tall (8 text rows).
+
 ## Problem Statement
 
 The stage beside the branch in the pixel-hud mod has one theme: the Dragon
@@ -26,7 +28,7 @@ slime theme stays the default and does not change.
 2. As a developer who never touches the option, I want the slimes to stay
    exactly as they are, so that upgrading changes nothing for me.
 3. As a developer on the quest stage, I want a hero who walks in place while
-   the ground scrolls left, so that it reads as a journey in a 4-row band.
+   the ground scrolls left, so that it reads as a journey in an 8-row band.
 4. As a developer, I want a monster to appear each time a task finishes, so
    that every finished task gets a small payoff.
 5. As a developer, I want the monster and the skill to be random each time,
@@ -87,39 +89,40 @@ slime theme stays the default and does not change.
 
 ### Room
 
-- The quest stage takes the same room `fitBranch` grants the slimes:
-  `slimeColumns(n)` columns, so 28, 21, 14 or 7.
-- Below `QUEST_MIN_COLUMNS = 25` (so 21, 14 or 7) there is no quest stage: no
-  Raster, no text fallback, and battles are not admitted. The branch layout
-  reserves four quest rows plus two meter rows. The minimum is computed from
-  the hero's left offset, attack width, two-column gap and widest monster
-  (9 columns).
+- The quest stage is one fixed width, `QUEST_MIN_COLUMNS = 46`. Its room is
+  0 or 1, and room 1 always means 46 columns. Slime slots do not size it.
+- When `fitBranch` cannot fit those 46 columns beside the branch there is no
+  quest stage: no Raster, no text fallback, and battles are not admitted. The
+  branch layout reserves eight quest rows plus two meter rows. The width is
+  computed from the hero's left offset, attack width, two-column gap and
+  widest monster (16 columns).
 
 ### Sprites
 
 Original pixel art in the NES palette the slimes use. Do not copy any
-published game's sprites. The quest stage is 8 pixels tall (4 text rows); the
-slime stage stays 6 pixels tall (3 text rows).
+published game's sprites. The quest stage is 16 pixels tall (8 text rows),
+like the slime stage.
 
-- **Hero**: about 10 wide by 8 tall (12 wide when attacking). Blue armour,
-  a skin-tone face, a sword.
+- **Hero**: the Loto hero, 20 wide by 16 tall (26 wide when attacking). Blue
+  armour, a winged helmet with the gold Loto crest, a crest shield, and a sword
+  with a winged hilt.
   Poses: WALK_A and WALK_B (legs apart, legs together), STAND, ATTACK (sword
   forward), HURT (for flicker), CHEER (sword up, for level-up). The hero
   stands near the left of the stage, about column 2.
 - **Ground**: the bottom pixel row is a dotted ground line that scrolls left
   one pixel every 2 ticks while the hero walks. No other background.
-- **Monsters**, up to 9 wide and 7 to 8 tall: `slime` (a green
+- **Monsters**, up to 16 wide and 11 to 16 tall: `slime` (a green
   quest-slime, not one of the slime family's kin), `bat` (purple, wings
   flapping between two frames), `skeleton` (bone white), `ghost` (pale blue,
-  bobbing one pixel).
+  bobbing two pixels).
 - **Skills**:
   - `slash`: the hero steps forward one pixel in ATTACK, and a white
     diagonal streak appears over the monster for 2 ticks.
-  - `fireball`: an orange 3×3 pixel ball with a lighter centre travels from
+  - `fireball`: an orange 6×6 pixel ball with a lighter centre travels from
     the hero's sword at the attack blade row to the monster, about 1 pixel
     every tick, at most 6 ticks.
   - `thunder`: a yellow zigzag bolt drops from the top of the stage onto the
-    monster for 3 ticks, growing from 2 to 4 to all 8 pixel rows.
+    monster for 3 ticks, growing from 4 to 8 to all 16 pixel rows.
 - The builder finalises the pixels by rendering them with the showcase
   renderer. The silhouettes and colours are the decision, not the exact
   pixels.
@@ -140,7 +143,7 @@ slime stage stays 6 pixels tall (3 text rows).
 | Face-off | 4 | The hero stands. The ground stops. |
 | Skill | 4–8 | The chosen skill plays; its length depends on the skill. |
 | Hit | 6 | The monster flickers hidden and shown, 3 times. |
-| Burst | 2 | The monster becomes the slime module's POOF, unchanged on the 8 px stage. |
+| Burst | 2 | The monster becomes the slime module's POOF. |
 | Resume | 4 | The empty spot scrolls away and the hero walks on. |
 
   The battle's endpoint is the end of Resume. It hands back the walk on its
@@ -175,7 +178,7 @@ slime stage stays 6 pixels tall (3 text rows).
 - **Damage (quest)**: on `classic.PostToolUseFailure` without
   `is_interrupt`, the hero flickers (HURT, hidden and shown, 6 ticks), with
   the same 25-tick cooldown.
-- **Level-up (quest)**: on `classic.PostCompact`, the hero jumps 1 pixel in
+- **Level-up (quest)**: on `classic.PostCompact`, the hero jumps 2 pixels in
   CHEER and is drawn in GOLD and WHITE for 2 ticks at the top. About 8 ticks.
 
 ### Copy
@@ -207,8 +210,8 @@ ground line. No monster.
     some tick of Hit, and ends with no monster pixel left.
   - The frame after a battle's end equals the plain walk frame at that tick.
   - The battle lasts 2.4 to 3 seconds at `FRAME_MS`.
-  - Under 25 columns there is no stage.
-  - Quest Raster and text fallback use 4 rows; slime Raster stays at 3.
+  - With no room there is no stage, and any room is exactly 46 columns.
+  - Quest and slime Rasters and text fallbacks use 8 rows.
   - Encounter starts with the hero off its spot and ends on the rest frame.
   - Level-up contains gold.
 - **Seam 2, the mod through `claude-code/testing`**:
@@ -219,7 +222,7 @@ ground line. No monster.
     the monster.
   - A subagent `turn.complete`, or a reason other than `answer`, does not.
   - A second `turn.complete` during a battle does not restart it.
-  - Under 25 columns, `turn.complete` blits nothing.
+  - When the quest stage does not fit, `turn.complete` blits nothing.
   - Tool failure and compaction blit the quest damage and level-up.
   - `/slime-king` on the quest stage returns the quest reply.
   - With `slimesIdle: false` nothing blits at rest on the quest stage.
