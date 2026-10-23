@@ -11,72 +11,72 @@ export type { Moment, Rest } from './stage'
 // B body, H highlight, W white, K pupil, M mouth, D shade, '.' transparent.
 // Each frame is 14 wide in a 16-pixel-tall stage (8 text rows), feet on the floor unless it is airborne.
 export const STAND = [
-  '......BB......',
-  '.....BHB......',
-  '....BHHBB.....',
-  '...BHHBBBB....',
+  '......HB......',
+  '.....BHBB.....',
+  '....BHBBBB....',
+  '...BHBBBBBB...',
   '..BHBBBBBBBB..',
-  '..BWWBBBWWBB..',
-  '.BWWKBBWWKBBB.',
-  '.BBWKBBBWKBBB.',
-  'BBBBBBBBBBBBBB',
+  '.BBWWWBBWWWBB.',
+  '.BBWKWBBWKWBB.',
+  'BBBWWWBBWWWBBB',
   'BBKBBBBBBBBKBB',
-  'DBBKMMMMMMKBBD',
-  '.DDDKMMMMKDDD.',
+  'BBBKMMMMMMKBBB',
+  'DBBBKKKKKKBBBD',
+  '.DDDDDDDDDDDD.',
 ]
 export const SQUASH = [
-  '.....BB.......',
-  '...BHHBBB.....',
-  '.BHHBBBBBBBB..',
-  '.BWWKBBWWKBBB.',
-  'BBBWKBBBWKBBBB',
-  'BBBBBBBBBBBBBB',
+  '......HB......',
+  '....BHBBBB....',
+  '..BHBBBBBBBB..',
+  '.BBWWWBBWWWBB.',
+  'BBBWKWBBWKWBBB',
+  'BBKBBBBBBBBKBB',
   'DBBKMMMMMMKBBD',
-  'DDDDKMMMMKDDDD',
+  'DDDDKKKKKKDDDD',
   '.DDDDDDDDDDDD.',
 ]
 export const WIDE = [
-  '......BB......',
-  '....BHHBB.....',
-  '..BHHBBBBBB...',
-  '.BHBBBBBBBBBB.',
-  '.BWWBBBBWWBBB.',
-  'BWWKBBBBWWKBBB',
-  'BBWKBBBBBWKBBB',
-  'BBBBBBBBBBBBBB',
-  'BBKBBBBBBBBBKB',
-  'DBBKMMMMMMMKBD',
-  '.DDDKMMMMMKDD.',
-]
-export const STRETCH = [
-  '......B.......',
-  '......BB......',
-  '.....BHB......',
+  '......HB......',
   '.....BHBB.....',
-  '....BHBBBB....',
-  '....BWWBWWB...',
-  '...BWWKBWWKB..',
-  '...BBWKBBWKB..',
-  '...BBBBBBBBB..',
-  '...BKBBBBBKB..',
-  '...BBKMMMKBB..',
-  '....DDMMMDD...',
-  '.....DDDDD....',
-  '......DD......',
-]
-export const BLINK = [
-  '......BB......',
-  '.....BHB......',
-  '....BHHBB.....',
-  '...BHHBBBB....',
-  '..BHBBBBBBBB..',
-  '..BBBBBBBBBB..',
-  '.BBBBBBBBBBBB.',
-  '.BKKKBBBKKKBB.',
-  'BBBBBBBBBBBBBB',
+  '...BHBBBBBB...',
+  '.BBHBBBBBBBBB.',
+  '.BBWWWBBWWWBB.',
+  'BBBWKWBBWKWBBB',
+  'BBBWWWBBWWWBBB',
   'BBKBBBBBBBBKBB',
   'DBBKMMMMMMKBBD',
-  '.DDDKMMMMKDDD.',
+  'DDBBKKKKKKBBDD',
+  '.DDDDDDDDDDDD.',
+]
+export const STRETCH = [
+  '..............',
+  '......H.......',
+  '......H.......',
+  '.....BHB......',
+  '....BHBBB.....',
+  '...BHBBBBB....',
+  '..BWWWBWWWB...',
+  '..BWKWBWKWB...',
+  '..BWWWBWWWB...',
+  '..BKBBBBBKB...',
+  '..BBKMMMKBB...',
+  '...DBKKKBD....',
+  '....DDDDD.....',
+  '......D.......',
+]
+export const BLINK = [
+  '......HB......',
+  '.....BHBB.....',
+  '....BHBBBB....',
+  '...BHBBBBBB...',
+  '..BHBBBBBBBB..',
+  '.BBBBBBBBBBBB.',
+  '.BBKKKBBKKKBB.',
+  'BBBBBBBBBBBBBB',
+  'BBKBBBBBBBBKBB',
+  'BBBKMMMMMMKBBB',
+  'DBBBKKKKKKBBBD',
+  '.DDDDDDDDDDDD.',
 ]
 
 export const SLIME_ROWS = 8
@@ -161,7 +161,7 @@ export type Pixels = (number | null)[][]
 export type Palette = Partial<Record<string, number>>
 
 const WHITE = 0xfcfcfc
-const MOUTH = 0xd83838
+const MOUTH = 0xf87858
 const GOLD = 0xfcbc3c
 
 function blank(count: number): Pixels {
@@ -240,27 +240,27 @@ export function stage(count: number, tick: number | null, rest: Rest = 'breathe'
 }
 
 // The King Slime: crowned, the whole stage tall, and too wide for one slot.
-// B body, H highlight, Y gold crown, J red jewel, W white eyes,
-// K pupils and grin corners, M red mouth, D lower shade, '.' transparent.
+// B body, H highlight, Y crown gold, J red jewel, P and G crown fabric, W white eyes,
+// K pupils and grin outline, M salmon mouth, D lower shade, '.' transparent.
 export const KING = [
-  '.....Y..J..Y..J..Y......',
-  '.....YY.Y.YYY.Y.YY......',
-  '.....YYYYYYYYYYYYY......',
-  '.....YJYYYJYYYJYYY......',
-  '...BBBBBBBHHBBBBBBBB....',
-  '..BBBBBBBHHHBBBBBBBBB...',
-  '.BBBWWWBBHBBBBWWWBBBBB..',
-  '.BBWWWKKBBBBBBWWWKKBBB..',
-  'BBBWWWKKBBBBBBWWWKKBBBB.',
-  'BBBBBBBBBBBBBBBBBBBBBBB.',
-  'BBBKBBBBBBBBBBBBBBBBKBBB',
-  'BBBBKMMMMMMMMMMMMMMKBBBB',
-  'DBBBBKMMMMMMMMMMMMKBBBBD',
-  'DDBBBBKKMMMMMMMMKKBBBBDD',
-  '.DDDDBBBBKKKKKKBBBBDDDD.',
-  '..DDDDDDDDDDDDDDDDDDDD..',
+  '......Y..PGGP..Y......',
+  '......YPGPGGPGPY......',
+  '......YYYYYYYYYY......',
+  '......YJYYJJYYJY......',
+  '....HHBBBBBBBBBBBB....',
+  '..BHHBBBBBBBBBBBBBBB..',
+  '.BHBBBBBBBBBBBBBBBBBB.',
+  '.BBBBBBWWWBBWWWBBBBBB.',
+  'BBBBBBBWKWBBWKWBBBBBBB',
+  'BBBBBBBWWWBBWWWBBBBBBB',
+  'BBBBBKBBBBBBBBBBKBBBBB',
+  'BBBBBBKMMMMMMMMKBBBBBB',
+  'DBBBBBBKMMMMMMKBBBBBBD',
+  'DBBBBBBBKKKKKKBBBBBBBD',
+  'DDBBBBBBBBBBBBBBBBBBDD',
+  '.DDDDDDDDDDDDDDDDDDDD.',
 ]
-const CROWN: Palette = { Y: GOLD, J: 0xf83800 }
+const CROWN: Palette = { Y: GOLD, J: 0xf83800, P: 0x8838d0, G: 0x28a848 }
 // No squash was drawn: the landing loses the crown's points and spreads one
 // pixel wider on each side where the body meets the edge.
 const KING_SQUASH = KING.slice(1).map(row => row[0] + row + row.at(-1))
@@ -280,26 +280,26 @@ export const KING_WIDTH = KING[0]!.length
 // The slimes landing on one another: a splat, then a blob bouncing up.
 const MERGED_SPLAT = [
   '.......BBHHBBBB.......',
-  '....BBBBWWBBBWWBBBB...',
-  '..BBBBBWKBBBBWKBBBBBB.',
-  '.BBBBBBBBBBBBBBBBBBBBB',
-  'DDBBBBKMMMMMMKBBBBBDDD',
-  '.DDDDDDDKKKKKDDDDDDDD.',
+  '....BBWWWBBBBWWWBB....',
+  '..BBBBWKWBBBBWKWBBBB..',
+  '.BBBKBBBBBBBBBBBBKBBB.',
+  'DDBBBKMMMMMMMMMMKBBBDD',
+  '.DDDDDKKKKKKKKKKDDDDD.',
 ]
 const MERGED_BLOB = [
-  '........BB..........',
-  '.......BHHB.........',
-  '......BHHBBB........',
-  '....BBHBBBBBBB......',
-  '...BBBBBBBBBBBBB....',
-  '..BBBWWBBBBBWWBBB...',
-  '..BBWWKBBBBWWKBBB...',
-  '.BBBWWKBBBBWWKBBBB..',
-  '.BBBBBBBBBBBBBBBBB..',
-  'BBBKBBBBBBBBBBBKBBB.',
-  'DBBBKMMMMMMMMMKBBBD.',
-  '.DDDDKMMMMMMMKDDDD..',
-  '..DDDDDDDDDDDDDD....',
+  '.................',
+  '........H........',
+  '.......HBB.......',
+  '.....BHBBBBB.....',
+  '...BBHBBBBBBBB...',
+  '..BBBBBBBBBBBBB..',
+  '.BBBBWWWBWWWBBBB.',
+  '.BBBBWKWBWKWBBBB.',
+  'BBBBBWWWBWWWBBBBB',
+  'BBBKBBBBBBBBBKBBB',
+  'DBBBKMMMMMMMKBBBD',
+  '.DDBBKKKKKKKBBDD.',
+  '..DDDDDDDDDDDDD..',
 ]
 export const MERGED = [MERGED_SPLAT, MERGED_BLOB]
 export const POOF = [

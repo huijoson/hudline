@@ -21,12 +21,12 @@ test('the quest slime is a green, grounded silhouette with eyes', () => {
   expect(silhouette(pixels)).toEqual([
     '....................',
     '....................',
+    '.........#..........',
     '........##..........',
-    '.......###..........',
+    '........##..........',
     '.......####.........',
     '......######........',
     '.....########.......',
-    '....##########......',
     '....##########......',
     '...############.....',
     '...############.....',
@@ -38,6 +38,7 @@ test('the quest slime is a green, grounded silhouette with eyes', () => {
   ])
   expect(pixels.flat()).toContain(0x38c838)
   expect(pixels.flat()).toContain(0x0b0a0d)
+  expect(pixels.flat()).toContain(0xf87858)
 })
 
 for (const monster of ['bat', 'skeleton', 'ghost'] as const) {

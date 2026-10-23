@@ -11,10 +11,10 @@ test('the slime stage keeps its room and resting text fallback', () => {
   expect(stage.text(1)).toEqual([
     [{ text: '              ', color: '#3cbcfc' }],
     [{ text: '              ', color: '#3cbcfc' }],
-    [{ text: '     ▄██      ', color: '#3cbcfc' }],
-    [{ text: '   ▄█████▄    ', color: '#3cbcfc' }],
-    [{ text: '  ██████████  ', color: '#3cbcfc' }],
-    [{ text: ' ████████████ ', color: '#3cbcfc' }],
+    [{ text: '     ▄██▄     ', color: '#3cbcfc' }],
+    [{ text: '   ▄██████▄   ', color: '#3cbcfc' }],
+    [{ text: ' ▄██████████▄ ', color: '#3cbcfc' }],
+    [{ text: '▄████████████▄', color: '#3cbcfc' }],
     [{ text: '██████████████', color: '#3cbcfc' }],
     [{ text: '▀████████████▀', color: '#3cbcfc' }],
   ])
