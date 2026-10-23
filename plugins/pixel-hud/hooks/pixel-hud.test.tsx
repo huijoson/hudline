@@ -15,9 +15,7 @@ import {
   usd,
 } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
-import { QUEST_STAGE } from './quest'
-import { MONSTERS, SKILLS } from './quest-foes'
-import type { Monster, Skill } from './quest-foes'
+import { HERO_PALETTE, QUEST_STAGE } from './quest'
 import { POLL_MS } from './register'
 import {
   canCrown,
@@ -1893,6 +1891,7 @@ test('the quest hero stays still with idle off even when slime hopping is on', {
   const end = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, QUEST_STAGE.maxRoom, 'still')
   await clock.advance(FRAME_MS * end)
   expect(blits.at(-1)).toBe(QUEST_STAGE.cells(QUEST_STAGE.maxRoom, end, null, 'still'))
+  expect(slimePixels(blits.at(-1)!).flat()).toContain(HERO_PALETTE.B)
   blits.length = 0
   await clock.advance(FRAME_MS * DAMAGE_COOLDOWN_TICKS)
   expect(blits).toEqual([])
@@ -1920,6 +1919,7 @@ test('quest failures flicker the hero and compaction takes over in gold', { opti
   await $.classic.PostToolUseFailure(failure as never)
   const damage: Moment = { kind: 'damage', startTick: tick, target: 0 }
   expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, tick, damage, 'still'))
+  expect(slimePixels(blits.at(-1)!).slice(0, -1).flat().every(pixel => pixel === null)).toBe(true)
   await clock.advance(FRAME_MS)
   expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, tick + 1, damage, 'still'))
   await $.classic.PostCompact({ ...compaction, trigger: 'auto' } as never)
@@ -1947,47 +1947,12 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await $.session.start({ cwd: '/repo', surface, isInteractive: true })
     const ui = await mount($, surface, 10, 40)
     expect(await ui.find({ type: 'Raster', key: 'slimes' })).toBe(undefined)
-    expect(JSON.stringify(await ui.drawn()).includes('"color":"#0058f8"')).toBe(false)
+    expect(JSON.stringify(await ui.drawn()).includes(`"color":"#${HERO_PALETTE.B.toString(16).padStart(6, '0')}"`)).toBe(false)
     await clock.advance(FRAME_MS * DAMAGE_COOLDOWN_TICKS)
     expect(blits).toEqual([])
     await ui.unmount()
   })
 }
-
-
-test('a short main answer battles without restarting for another answer', { options: { stage: 'quest', slimesIdle: false } }, async ($, on) => {
-  const clock = mock.clock(on)
-  const blits: string[] = []
-  on('ui.blit', async (_$, e) => {
-    if ('cells' in e) blits.push(e.cells)
-    return { value: {} }
-  })
-  on('turn.complete', async () => ({ text: 'done' }))
-  answers(on, { name: 'main', porcelain: '', isRepo: true })
-  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await mount($, 'terminal', 10, 120)
-  const room = QUEST_STAGE.maxRoom
-  const startTick = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, room, 'still')
-  await clock.advance(FRAME_MS * startTick)
-  const answer = { answer: 'ok', durationMs: 1, isAborted: false, turnId: 't', reason: 'answer' } as const
-  await $.turn.complete(answer)
-  const candidates = (Object.keys(MONSTERS) as Monster[]).flatMap(monster =>
-    (Object.keys(SKILLS) as Skill[]).map(skill => ({ kind: 'battle', startTick, monster, skill } as const)),
-  )
-  const frames = [blits.at(-1)]
-  expect(candidates.some(battle => frames[0] === QUEST_STAGE.cells(room, startTick, battle, 'still'))).toBe(true)
-  await clock.advance(FRAME_MS)
-  await $.turn.complete(answer)
-  frames.push(blits.at(-1))
-  const end = Math.max(...candidates.map(battle => QUEST_STAGE.momentEndTick(battle, room, 'still')))
-  for (let tick = startTick + 2; tick <= end; tick += 1) {
-    await clock.advance(FRAME_MS)
-    frames.push(blits.at(-1))
-  }
-  expect(candidates.some(battle => frames.every((cells, frame) => cells === QUEST_STAGE.cells(room, startTick + frame, battle, 'still')))).toBe(true)
-  expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, end, null, 'still'))
-  await ui.unmount()
-})
 
 
 for (const columns of [40, 120]) {

@@ -511,17 +511,23 @@ export function pixelCells(pixels: Pixels): string {
   return btoa(binary)
 }
 
+// Half blocks keep the silhouette when a surface cannot draw Raster cells.
+export function halfBlockText(pixels: Pixels, row: number, start = 0, end = pixels[0]?.length ?? 0): string {
+  let text = ''
+  for (let col = start; col < end; col += 1) {
+    const top = (pixels[row * 2]?.[col] ?? null) !== null
+    const bottom = (pixels[row * 2 + 1]?.[col] ?? null) !== null
+    text += top && bottom ? '█' : top ? '▀' : bottom ? '▄' : ' '
+  }
+  return text
+}
+
 // Where there is no Raster: one resting frame, each slime one color, as text.
 export function slimeText(count: number): { text: string; color: string }[][] {
   const pixels = stage(count, null)
   return Array.from({ length: STAGE_ROWS }, (_, row) =>
     Array.from({ length: count }, (_, i) => {
-      let text = ''
-      for (let c = i * SLIME_WIDTH; c < (i + 1) * SLIME_WIDTH; c += 1) {
-        const t = (pixels[row * 2]?.[c] ?? null) !== null
-        const b = (pixels[row * 2 + 1]?.[c] ?? null) !== null
-        text += t && b ? '█' : t ? '▀' : b ? '▄' : ' '
-      }
+      const text = halfBlockText(pixels, row, i * SLIME_WIDTH, (i + 1) * SLIME_WIDTH)
       const kin = FAMILY[i % FAMILY.length] as Kin
       return { text, color: `#${kin.body.toString(16).padStart(6, '0')}` }
     }),
@@ -529,6 +535,7 @@ export function slimeText(count: number): { text: string; color: string }[][] {
 }
 
 export const SLIME_STAGE: Stage = {
+  taskMoment: () => null,
   maxRoom: FAMILY.length,
   rest: (idle, hop) => hop ? 'hop' : idle ? 'breathe' : 'still',
   columns: slimeColumns,

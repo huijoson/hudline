@@ -34,3 +34,12 @@ test('stage admission keeps priority and the King room requirement', () => {
   expect(nextMoment(stage, levelUp, king, kingRoom)).toBe(king)
   expect(nextMoment(stage, king, { ...king, startTick: 1 }, kingRoom)).toBe(king)
 })
+
+
+test('finished tasks pick quest battles and leave the slime stage without consuming randomness', () => {
+  const picks = [0.25, 0.67]
+  let pick = 0
+  const random = () => picks[pick++]!
+  expect(selectStage('slimes').taskMoment(12, random)).toBe(null)
+  expect(selectStage('quest').taskMoment(12, random)).toEqual({ kind: 'battle', startTick: 12, monster: 'bat', skill: 'thunder' })
+})
