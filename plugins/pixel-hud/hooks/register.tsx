@@ -230,7 +230,11 @@ export const register = (on: Parameters<Register>[0], options: Parameters<Regist
     reigning: 'The King Slime is already here!',
     'no-room': 'But there was no room for a King Slime! Widen the terminal.',
   } as const
-  on('command.run', { command: KING_COMMAND }, async () => ({ text: KING_SAYS[crown()] }))
+  on('command.run', { command: KING_COMMAND }, async () => ({
+    text: theme.accepts('king', theme.maxRoom)
+      ? KING_SAYS[crown()]
+      : 'But there are no slimes here. The hero walks on.',
+  }))
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
