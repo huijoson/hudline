@@ -51,18 +51,27 @@ type EffectPose = Pose & { offset: number }
 
 export const SKILLS = {
   slash: {
+    heroStep: 1,
+    origin: 'monster',
+    originOffset: -3,
     palette: { W: 0xfcfcfc },
     frames: Array<EffectPose>(2).fill({ sprite: ['....W', '...W.', '..W..', '.W...', 'W....'], lift: 0, offset: 0 }),
   },
   fireball: {
+    heroStep: 0,
+    origin: 'sword',
+    originOffset: 0,
     palette: { O: 0xfca044 },
     frames: Array.from({ length: 6 }, (_, offset) => ({ sprite: ['OO', 'OO'], lift: 2, offset })),
   },
   thunder: {
+    heroStep: 0,
+    origin: 'monster',
+    originOffset: 0,
     palette: { Y: 0xf8d878 },
     frames: Array<EffectPose>(3).fill({ sprite: ['..Y', '.Y.', 'YYY', '..Y', '.Y.', 'Y..'], lift: 0, offset: 0 }),
   },
-} satisfies Record<string, { palette: Palette; frames: readonly EffectPose[] }>
+} satisfies Record<string, { heroStep: number; origin: 'monster' | 'sword'; originOffset: number; palette: Palette; frames: readonly EffectPose[] }>
 
 export type Skill = keyof typeof SKILLS
 

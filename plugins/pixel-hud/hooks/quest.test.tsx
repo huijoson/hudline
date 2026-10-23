@@ -1,6 +1,14 @@
 import { expect, test } from 'claude-code/testing'
 
 import {
+  BATTLE_APPROACH_TICKS,
+  BATTLE_FACE_OFF_TICKS,
+  BATTLE_HIT_TICKS,
+  BATTLE_MONSTER_X,
+  BATTLE_RESUME_TICKS,
+  ATTACK,
+  HERO_X,
+  BATTLE_SKILL_TICKS,
   GROUND_STEP_TICKS,
   LEVEL_UP_FLASH_TICKS,
   QUEST_DAMAGE_TICKS,
@@ -9,8 +17,10 @@ import {
   WALK_CYCLE_TICKS,
   WALK_POSE_TICKS,
 } from './quest'
+import { MONSTERS, SKILLS } from './quest-foes'
+import type { Monster, Skill } from './quest-foes'
 import { slimeColumns } from './slime'
-import { nextMoment, STAGE_ROWS } from './stage'
+import { FRAME_MS, nextMoment, STAGE_ROWS } from './stage'
 import { selectStage } from './stages'
 
 // Decode the public Raster cells into their six pixel rows.
@@ -26,6 +36,30 @@ function pixels(cells: string) {
       return glyph === 0x2580 && words[offset + 2] !== 0x01000000 ? words[offset + 2] : null
     }),
   )
+}
+
+for (const monster of Object.keys(MONSTERS) as Monster[]) {
+  for (const skill of Object.keys(SKILLS) as Skill[]) {
+    test(`battle defeats ${monster} with ${skill} and returns to the walk`, () => {
+      const quest = selectStage('quest')
+      const moment = { kind: 'battle', startTick: WALK_CYCLE_TICKS, monster, skill } as const
+      const end = quest.momentEndTick(moment, 3, 'breathe')
+      expect((end - moment.startTick) * FRAME_MS >= 2400).toBe(true)
+      expect((end - moment.startTick) * FRAME_MS <= 3000).toBe(true)
+      const frame = (elapsed: number) => pixels(quest.cells(3, moment.startTick + elapsed, moment, 'breathe'))
+      const foe = (elapsed: number) => frame(elapsed).slice(0, -1).flatMap(row => row.slice(BATTLE_MONSTER_X))
+      expect(foe(BATTLE_APPROACH_TICKS).includes(MONSTERS[monster].palette.B)).toBe(true)
+      const skillStart = BATTLE_APPROACH_TICKS + BATTLE_FACE_OFF_TICKS
+      const skillFrames = Array.from({ length: BATTLE_SKILL_TICKS[skill] }, (_, i) => frame(skillStart + i))
+      expect(skillFrames.some(picture => picture.flat().includes(Object.values(SKILLS[skill].palette)[0]))).toBe(true)
+      const hitStart = skillStart + BATTLE_SKILL_TICKS[skill]
+      const hit = Array.from({ length: BATTLE_HIT_TICKS }, (_, i) => foe(hitStart + i).some(color => color !== null))
+      expect(hit).toEqual([false, true, false, true, false, true])
+      for (const tick of [end - 1, end, end + 1]) {
+        expect(quest.cells(3, tick, moment, 'breathe')).toBe(quest.cells(3, tick, null, 'breathe'))
+      }
+    })
+  }
 }
 
 test('the quest hero stands near the left over a dotted ground with a matching text fallback', () => {
@@ -60,7 +94,7 @@ test('the quest stage disappears below seventeen columns and admits no moments t
     expect(quest.columns(room)).toBe(0)
     expect(quest.cells(room, 0, null, 'breathe')).toBe('')
     expect(quest.text(room)).toEqual([])
-    for (const kind of ['king', 'encounter', 'damage', 'level-up'] as const) {
+    for (const kind of ['king', 'encounter', 'damage', 'level-up', 'battle'] as const) {
       expect(quest.accepts(kind, room)).toBe(false)
     }
   }
@@ -117,8 +151,60 @@ test('quest admission rejects the King and only lets a higher-priority moment ta
   const levelUp = { kind: 'level-up', startTick: 2 } as const
   expect(nextMoment(quest, null, damage, 3)).toBe(damage)
   expect(nextMoment(quest, damage, encounter, 3)).toBe(encounter)
+  const battle = { kind: 'battle', startTick: 2, monster: 'bat', skill: 'slash' } as const
+  expect(nextMoment(quest, encounter, battle, 3)).toBe(battle)
+  expect(nextMoment(quest, battle, encounter, 3)).toBe(battle)
+  expect(nextMoment(quest, battle, { ...battle, startTick: 3 }, 3)).toBe(battle)
+  expect(nextMoment(quest, battle, levelUp, 3)).toBe(levelUp)
+  expect(nextMoment(quest, levelUp, battle, 3)).toBe(levelUp)
   expect(nextMoment(quest, encounter, levelUp, 3)).toBe(levelUp)
   expect(nextMoment(quest, levelUp, encounter, 3)).toBe(levelUp)
   expect(nextMoment(quest, levelUp, { ...levelUp, startTick: 3 }, 3)).toBe(levelUp)
   expect(nextMoment(quest, levelUp, { kind: 'king', startTick: 3 }, 4)).toBe(levelUp)
+})
+
+
+test('skills reach from the attacking sword into the monster without overlapping the hero', () => {
+  const quest = selectStage('quest')
+  const startTick = 0
+  const skillStart = BATTLE_APPROACH_TICKS + BATTLE_FACE_OFF_TICKS
+  for (const skill of Object.keys(SKILLS) as Skill[]) {
+    const battle = { kind: 'battle', startTick, monster: 'bat', skill } as const
+    const effectStart = skillStart + BATTLE_SKILL_TICKS[skill] - SKILLS[skill].frames.length
+    const frame = (elapsed: number) => pixels(quest.cells(3, elapsed, battle, 'still'))
+    const attackTip = HERO_X + ATTACK[0]!.length - 1
+    if (skill === 'slash') {
+      // The diagonal meets the stepped-forward blade, then crosses the foe.
+      expect(frame(effectStart)[3]?.[attackTip + 1]).toBe(0xfcfcfc)
+      expect(frame(effectStart)[3]?.[attackTip + 2]).toBe(0xfcfcfc)
+      expect(frame(effectStart)[1]?.[BATTLE_MONSTER_X + 1]).toBe(0xfcfcfc)
+    } else if (skill === 'fireball') {
+      for (let tick = 0; tick < SKILLS.fireball.frames.length; tick += 1) {
+        expect(frame(effectStart + tick)[2]?.slice(attackTip + tick, attackTip + tick + 2)).toEqual([0xfca044, 0xfca044])
+      }
+      expect(frame(effectStart + SKILLS.fireball.frames.length - 1)[3]?.[BATTLE_MONSTER_X + 2]).toBe(0xfca044)
+    } else {
+      expect(frame(effectStart)[0]?.[BATTLE_MONSTER_X + 2]).toBe(0xf8d878)
+      expect(frame(effectStart)[5]?.[BATTLE_MONSTER_X]).toBe(0xf8d878)
+    }
+  }
+})
+
+test('battle freezes the ground during combat and rejoins its scroll cycle for every start offset', () => {
+  const quest = selectStage('quest')
+  for (const skill of Object.keys(SKILLS) as Skill[]) {
+    for (let startTick = 0; startTick < WALK_CYCLE_TICKS; startTick += 1) {
+      const moment = { kind: 'battle', startTick, monster: 'slime', skill } as const
+      const end = quest.momentEndTick(moment, 3, 'breathe')
+      const ground = (tick: number) => pixels(quest.cells(3, tick, moment, 'breathe'))[5]?.slice(0, 2)
+      const stopped = ground(startTick + BATTLE_APPROACH_TICKS)
+      const resumeStart = end - BATTLE_RESUME_TICKS
+      for (let tick = startTick + BATTLE_APPROACH_TICKS; tick < resumeStart; tick += 1) {
+        expect(ground(tick)).toEqual(stopped)
+      }
+      for (let tick = end - GROUND_STEP_TICKS; tick <= end + GROUND_STEP_TICKS; tick += 1) {
+        expect(ground(tick)).toEqual(pixels(quest.cells(3, tick, null, 'breathe'))[5]?.slice(0, 2))
+      }
+    }
+  }
 })

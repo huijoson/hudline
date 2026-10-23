@@ -16,6 +16,8 @@ import {
 } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
 import { QUEST_STAGE } from './quest'
+import { MONSTERS, SKILLS } from './quest-foes'
+import type { Monster, Skill } from './quest-foes'
 import { POLL_MS } from './register'
 import {
   canCrown,
@@ -1933,6 +1935,70 @@ for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await mount($, surface, 10, 40)
     expect(await ui.find({ type: 'Raster', key: 'slimes' })).toBe(undefined)
     expect(JSON.stringify(await ui.drawn()).includes('"color":"#0058f8"')).toBe(false)
+    await clock.advance(FRAME_MS * DAMAGE_COOLDOWN_TICKS)
+    expect(blits).toEqual([])
+    await ui.unmount()
+  })
+}
+
+
+test('a short main answer battles without restarting for another answer', { options: { stage: 'quest', slimesIdle: false } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('turn.complete', async () => ({ text: 'done' }))
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+  const room = QUEST_STAGE.maxRoom
+  const startTick = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, room, 'still')
+  await clock.advance(FRAME_MS * startTick)
+  const answer = { answer: 'ok', durationMs: 1, isAborted: false, turnId: 't', reason: 'answer' } as const
+  await $.turn.complete(answer)
+  const candidates = (Object.keys(MONSTERS) as Monster[]).flatMap(monster =>
+    (Object.keys(SKILLS) as Skill[]).map(skill => ({ kind: 'battle', startTick, monster, skill } as const)),
+  )
+  const frames = [blits.at(-1)]
+  expect(candidates.some(battle => frames[0] === QUEST_STAGE.cells(room, startTick, battle, 'still'))).toBe(true)
+  await clock.advance(FRAME_MS)
+  await $.turn.complete(answer)
+  frames.push(blits.at(-1))
+  const end = Math.max(...candidates.map(battle => QUEST_STAGE.momentEndTick(battle, room, 'still')))
+  for (let tick = startTick + 2; tick <= end; tick += 1) {
+    await clock.advance(FRAME_MS)
+    frames.push(blits.at(-1))
+  }
+  expect(candidates.some(battle => frames.every((cells, frame) => cells === QUEST_STAGE.cells(room, startTick + frame, battle, 'still')))).toBe(true)
+  expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, end, null, 'still'))
+  await ui.unmount()
+})
+
+
+for (const columns of [40, 120]) {
+  test(`quest battles ignore ineligible turns at ${columns} columns`, { options: { stage: 'quest', slimesIdle: false } }, async ($, on) => {
+    const clock = mock.clock(on)
+    const blits: string[] = []
+    on('ui.blit', async (_$, e) => {
+      if ('cells' in e) blits.push(e.cells)
+      return { value: {} }
+    })
+    on('turn.complete', async () => ({ text: 'done' }))
+    answers(on, { name: 'main', porcelain: '', isRepo: true })
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+    const answer = { answer: 'ok', durationMs: 1, isAborted: false, turnId: 't', reason: 'answer' } as const
+    // A stage must be seated before any battle is admitted.
+    await $.turn.complete(answer)
+    const ui = await mount($, 'terminal', 10, columns)
+    const encounterEnd = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, QUEST_STAGE.maxRoom, 'still')
+    await clock.advance(FRAME_MS * encounterEnd)
+    blits.length = 0
+    await $.turn.complete({ ...answer, agentId: 'sub' } as never)
+    await $.turn.complete({ ...answer, reason: 'error' })
+    await $.turn.complete({ ...answer, reason: 'aborted', isAborted: true })
+    if (columns === 40) await $.turn.complete(answer)
     await clock.advance(FRAME_MS * DAMAGE_COOLDOWN_TICKS)
     expect(blits).toEqual([])
     await ui.unmount()
