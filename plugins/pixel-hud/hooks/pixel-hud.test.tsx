@@ -15,6 +15,7 @@ import {
   usd,
 } from './format'
 import { BRANCH_SPRITE, pack, pixelText, pixelWidth } from './pixel'
+import { QUEST_STAGE } from './quest'
 import { POLL_MS } from './register'
 import {
   canCrown,
@@ -1862,3 +1863,78 @@ test('past the read limit the counts carry on, and the thinking share goes', asy
   expect(await ui.find({ type: 'Text', text: ' 99%' })).toBeDefined()
   await ui.unmount()
 })
+
+
+test('the quest hero stays still with idle off even when slime hopping is on', { options: { stage: 'quest', slimesIdle: false, slimesHop: true } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+  const end = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, QUEST_STAGE.maxRoom, 'still')
+  await clock.advance(FRAME_MS * end)
+  expect(blits.at(-1)).toBe(QUEST_STAGE.cells(QUEST_STAGE.maxRoom, end, null, 'still'))
+  blits.length = 0
+  await clock.advance(FRAME_MS * DAMAGE_COOLDOWN_TICKS)
+  expect(blits).toEqual([])
+  await ui.unmount()
+})
+
+test('quest failures flicker the hero and compaction takes over in gold', { options: { stage: 'quest', slimesIdle: false } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const blits: string[] = []
+  on('ui.blit', async (_$, e) => {
+    if ('cells' in e) blits.push(e.cells)
+    return { value: {} }
+  })
+  on('classic.PostToolUseFailure', async () => ({}) as never)
+  on('classic.PostCompact', async () => ({}) as never)
+  answers(on, { name: 'main', porcelain: '', isRepo: true })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await mount($, 'terminal', 10, 120)
+  const room = QUEST_STAGE.maxRoom
+  const tick = QUEST_STAGE.momentEndTick({ kind: 'encounter', startTick: 0 }, room, 'still')
+  await clock.advance(FRAME_MS * tick)
+  blits.length = 0
+  await $.classic.PostToolUseFailure({ ...failure, is_interrupt: true } as never)
+  expect(blits).toEqual([])
+  await $.classic.PostToolUseFailure(failure as never)
+  const damage: Moment = { kind: 'damage', startTick: tick, target: 0 }
+  expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, tick, damage, 'still'))
+  await clock.advance(FRAME_MS)
+  expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, tick + 1, damage, 'still'))
+  await $.classic.PostCompact({ ...compaction, trigger: 'auto' } as never)
+  const levelUp: Moment = { kind: 'level-up', startTick: tick + 1 }
+  expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, tick + 1, levelUp, 'still'))
+  const end = QUEST_STAGE.momentEndTick(levelUp, room, 'still')
+  for (let frame = tick + 2; frame <= end; frame += 1) {
+    await clock.advance(FRAME_MS)
+    expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, frame, levelUp, 'still'))
+  }
+  expect(blits.some(goldIn)).toBe(true)
+  expect(blits.at(-1)).toBe(QUEST_STAGE.cells(room, end, null, 'still'))
+  await ui.unmount()
+})
+
+for (const surface of ['terminal', 'desktop'] as const) {
+  test(`the quest stage disappears on a narrow ${surface}`, { options: { stage: 'quest' } }, async ($, on) => {
+    const clock = mock.clock(on)
+    const blits: string[] = []
+    on('ui.blit', async (_$, e) => {
+      if ('cells' in e) blits.push(e.cells)
+      return { value: {} }
+    })
+    answers(on, { name: 'main', porcelain: '', isRepo: true })
+    await $.session.start({ cwd: '/repo', surface, isInteractive: true })
+    const ui = await mount($, surface, 10, 40)
+    expect(await ui.find({ type: 'Raster', key: 'slimes' })).toBe(undefined)
+    expect(JSON.stringify(await ui.drawn()).includes('"color":"#0058f8"')).toBe(false)
+    await clock.advance(FRAME_MS * DAMAGE_COOLDOWN_TICKS)
+    expect(blits).toEqual([])
+    await ui.unmount()
+  })
+}

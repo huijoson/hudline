@@ -19,6 +19,9 @@ ROOT = HERE.parent.parent
 MOD = ROOT / "plugins" / "pixel-hud"
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--font", default="/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
+parser.add_argument("--stage", choices=["slimes", "quest"], default="slimes",
+                    help="choose the stage theme")
+parser.add_argument("--output", type=Path, help="write the image to this path")
 mode = parser.add_mutually_exclusive_group()
 mode.add_argument("--king", action="store_true",
                     help="draw the King Slime show after a long task (pixel-hud-king.png)")
@@ -114,9 +117,11 @@ COLUMNS = 84
 
 SHOWCASE_TEST = """
 import { mock, test } from 'claude-code/testing'
-import { FRAME_MS, momentEndTick, SLIME_WIDTH, KING_GATHER_TICKS, KING_MERGE_TICKS, KING_DROP_TICKS, KING_FLASH_TICKS, KING_REIGN_TICKS, KING_SHOW_TICKS } from './slime'
+import { selectStage } from './stages'
+import { FRAME_MS, SLIME_WIDTH, KING_GATHER_TICKS, KING_MERGE_TICKS, KING_DROP_TICKS, KING_FLASH_TICKS, KING_REIGN_TICKS, KING_SHOW_TICKS } from './slime'
 
-test('showcase', async ($, on) => {
+test('showcase', { options: { stage: STAGE } }, async ($, on) => {
+  const theme = selectStage(STAGE)
   console.log('FRAME_MS' + FRAME_MS)
   on('process.run', async (_$, e) => ({
     value: { exitCode: 0, stdout: e.argv.includes('rev-parse') ? 'main\\n' : '', stderr: '',
@@ -152,7 +157,7 @@ test('showcase', async ($, on) => {
   // Let the once-per-session encounter finish before the resting sample.
   const raster = await ui.find({ type: 'Raster', key: 'slimes' })
   const count = Number(raster?.props.columns) / SLIME_WIDTH
-  await clock.advance(FRAME_MS * momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'breathe'))
+  await clock.advance(FRAME_MS * theme.momentEndTick({ kind: 'encounter', startTick: 0 }, count, 'breathe'))
   await ui.unmount()
   ui = await $.ui.mount({ plugin: 'pixel-hud', surface: 'terminal', component: 'AbovePrompt', props })
   if (KING) {
@@ -183,6 +188,7 @@ with tempfile.TemporaryDirectory() as tmp:
     copy = Path(tmp) / "pixel-hud"
     shutil.copytree(MOD, copy, ignore=shutil.ignore_patterns("*.test.tsx", "*.test.ts"))
     source = (SHOWCASE_TEST
+              .replace("STAGE", json.dumps(args.stage))
               .replace("MODEL", json.dumps(payload["model"]["display_name"].lower()))
               .replace("EFFORT", json.dumps(payload["effort"]["level"]))
               .replace("USAGE", json.dumps(usage))
@@ -342,7 +348,7 @@ if args.sheet:
             label = f"t{start}" if start == end else f"t{start}–t{end}"
         draw.text((x, y), label, font=small, fill=INK)
         sheet.paste(frame.crop(crop), (x, y + label_height))
-    output = Path(tempfile.gettempdir()) / "pixel-hud-king-sheet.png"
+    output = args.output or Path(tempfile.gettempdir()) / "pixel-hud-king-sheet.png"
     sheet.save(output)
     print(f"Wrote {output} ({sheet.width} x {sheet.height}, {len(runs)} cells)")
     raise SystemExit
@@ -351,7 +357,7 @@ if args.gif:
     frames, palette = king_frames(trees)
     # The slimes at rest a moment, then the show at the slimes' own pace.
     durations = [1200] + [frame_ms] * (len(frames) - 2) + [1200]
-    output = HERE / "pixel-hud-king.gif"
+    output = args.output or HERE / "pixel-hud-king.gif"
     # Disable per-frame palette optimization and supply the shared palette so
     # Pillow keeps one global colour table instead of remapping each frame.
     frames[0].save(output, save_all=True, append_images=frames[1:], duration=durations,
@@ -361,7 +367,7 @@ if args.gif:
     raise SystemExit
 canvas, rows = paint(trees[-1])
 width, height = canvas.size
-output = HERE / ("pixel-hud-king.png" if args.king else "pixel-hud.png")
+output = args.output or HERE / ("pixel-hud-king.png" if args.king else f"pixel-hud-{args.stage}.png" if args.stage != "slimes" else "pixel-hud.png")
 canvas.save(output)
 for cells in rows:
     print("".join(ch for ch, _, _ in cells))

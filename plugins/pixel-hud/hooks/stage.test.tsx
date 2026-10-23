@@ -15,8 +15,8 @@ test('the slime stage keeps its room and resting text fallback', () => {
   ])
 })
 
-for (const option of [undefined, 'slimes', 'quest', 'unknown', false]) {
-  test(`stage ${String(option)} selects the slime theme until quest lands`, () => {
+for (const option of [undefined, 'slimes', 'unknown', false]) {
+  test(`stage ${String(option)} selects the slime theme`, () => {
     expect(selectStage(option)).toBe(SLIME_STAGE)
   })
 }

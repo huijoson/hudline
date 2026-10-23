@@ -73,3 +73,8 @@ taking its resting sample. The plain image catches the slimes at rest; `--king`,
 The mod writes reset times in the machine's local zone, and the test host does
 not take `TZ`. The script shifts the sample instants by the local offset, so the
 image shows the same UTC times as `hudline.png`.
+
+Choose the quest hero for a resting PNG with `--stage quest`. Use
+`--output /path/to/image.png` to inspect a scratch image without changing the
+committed showcases. The renderer selects the real Stage and waits for that
+theme's encounter to finish before drawing the sample.
