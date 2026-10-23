@@ -130,9 +130,9 @@ test('fireball travels right one pixel per tick, flickering between two poses on
       [null, null, O, null, O, null],
     ],
   ]
-  // The ATTACK blade fills pixel rows 7 and 8 and the ball's white core sits on
+  // The ATTACK blade fills pixel rows 10 and 11 and the ball's white core sits on
   // them. A literal, because the code derives the lift from the same blade.
-  const top = 5
+  const top = 8
   for (let frame = 0; frame < FIREBALL_TICKS; frame += 1) {
     const pixels = blank()
     paintSkill(pixels, 'fireball', LEFT, frame)
