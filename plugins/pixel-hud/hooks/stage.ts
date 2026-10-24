@@ -16,7 +16,7 @@ export type Moment =
 // columns(room) turns it into columns; 0 columns means the stage is not drawn.
 export interface Stage {
   rows: number
-  taskMoment: (tick: number, random: () => number) => Moment | null
+  taskMoment: (tick: number, random: () => number) => Extract<Moment, { kind: 'battle' }> | null
   maxRoom: number
   rest: (idle: boolean, hop: boolean) => Rest
   columns: (room: number) => number

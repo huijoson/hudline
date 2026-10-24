@@ -20,7 +20,7 @@ export const HERO_SWORD_END = HERO_X + ATTACK[0]!.length
 export const BATTLE_MONSTER_X = HERO_SWORD_END + 2
 export const QUEST_MIN_COLUMNS = BATTLE_MONSTER_X + Math.max(...Object.values(MONSTERS).flatMap(art => art.frames.flatMap(pose => pose.sprite.map(row => row.length))))
 // Helmet, armour and legs turn gold, the shield white; skin, cape and emblem keep their colours.
-const GOLD_PALETTE = { ...HERO_PALETTE, H: HERO_PALETTE.G, h: 0xfcfcfc, d: HERO_PALETTE.g, B: HERO_PALETTE.G, b: HERO_PALETTE.g, S: 0xfcfcfc, L: HERO_PALETTE.G, D: HERO_PALETTE.g, O: HERO_PALETTE.g }
+const GOLD_PALETTE = { ...HERO_PALETTE, H: HERO_PALETTE.G, h: 0xfcfcfc, d: HERO_PALETTE.g, B: HERO_PALETTE.G, b: HERO_PALETTE.g, S: 0xfcfcfc, s: 0xfcfcfc, L: HERO_PALETTE.G, O: HERO_PALETTE.g }
 const GROUND = 0x686878
 export const BATTLE_APPROACH_TICKS = 8
 export const BATTLE_FACE_OFF_TICKS = 4

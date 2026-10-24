@@ -30,7 +30,7 @@ const FLOOR = QUEST_ROWS * 2 - 1
 // Read from the drawn sword rather than ATTACK_BLADE_LIFT, which places the fireball.
 const BLADE_ROW = ATTACK.findIndex(row => row.includes('W'))
 const GROUND = 0x686878
-const BOOT = 0x6a4020
+const BOOT = 0x3048a8
 
 // Decode the public Raster cells into the quest pixel rows.
 function pixels(cells: string) {
@@ -76,20 +76,20 @@ test('the quest hero stands near the left over a dotted ground with a matching t
   const quest = selectStage('quest')
   expect(quest.columns(quest.maxRoom)).toBe(QUEST_MIN_COLUMNS)
   const frame = pixels(quest.cells(quest.maxRoom, 0, null, 'still'))
-  // The helmet's crest is the gold Loto emblem between blue plates.
-  expect(frame[1]?.slice(HERO_X + 6, HERO_X + 11)).toEqual([0x78b8fc, 0x2068f8, 0xfcbc3c, 0x2068f8, 0x0828a0])
-  expect(frame[FLOOR]?.slice(HERO_X + 2, HERO_X + 4)).toEqual([BOOT, BOOT])
+  // The helmet's gold crest runs between blue plates.
+  expect(frame[1]?.slice(HERO_X + 7, HERO_X + 13)).toEqual([0x70a8f8, 0x2860e0, 0xfcbc3c, 0xfcbc3c, 0x2860e0, 0x102070])
+  expect(frame[FLOOR]?.slice(HERO_X + 3, HERO_X + 7)).toEqual([BOOT, BOOT, BOOT, BOOT])
   expect(frame[FLOOR]?.slice(24, 32)).toEqual([GROUND, null, GROUND, null, GROUND, null, GROUND, null])
   expect(quest.text(quest.maxRoom).flat().map(span => span.color)).toEqual(Array(QUEST_ROWS).fill(`#${HERO_PALETTE.B.toString(16).padStart(6, '0')}`))
   expect(quest.text(quest.maxRoom).map(row => row.map(span => span.text).join(''))).toEqual([
-    '  ▄     ▄██▄▄    █                            ',
-    '  ██▄ ▄███████▄  █                            ',
-    '  ▀████████████▄▄█▄▄                          ',
-    '    ██████████  ▄█▄                           ',
-    '   ▀████████▀█████████                        ',
-    '  ▄█████████ █████████                        ',
-    '  ▀█████████ █████████                        ',
-    '▄ ▄ ████▄███▄ ███████ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ',
+    '   █▄    ▄▄██▄▄    ▄█                         ',
+    '    ██▄▄████████▄▄██                          ',
+    '     ▀████████████▀                           ',
+    '      ████████████                            ',
+    '    ▄███████████▀██▄▄                         ',
+    '   ▄██████████████████                        ',
+    '   █▀ ████████████████                        ',
+    '▄ ▄ ▄▄███ ▄███▄ ▄▀█▀█ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄ ',
   ])
 })
 
@@ -260,7 +260,7 @@ test('still rest keeps standing legs during encounter and battle travel while br
   ]
   for (const { moment, tick } of samples) {
     const legs = (rest: 'still' | 'breathe') => pixels(quest.cells(quest.maxRoom, tick, moment, rest))[FLOOR]?.slice(HERO_X, HERO_X + 5)
-    expect(legs('still')).toEqual([GROUND, null, BOOT, BOOT, BOOT])
+    expect(legs('still')).toEqual([GROUND, null, GROUND, BOOT, BOOT])
     expect(legs('breathe')).not.toEqual(legs('still'))
   }
 })

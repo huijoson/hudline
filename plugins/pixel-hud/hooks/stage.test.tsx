@@ -1,5 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
+import { MONSTERS } from './quest-foes'
 import { FAMILY, KING_WIDTH, SLIME_STAGE, slimeColumns } from './slime'
 import { nextMoment } from './stage'
 import type { Moment } from './stage'
@@ -44,7 +45,7 @@ test('stage admission keeps priority and the King room requirement', () => {
 
 
 test('finished tasks pick quest battles and leave the slime stage without consuming randomness', () => {
-  const picks = [0.25, 0.67]
+  const picks = [1 / Object.keys(MONSTERS).length, 0.67]
   let pick = 0
   const random = () => picks[pick++]!
   expect(selectStage('slimes').taskMoment(12, random)).toBe(null)
